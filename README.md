@@ -218,16 +218,28 @@ Watch the MP4s: [iPad transitions](docs/media/ios-transitions.mp4) · [Android t
 ### Long press and accent selection
 
 <table>
-<tr><th>iPad · Hold and move between accents</th><th>Android phone · Hold for accents and shortcuts</th></tr>
+<tr><th>iPad · Hold and slide between accents</th><th>Android phone · Hold and slide between accents</th></tr>
 <tr>
-<td><a href="docs/media/ios-accents.mp4"><img src="docs/media/ios-accents.gif" width="360" alt="iPad long-press accent grid with the theme’s rose selection highlight" /></a></td>
-<td><a href="docs/media/android-accents.mp4"><img src="docs/media/android-accents.gif" width="360" alt="Android long-press popup showing accented letters and the number shortcut" /></a></td>
+<td><a href="docs/media/ios-accents.mp4"><img src="docs/media/ios-accents.gif" width="420" alt="Slide between iPad accent choices with Story Studio’s rose selection highlight" /></a></td>
+<td><a href="docs/media/android-accents.mp4"><img src="docs/media/android-accents.gif" width="420" alt="Android accent highlight following a continuous drag across rows and columns" /></a></td>
 </tr>
 </table>
 
 Watch the MP4s: [iPad accent selection](docs/media/ios-accents.mp4) · [Android long press](docs/media/android-accents.mp4).
 
-The previews are reduced to 10 fps; the MP4s retain the recordings’ timing. These are examples of Keyflow’s current behavior, not native-parity or physical-device performance benchmarks.
+### Space-bar trackpad
+
+<table>
+<tr><th>iPad · Hold space, then move</th><th>Android phone · Slide on space</th></tr>
+<tr>
+<td><a href="docs/media/ios-trackpad.mp4"><img src="docs/media/ios-trackpad.gif" width="420" alt="iPad key labels fading during space-bar cursor movement and returning on release" /></a></td>
+<td><a href="docs/media/android-trackpad.mp4"><img src="docs/media/android-trackpad.gif" width="420" alt="Android space retaining its pressed color while the cursor moves left and right" /></a></td>
+</tr>
+</table>
+
+Watch the MP4s: [iPad trackpad](docs/media/ios-trackpad.mp4) · [Android trackpad](docs/media/android-trackpad.mp4).
+
+The accent and trackpad GIFs use 25 fps; the transition previews use 10 fps. The MP4s retain the recordings’ timing. These are examples of Keyflow’s current behavior, not native-parity or physical-device performance benchmarks.
 
 The clips demonstrate the named interactions only. The other behaviors in the table are covered by the relevant [native and app test suites](docs/coverage.md), with device-review limits documented there.
 

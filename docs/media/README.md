@@ -1,28 +1,30 @@
 # README media
 
-The themed Keyflow captures were made on 2026-09-13 from the working tree at `c4183a6`. The four `default-*.jpg` previews reuse the earlier PR evidence described below. These demonstrate the current implementation, not a comparison against Apple/Gboard or a claim of physical-device frame pacing.
+The themed stills and transition captures were made on 2026-09-13 from the working tree at `c4183a6`. Accent and trackpad clips were recorded again on 2026-09-14 using the keyboard implementation merged in `63227a8`. The four `default-*.jpg` previews reuse the earlier PR evidence described below. These demonstrate the current implementation, not a comparison against Apple/Gboard or a claim of physical-device frame pacing.
 
-| Files                              | Device and action                                                                                                |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `ios-transitions.mp4` / `.gif`     | Stim-owned iPad Pro 11-inch (M5), iPadOS 26.5. Story Studio composer: focus, dismiss, repeat, focus again        |
-| `ios-accents.mp4` / `.gif`         | Same iPad. Hold E, then hold e and move to another accent                                                        |
-| `android-transitions.mp4` / `.gif` | Stim Android phone emulator, Android API 36, 1080 × 2400. Story Studio composer: Back dismissal, refocus, repeat |
-| `android-accents.mp4` / `.gif`     | Same Android phone. Two stationary long presses on E/e expose accents and the number shortcut                    |
-| `studio.jpg`                       | iPad Story Studio keyboard after accent input                                                                    |
-| `transparent.jpg`                  | iPad transparency example, default 35% panel and 70% keys, with typed text                                       |
-| `custom-font.jpg`                  | iPad custom-font example with bundled Quicksand SemiBold and typed text                                          |
+| Files                              | Device and action                                                                                                             |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `ios-transitions.mp4` / `.gif`     | Stim-owned iPad Pro 11-inch (M5), iPadOS 26.5. Story Studio composer: focus, dismiss, repeat, focus again                     |
+| `ios-accents.mp4` / `.gif`         | Same iPad. Two holds on e, sliding across columns and into the other accent row                                               |
+| `android-transitions.mp4` / `.gif` | Stim Android phone emulator, Android API 36, 1080 × 2400. Story Studio composer: Back dismissal, refocus, repeat              |
+| `android-accents.mp4` / `.gif`     | Same Android phone. Hold E, then slide diagonally and horizontally across accent choices                                      |
+| `ios-trackpad.mp4` / `.gif`        | Same iPad. Hold space twice and move the cursor left/right; key labels fade and return on release                             |
+| `android-trackpad.mp4` / `.gif`    | Same Android phone. One continuous space gesture moves the cursor left, right and left again while preserving pressed styling |
+| `studio.jpg`                       | iPad Story Studio keyboard after accent input                                                                                 |
+| `transparent.jpg`                  | iPad transparency example, default 35% panel and 70% keys, with typed text                                                    |
+| `custom-font.jpg`                  | iPad custom-font example with bundled Quicksand SemiBold and typed text                                                       |
 
 ## Processing
 
 - iOS recording: `xcrun simctl io <device> recordVideo --codec=h264 <file>` while XCTest drives the visible app.
-- Android recording: `adb -s <device> shell screenrecord --bit-rate 4000000 <file>` while input events drive the visible app.
+- Android recording: `adb -s <device> shell screenrecord` at 4–6 Mbps while input events drive the visible app. The new gesture recordings use one continuous touch stream sampled approximately every 16 ms; note text is entered through the visible custom keys.
 - MP4s trim preparation/navigation, remove audio, and resize to 720 px wide with H.264, CRF 24 and fast-start metadata. Playback timing is unchanged.
-- GIFs are 10 fps, 96-color previews. Transitions show the full screen at 280 px wide; accent previews crop to the bottom 45% at 360 px wide so the popup is legible.
+- Accent and trackpad GIFs are 25 fps, 128-color previews at 480 px wide. They crop the bottom 45% on iPad and 50% on Android to include the input, popup and keyboard. Existing transition GIFs remain 10 fps, 96 colors and 280 px wide. Frames are sampled from the recordings without motion interpolation or playback speed changes.
 - JPGs crop the bottom 40% of actual screenshots, resized to 900 px wide. No keys, colors, text, or backgrounds were reconstructed.
 
 The original screenshot capture actions completed successfully. This capture harness is not part of the regression-test count. These small documentation assets are outside the npm package’s `files` allowlist.
 
-To reproduce, launch the example with Stim, open Story Studio / Transparency / Custom app font, and perform the actions above. Keep media labels explicit about platform, form factor and capture processing.
+To reproduce, launch the example with Stim, open Story Studio / Transparency / Custom app font, and perform the actions above. For trackpad captures, enter a short sentence through the custom keyboard, then move the cursor in both directions on space. On iOS, hold space before moving. Keep media labels explicit about platform, form factor and capture processing.
 
 ## Default-layout previews
 
