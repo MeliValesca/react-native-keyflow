@@ -217,6 +217,87 @@ final class KeyflowRenderingTests: XCTestCase {
     wait(for: [stopped], timeout: 0.2)
   }
 
+  func testSpaceTrackpadLegendsFadeOnEntry() throws {
+    try withTrackpad { keyboard, touch, legends in
+      for legend in legends {
+        XCTAssertEqual(legend.alpha, 0)
+        let animation = try XCTUnwrap(legend.layer.animation(forKey: "opacity"), "Trackpad entry must fade instead of hiding instantly")
+        XCTAssertGreaterThan(animation.duration, 0)
+        XCTAssertLessThanOrEqual(animation.duration, 0.3)
+      }
+      var moves: [KeyflowAction] = []
+      keyboard.onAction = { moves.append($0) }
+      touch.point.x += 24
+      keyboard.touchesMoved([touch], with: nil)
+      XCTAssertEqual(moves, [.moveCursor(3)], "Fading must not block cursor movement")
+    }
+  }
+
+  func testSpaceTrackpadReleaseRestoresLegendsDuringFade() throws {
+    try withTrackpad { keyboard, touch, legends in
+      keyboard.touchesEnded([touch], with: nil)
+      for legend in legends { XCTAssertEqual(legend.alpha, 1) }
+      RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.3))
+      for legend in legends { XCTAssertEqual(legend.layer.presentation()?.opacity ?? legend.layer.opacity, 1, accuracy: 0.01) }
+    }
+  }
+
+  func testSpaceTrackpadCancellationRestoresLegends() throws {
+    try withTrackpad { keyboard, touch, legends in
+      keyboard.touchesCancelled([touch], with: nil)
+      RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.3))
+      for legend in legends { XCTAssertEqual(legend.layer.presentation()?.opacity ?? legend.layer.opacity, 1, accuracy: 0.01) }
+      XCTAssertFalse(keyboard.subviews.compactMap { $0 as? KeyflowKey }.contains { $0.hidesLegend })
+    }
+  }
+
+  private func withTrackpad(_ check: (KeyflowKeyboardView, AccentTouch, [UIView]) throws -> Void) throws {
+    try XCTSkipIf(UIAccessibility.isReduceMotionEnabled, "Fade timing requires standard motion settings")
+    let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+    let window = scene.map { UIWindow(windowScene: $0) } ?? UIWindow(frame: UIScreen.main.bounds)
+    let controller = UIViewController()
+    window.rootViewController = controller
+    window.makeKeyAndVisible()
+    defer { window.isHidden = true }
+    let keyboard = KeyflowKeyboardView()
+    keyboard.updateViewport(window.bounds.size, insets: .zero)
+    keyboard.frame = CGRect(x: 0, y: 100, width: window.bounds.width, height: keyboard.intrinsicContentSize.height)
+    controller.view.addSubview(keyboard)
+    NSLayoutConstraint.activate([
+      keyboard.leadingAnchor.constraint(equalTo: controller.view.leadingAnchor),
+      keyboard.trailingAnchor.constraint(equalTo: controller.view.trailingAnchor),
+      keyboard.topAnchor.constraint(equalTo: controller.view.topAnchor, constant: 100),
+    ])
+    window.layoutIfNeeded()
+    keyboard.layoutIfNeeded()
+    CATransaction.flush()
+    RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.03))
+    let keys = keyboard.subviews.compactMap { $0 as? KeyflowKey }
+    let letter = try XCTUnwrap(keys.first { $0.action == .text("a") })
+    let shift = try XCTUnwrap(keys.first { $0.action == .shift })
+    let space = try XCTUnwrap(keys.first { $0.action == .text(" ") })
+    func view(_ key: KeyflowKey, _ property: String) throws -> UIView {
+      try XCTUnwrap(Mirror(reflecting: key).children.first { $0.label == property }?.value as? UIView)
+    }
+    var legends = try [view(letter, "label"), view(shift, "icon")]
+    if letter.tabletAlternate != nil { legends.append(try view(letter, "padSubtitle")) }
+    CATransaction.flush()
+    for legend in legends { XCTAssertEqual(legend.alpha, 1) }
+    let touch = AccentTouch()
+    touch.point = CGPoint(x: space.frame.midX, y: space.frame.midY)
+    keyboard.touchesBegan([touch], with: nil)
+    defer { keyboard.touchesCancelled([touch], with: nil) }
+    XCTAssertTrue(space.isPressed, "Space touch must enter the pressed state")
+    // Sample immediately after the real hold changes the legend model opacity.
+    let deadline = Date(timeIntervalSinceNow: 1)
+    while !letter.hidesLegend && Date() < deadline {
+      RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.005))
+    }
+    XCTAssertTrue(letter.hidesLegend, "Space hold must activate trackpad mode")
+    CATransaction.flush()
+    try check(keyboard, touch, legends)
+  }
+
   private final class AccentTouch: UITouch {
     var point = CGPoint.zero
     override func location(in view: UIView?) -> CGPoint { point }

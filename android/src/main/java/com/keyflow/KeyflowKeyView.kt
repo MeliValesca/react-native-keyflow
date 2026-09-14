@@ -536,7 +536,7 @@ internal class KeyflowKeyView(
             sliding = true
             touchX += steps * 12 * density
             onSlide?.invoke(steps)
-            isPressed = false
+            isPressed = true
           }
         }
         MotionEvent.ACTION_UP ->

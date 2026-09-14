@@ -236,6 +236,67 @@ class KeyflowPressFeedbackTest {
     }
   }
 
+  @Test fun spaceTrackpadKeepsPressedColorUntilRelease() = assertTrackpadFeedback("flat", false)
+
+  @Test fun raisedSpaceTrackpadKeepsPressedColor() = assertTrackpadFeedback("raised", false)
+
+  @Test fun spaceTrackpadCancellationRestoresColor() = assertTrackpadFeedback("flat", true)
+
+  private fun assertTrackpadFeedback(material: String, cancel: Boolean) {
+    ActivityScenario.launch(KeyflowTestActivity::class.java).use { scenario ->
+      var clicks = 0
+      val moves = mutableListOf<Int>()
+      scenario.onActivity { activity ->
+        val key = KeyflowKeyView(activity, "space", "") { clicks++ }
+        key.onSlide = { moves += it }
+        val host = FrameLayout(activity)
+        host.addView(key, FrameLayout.LayoutParams(240, 180))
+        activity.setContentView(host)
+        key.layout(0, 0, 240, 180)
+        key.applyTheme(
+          KeyflowTheme(
+            JSONObject()
+              .put("material", material)
+              .put("keyBackground", "#17324F")
+              .put("pressedKeyBackground", "#A13FC5")
+          )
+        )
+        val normal = pixels(key)
+        val down = SystemClock.uptimeMillis()
+        fun touch(action: Int, x: Float, y: Float = 90f) {
+          MotionEvent.obtain(down, SystemClock.uptimeMillis(), action, x, y, 0).also {
+            key.dispatchTouchEvent(it)
+            it.recycle()
+          }
+        }
+        touch(MotionEvent.ACTION_DOWN, 120f)
+        val pressed = pixels(key)
+        assertFalse(normal.sameAs(pressed))
+        val step = 24 * activity.resources.displayMetrics.density
+        for ((x, y) in listOf(120f + step to 90f, key.width + step to -20f, 120f to 90f)) {
+          touch(MotionEvent.ACTION_MOVE, x, y)
+          assertTrue("Space must remain pressed while moving the cursor", key.isPressed)
+          val active = pixels(key)
+          assertTrue(
+            "Trackpad must keep the configured pressed face in $material",
+            pressed.sameAs(active),
+          )
+          active.recycle()
+        }
+        assertTrue("The gesture must actually move the cursor", moves.isNotEmpty())
+        touch(if (cancel) MotionEvent.ACTION_CANCEL else MotionEvent.ACTION_UP, 120f)
+        assertFalse(key.isPressed)
+        val released = pixels(key)
+        assertTrue("Restore the resting color immediately", normal.sameAs(released))
+        normal.recycle()
+        pressed.recycle()
+        released.recycle()
+      }
+      SystemClock.sleep(100)
+      scenario.onActivity { assertEquals("Cursor movement must not insert a space", 0, clicks) }
+    }
+  }
+
   private fun pixels(key: KeyflowKeyView): Bitmap =
     Bitmap.createBitmap(key.width, key.height, Bitmap.Config.ARGB_8888).also {
       key.background.setBounds(0, 0, key.width, key.height)
