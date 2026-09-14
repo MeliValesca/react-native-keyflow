@@ -25,7 +25,7 @@ Real iPad example captures. These themes use the public API; Story Studio is exa
 
 ## Get started
 
-The package is not published to npm yet. Run the example from this repository:
+The first npm release is being prepared. Until it is published, install a [local package in your app](docs/api.md#compatibility-and-local-installation), or run the example from this repository:
 
 ```sh
 git clone https://github.com/MeliValesca/react-native-keyflow.git
@@ -39,7 +39,7 @@ stim ios
 # Or: stim android
 ```
 
-The example uses **Expo SDK 57, React Native 0.86.3, and React 19.2.3**. Keyflow requires Expo Modules and a native development or production build; Expo Go and web are not supported. The example targets iOS 16.4+ and Android API 24+. See [compatibility and local installation](docs/api.md#compatibility-and-local-installation).
+The example uses **Expo SDK 57, React Native 0.86.3, and React 19.2.3**. Keyflow requires Expo Modules and a native development or production build; Expo Go is not supported. On web, render your own fallback instead of `KeyflowTextInput`; see [web fallback](docs/api.md#web-fallback). The example targets iOS 16.4+ and Android API 24+. See [compatibility and local installation](docs/api.md#compatibility-and-local-installation).
 
 ### Your first input
 
@@ -301,7 +301,7 @@ Use `keyboardMode="system"` for the installed keyboard and whatever features its
 ### Integration limits
 
 - `KeyflowTextInput` is single-line and native-owned. It has `defaultValue`, not a controlled `value`, and does not expose the complete React Native `TextInput` API—including secure-entry and semantic/AutoFill configuration props.
-- Supported preview peers are Expo SDK 57, React Native 0.86.x (0.86.3+) and React 19.2.3+. Earlier combinations are not claimed as supported. A native build with Expo Modules is required; Expo Go and web are unsupported.
+- Supported preview peers are Expo SDK 57, React Native 0.86.x (0.86.3+) and React 19.2.3+. Earlier combinations are not claimed as supported. A native build with Expo Modules is required; Expo Go is unsupported. On web, rendering `KeyflowTextInput` throws; provide your own [fallback](docs/api.md#web-fallback).
 - Keyflow is an **in-app keyboard component**, not a system-wide keyboard extension/IME that users can install for other apps.
 
 See [automated coverage and remaining manual checks](docs/coverage.md) for the precise boundary of the CI guarantees.

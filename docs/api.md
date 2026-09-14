@@ -22,6 +22,24 @@ npm install /tmp/react-native-keyflow.tgz
 
 Use your app’s package manager if it differs, then rebuild its native app. To generate the standalone example repository instead, run `corepack yarn example:export` from Keyflow.
 
+## Web fallback
+
+The custom keyboard supports iOS and Android only. Importing the component is guarded against loading its native view on web, but rendering it on an unsupported platform throws. Choose your own fallback before rendering:
+
+```tsx
+import { Platform, TextInput } from 'react-native';
+import { KeyflowTextInput } from 'react-native-keyflow';
+
+export function CrossPlatformInput() {
+  if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+    return <TextInput placeholder="Start typing…" />;
+  }
+  return <KeyflowTextInput placeholder="Start typing…" />;
+}
+```
+
+The fallback uses the browser’s normal input behavior; Keyflow’s keyboard theme does not apply to it.
+
 ## Input API
 
 ```tsx
@@ -81,6 +99,8 @@ await input.current?.setKeyboardMode('system');
 await input.current?.focus();
 ```
 
+These promises resolve after the native command is applied, not after the keyboard’s presentation or dismissal animation finishes. Use frame updates and the expected visible state when coordinating UI or writing tests.
+
 Await `setKeyboardMode` before focusing. A mode change preserves text and selection, cancels active holds, and resets the custom keyboard page. If `keyboardMode` is controlled, keep its state synchronized through `onKeyboardModeChange`.
 
 System mode delegates layout, languages, composition and settings to the user’s installed keyboard. Its visibility and floating/hardware-keyboard configuration remain controlled by the OS and IME. Keyflow’s colors and fonts cannot reskin that system keyboard.
@@ -95,6 +115,7 @@ Use `KeyflowAvoidingView` for the shared iOS/Android integration, with the activ
   keyboardVerticalOffset={headerOffset}
   enabled
   style={{ flex: 1 }}
+>
   {/* Your content and KeyflowTextInput with onKeyboardFrameChange={setFrame} */}
 </KeyflowAvoidingView>
 ```
@@ -137,14 +158,16 @@ The current native implementations are not fully aligned: Android’s active Cap
 ### Surface and material
 
 ```tsx
-keyboardTheme={{
-  keyboard: {
-    background: '#16324F',
-    backgroundOpacity: 0.35,
-    keyOpacity: 0.7,
-    material: { type: 'raised', depth: 4, shadowColor: '#102030' },
-  },
-}}
+<KeyflowTextInput
+  keyboardTheme={{
+    keyboard: {
+      background: '#16324F',
+      backgroundOpacity: 0.35,
+      keyOpacity: 0.7,
+      material: { type: 'raised', depth: 4, shadowColor: '#102030' },
+    },
+  }}
+/>
 ```
 
 - `backgroundOpacity` (0–1) replaces the panel color’s alpha.
