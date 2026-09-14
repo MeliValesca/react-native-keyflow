@@ -4,7 +4,7 @@
 
 The device suite retains the pre-release test inventory recorded in
 [`baseline-tests.json`](../scripts/ci/baseline-tests.json),
-plus four Android regressions for disappearing glyphs, eight for Android modifier states, five for iOS modifier states, three iOS held-delete cases, and nine space/trackpad feedback cases. The tests run against the
+plus four Android regressions for disappearing glyphs, eight for Android modifier states, five for iOS modifier states, three iOS held-delete cases, and nine space/trackpad feedback cases and one iPad stationary currency-hold case. The tests run against the
 current keyboard implementation. There is no optional expanded suite or runtime
 filter hiding additional cases.
 
@@ -12,12 +12,12 @@ filter hiding additional cases.
 | -------------- | ------------------------------------------------------------- |
 | Android phone  | 48 original + 4 glyph + 8 Shift + 3 trackpad regressions = 63 |
 | Android tablet | 48 original + 4 glyph + 8 Shift + 3 trackpad regressions = 63 |
-| iPhone         | 49 rendering + 60 interaction cases                           |
-| iPad           | 49 rendering + 60 interaction cases                           |
+| iPhone         | 50 rendering + 60 interaction cases                           |
+| iPad           | 50 rendering + 60 interaction cases                           |
 
 `scripts/ci/baseline-tests.json` records the original inventory for verification.
 A fast workflow test checks that the actual device sources contain precisely that
-inventory plus the seventeen retained glyph/modifier cases plus three held-delete lifecycle cases and nine space/trackpad feedback cases. It does not select or skip tests.
+inventory plus the seventeen retained glyph/modifier cases plus three held-delete lifecycle cases and nine space/trackpad feedback cases and one iPad stationary currency-hold case. It does not select or skip tests.
 
 iOS coverage includes typing, symbol pages, long presses, accent selection,
 number pads, tablet layouts, customization, transparency and transition diagnostics.
@@ -83,3 +83,5 @@ harness-only changes, run focused local regressions and use GitHub to validate i
 runner-specific conditions. Broaden local testing when production keyboard changes
 or a concrete failure warrants it. Evidence is saved under `artifacts/` and is not
 published with the library.
+
+The iPad dollar UI comparison explicitly slides into the currency popup before release: Apple's stationary dollar hold can show a highlighted choice yet commit nothing on CI. The non-empty native result and exact Keyflow output comparison remain required. A separate rendering regression preserves coverage of Keyflow's stationary dollar hold and release.

@@ -356,13 +356,29 @@ final class KeyflowRenderingTests: XCTestCase {
     override func location(in view: UIView?) -> CGPoint { point }
   }
 
-  private func withAccentPopup(_ check: (KeyflowKeyboardView, AccentTouch, [KeyflowKey], UIView) throws -> Void) throws {
+  func testTabletDollarHoldCommitsInitialChoiceWithoutDrag() throws {
+    try XCTSkipIf(UIDevice.current.userInterfaceIdiom != .pad, "iPad currency popup")
+    try withAccentPopup(value: "$") { keyboard, touch, choices, _ in
+      XCTAssertEqual(choices.first { $0.isPressed }?.action, .text("¢"))
+      var actions: [KeyflowAction] = []
+      keyboard.onAction = { actions.append($0) }
+      keyboard.touchesEnded([touch], with: nil)
+      XCTAssertEqual(actions, [.text("¢")], "Stationary release must commit the initial highlighted currency")
+    }
+  }
+
+  private func withAccentPopup(value: String = "e", _ check: (KeyflowKeyboardView, AccentTouch, [KeyflowKey], UIView) throws -> Void) throws {
     let keyboard = KeyflowKeyboardView()
     let screen = UIScreen.main.bounds.size
     keyboard.updateViewport(screen, insets: .zero)
     keyboard.frame = CGRect(x: 0, y: 0, width: screen.width, height: keyboard.intrinsicContentSize.height)
     keyboard.layoutIfNeeded()
-    let source = try XCTUnwrap(keyboard.subviews.compactMap { $0 as? KeyflowKey }.first { $0.action == .text("e") })
+    if value == "$" {
+      let numbers = try XCTUnwrap(keyboard.subviews.compactMap { $0 as? KeyflowKey }.first { $0.action == .numbers })
+      XCTAssertTrue(numbers.accessibilityActivate())
+      keyboard.layoutIfNeeded()
+    }
+    let source = try XCTUnwrap(keyboard.subviews.compactMap { $0 as? KeyflowKey }.first { $0.action == .text(value) })
     let touch = AccentTouch()
     touch.point = CGPoint(x: source.frame.midX, y: source.frame.midY)
     keyboard.touchesBegan([touch], with: nil)
