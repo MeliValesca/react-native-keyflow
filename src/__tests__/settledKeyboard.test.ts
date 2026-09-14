@@ -36,14 +36,21 @@ test('waits for presentation and then stable measurements', async () => {
   expect(await result).toEqual(metrics);
 });
 
-test('returns stable overlapping geometry so the caller can fail the layout check', async () => {
+test('persistent overlap remains a failure after the bounded settling deadline', async () => {
   const overlapping = { ...metrics, editorBottom: 600 };
   const result = settledKeyboard(async () => ({
     visible: true,
     metrics: overlapping,
   }));
-  await jest.advanceTimersByTimeAsync(600);
+  let finished = false;
+  void result.then(() => {
+    finished = true;
+  });
+  await jest.advanceTimersByTimeAsync(4900);
+  expect(finished).toBe(false);
+  await jest.advanceTimersByTimeAsync(100);
   expect(await result).toEqual(overlapping);
+  expect((await result).editorBottom! > (await result).screenY! + 1).toBe(true);
 });
 
 test('fails when no visible keyboard arrives', async () => {
@@ -64,4 +71,44 @@ test('does not finish before the baseline presentation allowance', async () => {
   expect(finished).toBe(false);
   await jest.advanceTimersByTimeAsync(100);
   expect(await result).toEqual(metrics);
+});
+
+test('waits through a stable CI overlap until delayed avoidance settles', async () => {
+  let bottom = 584.3333435058594;
+  const read = jest.fn(async () => ({
+    visible: true,
+    metrics: { ...metrics, screenY: 581, editorBottom: bottom },
+  }));
+  const result = settledKeyboard(read);
+  let finished = false;
+  void result.then(() => {
+    finished = true;
+  });
+  await jest.advanceTimersByTimeAsync(1200);
+  expect(finished).toBe(false);
+  bottom = 569;
+  await jest.advanceTimersByTimeAsync(200);
+  expect(finished).toBe(false);
+  await jest.advanceTimersByTimeAsync(200);
+  expect((await result).editorBottom).toBe(569);
+});
+
+test('one clear sample followed by overlap cannot pass', async () => {
+  let bottom = 600;
+  const result = settledKeyboard(async () => ({
+    visible: true,
+    metrics: { ...metrics, editorBottom: bottom },
+  }));
+  let finished = false;
+  void result.then(() => {
+    finished = true;
+  });
+  await jest.advanceTimersByTimeAsync(800);
+  bottom = 500;
+  await jest.advanceTimersByTimeAsync(100);
+  bottom = 600;
+  await jest.advanceTimersByTimeAsync(1000);
+  expect(finished).toBe(false);
+  await jest.advanceTimersByTimeAsync(3100);
+  expect((await result).editorBottom).toBe(600);
 });
