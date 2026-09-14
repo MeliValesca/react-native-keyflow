@@ -5,20 +5,13 @@ public class KeyflowModule: Module {
     Name("Keyflow")
     View(KeyflowInputView.self) {
       Events(
-        "onKeyflowTextChange", "onKeyflowSubmit", "onKeyflowModeChange", "onKeyflowLanguageChange")
-      Prop("defaultValue", "") { (view: KeyflowInputView, value: String) in
-        view.initialValue = value
+        "onKeyflowModeChange", "onKeyflowLanguageChange", "onKeyflowFrameChange")
+      AsyncFunction("attachInput") { (view: KeyflowInputView, tag: Int?) in
+        try view.attachInput(tag)
       }
-      Prop("placeholder", "") { (view: KeyflowInputView, value: String) in
-        view.setPlaceholder(value)
+      AsyncFunction("updateInputContext") { (view: KeyflowInputView) in
+        view.updateInputContext()
       }
-      Prop("inputAccessibilityLabel", "Text input") { (view: KeyflowInputView, value: String) in
-        view.setInputLabel(value)
-      }
-      Prop("autoFocus", false) { (view: KeyflowInputView, value: Bool) in view.autoFocus = value }
-      Prop("autoCorrect", true) { (view: KeyflowInputView, value: Bool) in view.autoCorrect = value
-      }
-      Prop("editable", true) { (view: KeyflowInputView, value: Bool) in view.setEnabled(value) }
       Prop("hapticsEnabled", false) { (view: KeyflowInputView, value: Bool) in
         view.setHaptics(value)
       }

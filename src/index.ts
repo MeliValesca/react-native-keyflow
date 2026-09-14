@@ -17,12 +17,13 @@ export type {
   KeyboardMaterialOverride,
 } from './types';
 export type { KeyflowLanguage } from './languages';
-export { KeyflowTextInput } from './KeyflowTextInput';
+export { KeyflowKeyboard } from './KeyflowKeyboard';
 export type {
   KeyflowKeyboardType,
-  KeyflowTextInputProps,
-  KeyflowTextInputRef,
-} from './KeyflowTextInput';
+  KeyflowKeyboardProps,
+  KeyflowKeyboardRef,
+  KeyflowInputBindings,
+} from './KeyflowKeyboard';
 
 export { KeyflowAvoidingView } from './KeyflowAvoidingView';
 export type { KeyflowAvoidingViewProps } from './KeyflowAvoidingView';

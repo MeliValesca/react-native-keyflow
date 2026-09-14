@@ -3,12 +3,14 @@
 Keyflow's custom keyboard supports English and French, with QWERTY and AZERTY templates. Non-Latin keyboards and their composition engines are outside the custom keyboard's scope. This does not restrict pasted text or the real system keyboard.
 
 ```tsx
-<KeyflowTextInput
+import { TextInput } from 'react-native';
+<KeyflowKeyboard
   keyboardLanguages={[{ language: 'en' }, { language: 'fr', layout: 'azerty' }]}
   onKeyboardLanguageChange={({ language, layout }) => {
     // Optional: update your app's language indicator.
   }}
-/>
+  renderInput={(bindings) => <TextInput {...bindings} />}
+/>;
 ```
 
 The globe key cycles the configured languages. It appears only when both languages are available and is styled through `specialKeys`, including its icon and pressed state. Switching preserves text, selection, and focus, resets temporary modifier state. It does not reopen the keyboard. The selection is retained for the lifetime of the input; it is not stored as a device keyboard preference. Number/phone pads do not show a language switcher.

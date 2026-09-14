@@ -1,3 +1,4 @@
+import { ExampleTextInput } from '../components/common/ExampleTextInput';
 import { getKeyboardMetrics } from 'react-native-keyflow/testing';
 import { useCallback, useRef, useState } from 'react';
 import {
@@ -11,10 +12,10 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { KeyflowAvoidingView, KeyflowTextInput } from 'react-native-keyflow';
+import { KeyflowAvoidingView, KeyflowKeyboard } from 'react-native-keyflow';
 import type {
   KeyflowKeyboardFrame,
-  KeyflowTextInputRef,
+  KeyflowKeyboardRef,
 } from 'react-native-keyflow';
 import { ComparisonTabs } from '../components/common/ComparisonTabs';
 import { fontChoices, fontDemo as theme } from '../constants/fontDemo';
@@ -25,7 +26,7 @@ export function CustomFontScreen() {
   const [choice, setChoice] =
     useState<(typeof fontChoices)[number]['value']>('semibold');
   const profile = fontChoices.find((font) => font.value === choice)!;
-  const input = useRef<KeyflowTextInputRef>(null);
+  const input = useRef<KeyflowKeyboardRef>(null);
   const scroll = useRef<ScrollView>(null);
   const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
   const [text, setText] = useState('');
@@ -224,23 +225,29 @@ export function CustomFontScreen() {
         )}
       </ScrollView>
       <View style={{ ...horizontal, paddingBottom: 12 }}>
-        <KeyflowTextInput
+        <KeyflowKeyboard
           ref={input}
-          autoFocus
-          placeholder="Try your app’s font…"
-          inputAccessibilityLabel="Custom font input"
           keyboardAppearance="light"
           keyboardTheme={{ font: { family: profile.family } }}
-          onChangeText={setText}
           onKeyboardFrameChange={setFrame}
-          onSubmitEditing={() => {
-            void input.current?.blur();
-          }}
-          style={{
-            height: theme.inputHeight,
-            backgroundColor: theme.paper,
-            borderRadius: 12,
-          }}
+          renderInput={(bindings) => (
+            <ExampleTextInput
+              {...bindings}
+              autoFocus
+              placeholder="Try your app’s font…"
+              accessibilityLabel="Custom font input"
+              keyboardAppearance="light"
+              onChangeText={setText}
+              onSubmitEditing={() => {
+                void input.current?.blur();
+              }}
+              style={{
+                height: theme.inputHeight,
+                backgroundColor: theme.paper,
+                borderRadius: 12,
+              }}
+            />
+          )}
         />
       </View>
     </>

@@ -1,3 +1,4 @@
+import { ExampleTextInput } from '../components/common/ExampleTextInput';
 import { useCustomizationTests } from './useCustomizationTests';
 import { useFonts } from 'expo-font';
 import { useHeaderHeight } from '@react-navigation/elements';
@@ -14,7 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   KeyflowAvoidingView,
-  KeyflowTextInput,
+  KeyflowKeyboard,
   createKeyboardTheme,
 } from 'react-native-keyflow';
 import type { KeyboardThemeOverrides } from 'react-native-keyflow';
@@ -120,19 +121,25 @@ export function CustomizationScreen() {
             )}
           </View>
           <View style={{ flexDirection: 'row', gap: 4 }}>
-            <KeyflowTextInput
+            <KeyflowKeyboard
               ref={input}
               keyboardType={type}
               keyboardTheme={theme}
               onKeyboardFrameChange={setFrame}
-              inputAccessibilityLabel="Font customization input"
-              placeholder="Try your keyboard…"
-              style={{
-                flex: 1,
-                height: landscape ? 36 : 44,
-                backgroundColor: '#FFFFFF',
-                borderRadius: 8,
-              }}
+              renderInput={(bindings) => (
+                <ExampleTextInput
+                  {...bindings}
+                  keyboardType={type}
+                  accessibilityLabel="Font customization input"
+                  placeholder="Try your keyboard…"
+                  style={{
+                    flex: 1,
+                    height: landscape ? 36 : 44,
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: 8,
+                  }}
+                />
+              )}
             />
             <Pressable
               testID="customization-probe"

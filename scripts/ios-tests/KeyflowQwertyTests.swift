@@ -167,7 +167,7 @@ final class KeyflowQwertyTests: XCTestCase {
       capture(native ? "apple-submit" : "keyflow-submit")
     }
   }
-  func testAllLettersMatchApple() {
+  func testAllLettersMatchApple() throws {
     for native in [true, false] {
       mode(native); reset("Empty")
       for letter in "qwertyuiopasdfghjklzxcvbnm" {
@@ -175,6 +175,14 @@ final class KeyflowQwertyTests: XCTestCase {
         key([value, value.uppercased()]).tap()
       }
       XCTAssertEqual(text, "Qwertyuiopasdfghjklzxcvbnm")
+      if !native {
+        XCTAssertFalse(app.buttons["assistantPaste:forEvent:"].exists, "UIKit must not add its editing toolbar above Keyflow")
+        app.buttons["Inspect keyboard state"].tap()
+        let state = try readInteractionState()
+        let inputBottom = try XCTUnwrap(state["editorBottom"] as? Double)
+        let keyboardTop = try XCTUnwrap(state["screenY"] as? Double)
+        XCTAssertLessThanOrEqual(inputBottom, keyboardTop + 1, "The autofocus input must remain above the attached keyboard")
+      }
       capture(native ? "apple-alphabet" : "keyflow-alphabet")
     }
   }

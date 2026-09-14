@@ -1,3 +1,4 @@
+import { ExampleTextInput } from '../components/common/ExampleTextInput';
 import { getKeyboardMetrics } from 'react-native-keyflow/testing';
 import { useRef, useState } from 'react';
 import {
@@ -10,10 +11,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
-import { KeyflowTextInput, KeyflowAvoidingView } from 'react-native-keyflow';
+import { KeyflowKeyboard, KeyflowAvoidingView } from 'react-native-keyflow';
 import type {
   KeyflowKeyboardFrame,
-  KeyflowTextInputRef,
+  KeyflowKeyboardRef,
 } from 'react-native-keyflow';
 import { ComparisonTabs } from '../components/common/ComparisonTabs';
 
@@ -22,7 +23,7 @@ import { ComparisonTabs } from '../components/common/ComparisonTabs';
 const Content = Platform.OS === 'android' ? View : ScrollView;
 
 export function LanguageScreen() {
-  const input = useRef<KeyflowTextInputRef>(null);
+  const input = useRef<KeyflowKeyboardRef>(null);
   const [source, setSource] = useState<'example' | 'device'>('example');
   const [layout, setLayout] = useState<'azerty' | 'qwerty'>('azerty');
   const [mode, setMode] = useState<'custom' | 'system'>('custom');
@@ -127,11 +128,8 @@ export function LanguageScreen() {
               flex: landscape ? 2 : undefined,
             }}
           >
-            <KeyflowTextInput
+            <KeyflowKeyboard
               ref={input}
-              inputAccessibilityLabel="Language input"
-              placeholder="Hello / Bonjour…"
-              autoCorrect={false}
               keyboardLanguages={
                 source === 'device'
                   ? undefined
@@ -145,12 +143,20 @@ export function LanguageScreen() {
                   `${value.language} · ${value.layout.toUpperCase()}`,
                 )
               }
-              style={{
-                flex: 1,
-                height: 44,
-                backgroundColor: '#FFFFFF',
-                borderRadius: 8,
-              }}
+              renderInput={(bindings) => (
+                <ExampleTextInput
+                  {...bindings}
+                  accessibilityLabel="Language input"
+                  placeholder="Hello / Bonjour…"
+                  autoCorrect={false}
+                  style={{
+                    flex: 1,
+                    height: 44,
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: 8,
+                  }}
+                />
+              )}
             />
             <Pressable
               accessibilityRole="button"

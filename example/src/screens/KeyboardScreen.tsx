@@ -1,3 +1,4 @@
+import { ExampleTextInput } from '../components/common/ExampleTextInput';
 import { studioTheme } from '../themes/studio';
 import { ComparisonControls } from '../components/ComparisonControls';
 import { Submission } from '../components/Submission';
@@ -16,10 +17,10 @@ import {
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { KeyflowTextInput, KeyflowAvoidingView } from 'react-native-keyflow';
+import { KeyflowKeyboard, KeyflowAvoidingView } from 'react-native-keyflow';
 import type {
   KeyflowKeyboardFrame,
-  KeyflowTextInputRef,
+  KeyflowKeyboardRef,
 } from 'react-native-keyflow';
 import type { Routes } from '../App';
 export const KeyboardScreen = observer(function KeyboardScreenContent({
@@ -38,7 +39,7 @@ export const KeyboardScreen = observer(function KeyboardScreenContent({
         animated: false,
       });
   };
-  const input = useRef<KeyflowTextInputRef>(null);
+  const input = useRef<KeyflowKeyboardRef>(null);
   const [mode, setMode] = useState<'custom' | 'system'>('custom');
   const switchRequest = useRef(0);
   const switchMode = async (next: 'custom' | 'system') => {
@@ -150,16 +151,12 @@ export const KeyboardScreen = observer(function KeyboardScreenContent({
               inputY.current = event.nativeEvent.layout.y;
             }}
           >
-            <KeyflowTextInput
+            <KeyflowKeyboard
               ref={input}
-              placeholder="Write something…"
-              inputAccessibilityLabel="Try Keyflow"
               keyboardMode={mode}
               keyboardAppearance={dark ? 'dark' : 'light'}
               keyboardTheme={game ? studioTheme : undefined}
               hapticsEnabled={haptics}
-              onChangeText={setText}
-              onSubmitEditing={setSubmitted}
               onKeyboardModeChange={setMode}
               onKeyboardFrameChange={(next) => {
                 setFrame(next);
@@ -167,11 +164,23 @@ export const KeyboardScreen = observer(function KeyboardScreenContent({
                   revealInput();
                 }
               }}
-              style={{
-                height: 54,
-                backgroundColor: '#FFFFFF',
-                borderRadius: 12,
-              }}
+              renderInput={(bindings) => (
+                <ExampleTextInput
+                  {...bindings}
+                  placeholder="Write something…"
+                  accessibilityLabel="Try Keyflow"
+                  keyboardAppearance={dark ? 'dark' : 'light'}
+                  onChangeText={setText}
+                  onSubmitEditing={(event) =>
+                    setSubmitted(event.nativeEvent.text)
+                  }
+                  style={{
+                    height: 54,
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: 12,
+                  }}
+                />
+              )}
             />
           </View>
           <Text style={{ color: foreground }}>

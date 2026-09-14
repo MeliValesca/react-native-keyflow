@@ -28,13 +28,19 @@ The custom keyboard supports iOS and Android only. Importing the component is gu
 
 ```tsx
 import { Platform, TextInput } from 'react-native';
-import { KeyflowTextInput } from 'react-native-keyflow';
+import { KeyflowKeyboard } from 'react-native-keyflow';
 
 export function CrossPlatformInput() {
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
     return <TextInput placeholder="Start typing…" />;
   }
-  return <KeyflowTextInput placeholder="Start typing…" />;
+  return (
+    <KeyflowKeyboard
+      renderInput={(bindings) => (
+        <TextInput {...bindings} placeholder="Start typing…" />
+      )}
+    />
+  );
 }
 ```
 
@@ -43,50 +49,80 @@ The fallback uses the browser’s normal input behavior; Keyflow’s keyboard th
 ## Input API
 
 ```tsx
+import { TextInput } from 'react-native';
 import { useRef, useState } from 'react';
-import { KeyflowTextInput } from 'react-native-keyflow';
-import type { KeyflowTextInputRef } from 'react-native-keyflow';
+import { KeyflowKeyboard } from 'react-native-keyflow';
+import type { KeyflowKeyboardRef } from 'react-native-keyflow';
 
 export function Input() {
-  const input = useRef<KeyflowTextInputRef>(null);
+  const input = useRef<KeyflowKeyboardRef>(null);
   const [mode, setMode] = useState<'custom' | 'system'>('custom');
 
   return (
-    <KeyflowTextInput
+    <KeyflowKeyboard
       ref={input}
-      defaultValue="Hello"
       keyboardMode={mode}
       onKeyboardModeChange={setMode}
-      onChangeText={(text) => console.log(text)}
-      onSubmitEditing={(text) => console.log('Submitted:', text)}
-      style={{ height: 52 }}
+      renderInput={(bindings) => (
+        <TextInput
+          {...bindings}
+          defaultValue="Hello"
+          onChangeText={(text) => console.log(text)}
+          onSubmitEditing={(event) =>
+            ((text) => console.log('Submitted:', text))(event.nativeEvent.text)
+          }
+          style={{ height: 52 }}
+        />
+      )}
     />
   );
 }
 ```
 
-| Prop                              | Behavior                                                                                                                             |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `defaultValue`                    | Initial text, read when the native editor is created                                                                                 |
-| `placeholder`                     | Empty-input prompt                                                                                                                   |
-| `autoFocus`, `editable`           | Focus and editing controls                                                                                                           |
-| `inputAccessibilityLabel`         | Accessible name of the editor                                                                                                        |
-| `keyboardMode`                    | `custom` (default) or `system`                                                                                                       |
-| `keyboardAppearance`              | `light` or `dark`; otherwise follows device appearance                                                                               |
-| `keyboardType`                    | `default`, `number-pad`, `decimal-pad`, `phone-pad`                                                                                  |
-| `keyboardTheme`                   | Partial overrides or a resolved theme                                                                                                |
-| `keyboardLanguages`               | English/French language and QWERTY/AZERTY template entries                                                                           |
-| `hapticsEnabled`                  | Optional key feedback, off by default                                                                                                |
-| `showSecondaryKeyLabels`          | Android’s 1–0 key legends, on by default; hiding them preserves long-press shortcuts. This prop does not hide iPad alternate legends |
-| `autoCorrect`                     | System-keyboard hint, true by default; custom suggestions/replacements remain disabled                                               |
-| `onChangeText`, `onSubmitEditing` | Receive the current text as a string                                                                                                 |
-| `onKeyboardFrameChange`           | Frame callback for the shared avoiding-view integration                                                                              |
-| `onKeyboardModeChange`            | Reports custom/system mode changes                                                                                                   |
-| `onKeyboardLanguageChange`        | Reports `{ language, layout }`                                                                                                       |
-| `onKeyboardHeightChange`          | Android custom panel height; prefer the frame callback for new integrations                                                          |
-| `style`                           | Outer view layout, not keyboard or native editor typography                                                                          |
+| Prop                       | Behavior                                                                                                                             |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `renderInput`              | Required callback rendering your single-line `TextInput`; spread the supplied bindings onto it                                       |
+| `keyboardMode`             | `custom` (default) or `system`                                                                                                       |
+| `keyboardAppearance`       | `light` or `dark`; otherwise follows device appearance                                                                               |
+| `keyboardType`             | `default`, `number-pad`, `decimal-pad`, `phone-pad`                                                                                  |
+| `keyboardTheme`            | Partial overrides or a resolved theme                                                                                                |
+| `keyboardLanguages`        | English/French language and QWERTY/AZERTY template entries                                                                           |
+| `hapticsEnabled`           | Optional key feedback, off by default                                                                                                |
+| `showSecondaryKeyLabels`   | Android’s 1–0 key legends, on by default; hiding them preserves long-press shortcuts. This prop does not hide iPad alternate legends |
+| `onKeyboardFrameChange`    | Frame callback for the shared avoiding-view integration                                                                              |
+| `onKeyboardModeChange`     | Reports custom/system mode changes                                                                                                   |
+| `onKeyboardLanguageChange` | Reports `{ language, layout }`                                                                                                       |
+| `onKeyboardHeightChange`   | Android custom panel height; prefer the frame callback for new integrations                                                          |
+| `style`                    | Wrapper layout; set input typography, padding, borders and colors on your own input                                                  |
 
-The native editor owns its text and selection. There is no controlled `value` prop. Updating `defaultValue` after mount does not reset it; remount with a new React `key` to reset text. This is a single-line input; return submits and dismisses.
+The app owns its editor and text. Use ordinary React Native `TextInput` props such as `value`, `defaultValue`, `onChangeText`, `onSubmitEditing`, `placeholderTextColor`, `accessibilityLabel`, `editable`, and `submitBehavior` directly on the rendered input. Keyflow adds no input height, padding, border, color, or font. `onSubmitEditing` receives the standard React Native event, not a string.
+
+`renderInput` receives `ref`, `showSoftInputOnFocus`, `onFocus`, and `onSelectionChange`. Forward all four to the actual single-line `TextInput`. The ref allows native keyboard attachment; the callbacks keep focus and cursor context synchronized. `showSoftInputOnFocus` reserves presentation for Keyflow, including switching to system mode. Do not replace that binding. For custom components, forward the ref to the underlying `TextInput`, not a surrounding `View`.
+
+Compose your own focus/selection callbacks with the bindings:
+
+```tsx
+<KeyflowKeyboard
+  renderInput={(bindings) => (
+    <MyTextInput
+      {...bindings}
+      value={text}
+      onChangeText={setText}
+      onFocus={(event) => {
+        bindings.onFocus?.(event);
+        setFocused(true);
+      }}
+      onSelectionChange={(event) => {
+        bindings.onSelectionChange?.(event);
+        setSelection(event.nativeEvent.selection);
+      }}
+      style={styles.input}
+    />
+  )}
+/>
+```
+
+The wrapper's `keyboardType` chooses the custom layout. Set `keyboardType` on your input too when you want a matching system keyboard. Your input's `keyboardAppearance` controls system mode; the wrapper's appearance controls the custom keyboard. Multiline inputs are rejected. Remounting the rendered input with a new `key` reattaches the keyboard to the new editor.
 
 ### Imperative methods
 
@@ -116,7 +152,7 @@ Use `KeyflowAvoidingView` for the shared iOS/Android integration, with the activ
   enabled
   style={{ flex: 1 }}
 >
-  {/* Your content and KeyflowTextInput with onKeyboardFrameChange={setFrame} */}
+  {/* Your content and KeyflowKeyboard with onKeyboardFrameChange={setFrame} */}
 </KeyflowAvoidingView>
 ```
 
@@ -158,7 +194,8 @@ The current native implementations are not fully aligned: Android’s active Cap
 ### Surface and material
 
 ```tsx
-<KeyflowTextInput
+import { TextInput } from 'react-native';
+<KeyflowKeyboard
   keyboardTheme={{
     keyboard: {
       background: '#16324F',
@@ -167,7 +204,8 @@ The current native implementations are not fully aligned: Android’s active Cap
       material: { type: 'raised', depth: 4, shadowColor: '#102030' },
     },
   }}
-/>
+  renderInput={(bindings) => <TextInput {...bindings} />}
+/>;
 ```
 
 - `backgroundOpacity` (0–1) replaces the panel color’s alpha.

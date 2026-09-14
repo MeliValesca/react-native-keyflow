@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import type {
   KeyflowKeyboardFrame,
-  KeyflowTextInputRef,
+  KeyflowKeyboardRef,
 } from 'react-native-keyflow';
 
 type Engine = 'custom' | 'system' | 'baseline';
@@ -35,7 +35,7 @@ export function useTransitionTests() {
   );
   const [running, setRunning] = useState(false);
   const alive = useRef(true);
-  const input = useRef<KeyflowTextInputRef>(null);
+  const input = useRef<KeyflowKeyboardRef>(null);
   const baseline = useRef<TextInput>(null);
   const composer = useRef<View>(null);
   const record = (next: KeyflowKeyboardFrame) => {

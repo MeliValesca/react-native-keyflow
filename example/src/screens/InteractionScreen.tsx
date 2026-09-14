@@ -1,13 +1,14 @@
+import { ExampleTextInput } from '../components/common/ExampleTextInput';
 import { settledKeyboardMode } from '../testing/settledKeyboardMode';
 import { getKeyboardMetrics } from 'react-native-keyflow/testing';
 import { useCallback, useRef, useState } from 'react';
 import { Platform, Pressable, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
-import { KeyflowAvoidingView, KeyflowTextInput } from 'react-native-keyflow';
+import { KeyflowAvoidingView, KeyflowKeyboard } from 'react-native-keyflow';
 import type {
   KeyflowKeyboardFrame,
-  KeyflowTextInputRef,
+  KeyflowKeyboardRef,
 } from 'react-native-keyflow';
 import { ComparisonTabs } from '../components/common/ComparisonTabs';
 
@@ -21,9 +22,8 @@ const cases = {
 const pause = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 export function InteractionScreen() {
-  const input = useRef<KeyflowTextInputRef>(null);
+  const input = useRef<KeyflowKeyboardRef>(null);
   const [mode, setMode] = useState<'custom' | 'system'>('custom');
-  const [seed, setSeed] = useState('');
   const [revision, setRevision] = useState(0);
   const [text, setText] = useState('');
   const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
@@ -50,7 +50,6 @@ export function InteractionScreen() {
   };
   const reset = async (name: keyof typeof cases) => {
     await input.current?.blur();
-    setSeed(cases[name]);
     setText(cases[name]);
     setDiagnostic('');
     setFrame(null);
@@ -197,30 +196,36 @@ export function InteractionScreen() {
         style={{ flex: 1 }}
       >
         <View style={{ flex: 1 }} />
-        <KeyflowTextInput
+        <KeyflowKeyboard
           key={revision}
           ref={input}
-          autoFocus
-          defaultValue={seed}
           keyboardMode={mode}
           keyboardAppearance="light"
-          inputAccessibilityLabel="Interaction test input"
-          placeholder="Start typing…"
-          onChangeText={(value) => {
-            setText(value);
-            console.info(
-              'KEYFLOW_EDIT',
-              JSON.stringify({ mode, text: value, time: Date.now() }),
-            );
-          }}
           onKeyboardFrameChange={setFrame}
-          style={{
-            height: 48,
-            marginHorizontal: 12,
-            marginBottom: 8,
-            backgroundColor: 'white',
-            borderRadius: 12,
-          }}
+          renderInput={(bindings) => (
+            <ExampleTextInput
+              {...bindings}
+              autoFocus
+              value={text}
+              keyboardAppearance="light"
+              accessibilityLabel="Interaction test input"
+              placeholder="Start typing…"
+              onChangeText={(value) => {
+                setText(value);
+                console.info(
+                  'KEYFLOW_EDIT',
+                  JSON.stringify({ mode, text: value, time: Date.now() }),
+                );
+              }}
+              style={{
+                height: 48,
+                marginHorizontal: 12,
+                marginBottom: 8,
+                backgroundColor: 'white',
+                borderRadius: 12,
+              }}
+            />
+          )}
         />
       </KeyflowAvoidingView>
     </View>

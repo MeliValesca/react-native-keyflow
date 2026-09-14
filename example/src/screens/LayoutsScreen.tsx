@@ -1,3 +1,4 @@
+import { ExampleTextInput } from '../components/common/ExampleTextInput';
 import { getKeyboardMetrics } from 'react-native-keyflow/testing';
 import { useRef, useState } from 'react';
 import {
@@ -10,10 +11,10 @@ import {
 } from 'react-native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { KeyflowTextInput, KeyflowAvoidingView } from 'react-native-keyflow';
+import { KeyflowKeyboard, KeyflowAvoidingView } from 'react-native-keyflow';
 import type {
   KeyflowKeyboardType,
-  KeyflowTextInputRef,
+  KeyflowKeyboardRef,
   KeyflowKeyboardFrame,
 } from 'react-native-keyflow';
 import { ComparisonTabs } from '../components/common/ComparisonTabs';
@@ -26,7 +27,7 @@ const types = [
 ] as const;
 
 export function LayoutsScreen() {
-  const input = useRef<KeyflowTextInputRef>(null);
+  const input = useRef<KeyflowKeyboardRef>(null);
   const [type, setType] = useState<KeyflowKeyboardType>('default');
   const [mode, setMode] = useState<'custom' | 'system'>('custom');
   const [text, setText] = useState('');
@@ -109,21 +110,27 @@ export function LayoutsScreen() {
           </View>
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <KeyflowTextInput
+          <KeyflowKeyboard
             ref={input}
-            placeholder="Try this layout…"
-            inputAccessibilityLabel="Layout input"
             keyboardType={type}
             keyboardMode={mode}
             onKeyboardModeChange={setMode}
-            onChangeText={setText}
             onKeyboardFrameChange={setFrame}
-            style={{
-              flex: 1,
-              height: 44,
-              backgroundColor: '#FFFFFF',
-              borderRadius: 8,
-            }}
+            renderInput={(bindings) => (
+              <ExampleTextInput
+                {...bindings}
+                placeholder="Try this layout…"
+                accessibilityLabel="Layout input"
+                keyboardType={type}
+                onChangeText={setText}
+                style={{
+                  flex: 1,
+                  height: 44,
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: 8,
+                }}
+              />
+            )}
           />
           <Pressable
             accessibilityRole="button"

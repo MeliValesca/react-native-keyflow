@@ -8,7 +8,7 @@ import type {
   KeyboardTheme,
   KeyflowKeyboardFrame,
   KeyflowKeyboardType,
-  KeyflowTextInputRef,
+  KeyflowKeyboardRef,
 } from 'react-native-keyflow';
 import { launchTest, testPlatform } from '../testing/launch';
 import {
@@ -20,7 +20,7 @@ const pause = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export function useCustomizationTests(loaded: boolean, landscape: boolean) {
-  const input = useRef<KeyflowTextInputRef>(null),
+  const input = useRef<KeyflowKeyboardRef>(null),
     alive = useRef(true),
     launched = useRef(false);
   const [theme, setTheme] = useState<KeyboardTheme>(customizationBase);

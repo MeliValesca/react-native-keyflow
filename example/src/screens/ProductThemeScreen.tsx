@@ -1,16 +1,17 @@
+import { ExampleTextInput } from '../components/common/ExampleTextInput';
 import { useCallback, useRef, useState } from 'react';
 import { Platform, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
-import { KeyflowAvoidingView, KeyflowTextInput } from 'react-native-keyflow';
+import { KeyflowAvoidingView, KeyflowKeyboard } from 'react-native-keyflow';
 import type {
   KeyflowKeyboardFrame,
-  KeyflowTextInputRef,
+  KeyflowKeyboardRef,
 } from 'react-native-keyflow';
 import { studioTheme } from '../themes/studio';
 
 export function ProductThemeScreen() {
-  const input = useRef<KeyflowTextInputRef>(null);
+  const input = useRef<KeyflowKeyboardRef>(null);
   const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
   const [text, setText] = useState('');
   const header = useHeaderHeight();
@@ -68,16 +69,26 @@ export function ProductThemeScreen() {
           </View>
         </ScrollView>
         <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
-          <KeyflowTextInput
+          <KeyflowKeyboard
             ref={input}
-            autoFocus
-            placeholder="Continue the story…"
-            inputAccessibilityLabel="Product theme input"
             keyboardAppearance="light"
             keyboardTheme={studioTheme}
-            onChangeText={setText}
             onKeyboardFrameChange={setFrame}
-            style={{ height: 54, backgroundColor: '#FFFFFF', borderRadius: 14 }}
+            renderInput={(bindings) => (
+              <ExampleTextInput
+                {...bindings}
+                autoFocus
+                placeholder="Continue the story…"
+                accessibilityLabel="Product theme input"
+                keyboardAppearance="light"
+                onChangeText={setText}
+                style={{
+                  height: 54,
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: 14,
+                }}
+              />
+            )}
           />
         </View>
       </KeyflowAvoidingView>

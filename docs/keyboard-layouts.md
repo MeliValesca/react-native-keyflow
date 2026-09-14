@@ -1,9 +1,10 @@
 # Keyboard types and landscape
 
 ```tsx
-<KeyflowTextInput keyboardType="number-pad" />
-<KeyflowTextInput keyboardType="decimal-pad" />
-<KeyflowTextInput keyboardType="phone-pad" />
+import { TextInput } from 'react-native';
+<KeyflowKeyboard keyboardType="number-pad" renderInput={(bindings) => (<TextInput {...bindings} keyboardType="number-pad" />)} />
+<KeyflowKeyboard keyboardType="decimal-pad" renderInput={(bindings) => (<TextInput {...bindings} keyboardType="decimal-pad" />)} />
+<KeyflowKeyboard keyboardType="phone-pad" renderInput={(bindings) => (<TextInput {...bindings} keyboardType="phone-pad" />)} />
 ```
 
 Omit `keyboardType` (or use `"default"`) for the alphabet layout selected by [language configuration](languages.md). Types select the custom layout and the corresponding native editor input type, including in `keyboardMode="system"`. Changing the prop preserves the existing text and selection; it does not remount or validate the input. Pasted text is not filtered. Validate PINs, prices, and phone numbers in your application.
@@ -20,7 +21,7 @@ Open **Compare layouts & rotation** in the example. Select QWERTY, Number, Decim
 
 Tablet geometry uses the platform's device-class signal rather than hardcoded device models: iOS checks the `.pad` user-interface idiom and Android checks a smallest width of at least 600dp. Row heights, insets, and the iPad input-assistant band scale from the viewport's short edge. iPad portrait and landscape use separate measured profiles because Apple's landscape keyboard is proportionally taller.
 
-This adaptation does not change the React API. Use the same `KeyflowTextInput`
+This adaptation does not change the React API. Use the same `KeyflowKeyboard`
 props and one `keyboardTheme` on phones and tablets in every orientation.
 Keyflow owns the device-class check and geometry; applications do not pass a
 tablet flag or maintain separate theme objects. Theme values style the active

@@ -1,12 +1,13 @@
+import { ExampleTextInput } from '../components/common/ExampleTextInput';
 import { getKeyboardMetrics } from 'react-native-keyflow/testing';
 import { useCallback, useRef, useState } from 'react';
 import { Platform, Pressable, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
-import { KeyflowAvoidingView, KeyflowTextInput } from 'react-native-keyflow';
+import { KeyflowAvoidingView, KeyflowKeyboard } from 'react-native-keyflow';
 import type {
   KeyflowKeyboardFrame,
-  KeyflowTextInputRef,
+  KeyflowKeyboardRef,
 } from 'react-native-keyflow';
 import { ComparisonTabs } from '../components/common/ComparisonTabs';
 
@@ -18,7 +19,7 @@ const cases = {
 };
 
 export function LongPressScreen() {
-  const input = useRef<KeyflowTextInputRef>(null);
+  const input = useRef<KeyflowKeyboardRef>(null);
   const [mode, setMode] = useState<'custom' | 'system'>('custom');
   const [seed, setSeed] = useState('');
   const [revision, setRevision] = useState(0);
@@ -124,24 +125,30 @@ export function LongPressScreen() {
         style={{ flex: 1 }}
       >
         <View style={{ flex: 1 }} />
-        <KeyflowTextInput
+        <KeyflowKeyboard
           key={revision}
           ref={input}
-          autoFocus
-          defaultValue={seed}
           keyboardMode={mode}
           keyboardAppearance="light"
-          inputAccessibilityLabel="Long press test input"
-          placeholder="Hold a key…"
-          onChangeText={setText}
           onKeyboardFrameChange={setFrame}
-          style={{
-            height: 48,
-            marginHorizontal: 12,
-            marginBottom: 8,
-            backgroundColor: '#FFFFFF',
-            borderRadius: 12,
-          }}
+          renderInput={(bindings) => (
+            <ExampleTextInput
+              {...bindings}
+              autoFocus
+              defaultValue={seed}
+              keyboardAppearance="light"
+              accessibilityLabel="Long press test input"
+              placeholder="Hold a key…"
+              onChangeText={setText}
+              style={{
+                height: 48,
+                marginHorizontal: 12,
+                marginBottom: 8,
+                backgroundColor: '#FFFFFF',
+                borderRadius: 12,
+              }}
+            />
+          )}
         />
       </KeyflowAvoidingView>
     </View>

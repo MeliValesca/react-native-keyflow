@@ -1,6 +1,7 @@
+import { ExampleTextInput } from '../components/common/ExampleTextInput';
 import { Button, Platform, Text, TextInput, View } from 'react-native';
 import { useHeaderHeight } from '@react-navigation/elements';
-import { KeyflowAvoidingView, KeyflowTextInput } from 'react-native-keyflow';
+import { KeyflowAvoidingView, KeyflowKeyboard } from 'react-native-keyflow';
 import { studioTheme } from '../themes/studio';
 import { useTransitionTests } from './useTransitionTests';
 
@@ -68,14 +69,19 @@ export function TransitionScreen() {
             style={{ height: 48, backgroundColor: 'white', color: '#192231' }}
           />
         ) : (
-          <KeyflowTextInput
+          <KeyflowKeyboard
             ref={input}
-            defaultValue="Transition"
-            inputAccessibilityLabel="Keyflow transition input"
             keyboardMode={engine}
             keyboardTheme={raised ? studioTheme : undefined}
             onKeyboardFrameChange={record}
-            style={{ height: 48, backgroundColor: 'white' }}
+            renderInput={(bindings) => (
+              <ExampleTextInput
+                {...bindings}
+                defaultValue="Transition"
+                accessibilityLabel="Keyflow transition input"
+                style={{ height: 48, backgroundColor: 'white' }}
+              />
+            )}
           />
         )}
       </View>

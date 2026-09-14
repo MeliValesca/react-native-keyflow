@@ -13,6 +13,7 @@ This checks layout and animation delivery. It does not assert pixel-identical ti
 ## Library integration
 
 ```tsx
+import { TextInput } from 'react-native';
 const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
 
 <KeyflowAvoidingView
@@ -21,7 +22,10 @@ const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
   keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
 >
   <ScrollView keyboardShouldPersistTaps="handled">
-    <KeyflowTextInput onKeyboardFrameChange={setFrame} />
+    <KeyflowKeyboard
+      onKeyboardFrameChange={setFrame}
+      renderInput={(bindings) => <TextInput {...bindings} />}
+    />
   </ScrollView>
 </KeyflowAvoidingView>;
 ```

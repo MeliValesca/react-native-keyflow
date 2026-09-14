@@ -1,3 +1,4 @@
+import { ExampleTextInput } from '../components/common/ExampleTextInput';
 import { getKeyboardMetrics } from 'react-native-keyflow/testing';
 import { useCallback, useRef, useState } from 'react';
 import {
@@ -14,20 +15,20 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   KeyflowAvoidingView,
-  KeyflowTextInput,
+  KeyflowKeyboard,
   createKeyboardTheme,
   transparentKeyboardTheme,
 } from 'react-native-keyflow';
 import type {
   KeyflowKeyboardFrame,
-  KeyflowTextInputRef,
+  KeyflowKeyboardRef,
 } from 'react-native-keyflow';
 import { settledKeyboard } from '../testing/settledKeyboard';
 import { OpacitySlider } from '../components/common/OpacitySlider';
 
 const wallpaper = require('../../assets/backdrops/coast.jpg');
 export function TransparencyScreen() {
-  const input = useRef<KeyflowTextInputRef>(null);
+  const input = useRef<KeyflowKeyboardRef>(null);
   const [backdrop, setBackdrop] = useState(0);
   const [backgroundOpacity, setBackgroundOpacity] = useState(0.35);
   const [keyOpacity, setKeyOpacity] = useState(
@@ -218,11 +219,8 @@ export function TransparencyScreen() {
             </Text>
           )}
         </ScrollView>
-        <KeyflowTextInput
+        <KeyflowKeyboard
           ref={input}
-          autoFocus
-          placeholder="What made today memorable?"
-          inputAccessibilityLabel="Transparency comparison input"
           keyboardAppearance="light"
           keyboardTheme={createKeyboardTheme(
             {
@@ -238,14 +236,23 @@ export function TransparencyScreen() {
             latestFrame.current = next;
             setFrame(next);
           }}
-          style={{
-            height: 54,
-            marginLeft: leftInset,
-            marginRight: rightInset,
-            marginBottom: 12,
-            backgroundColor: '#FFFFFFCC',
-            borderRadius: 12,
-          }}
+          renderInput={(bindings) => (
+            <ExampleTextInput
+              {...bindings}
+              autoFocus
+              placeholder="What made today memorable?"
+              accessibilityLabel="Transparency comparison input"
+              keyboardAppearance="light"
+              style={{
+                height: 54,
+                marginLeft: leftInset,
+                marginRight: rightInset,
+                marginBottom: 12,
+                backgroundColor: '#FFFFFFCC',
+                borderRadius: 12,
+              }}
+            />
+          )}
         />
       </KeyflowAvoidingView>
     </View>

@@ -89,6 +89,7 @@ final class KeyflowKeyboardView: UIView {
   private var presentationActive = true
   private var heightConstraint: NSLayoutConstraint!
   var onHeightChange: (() -> Void)?
+  var onFrameChange: (() -> Void)?
   private static let repeatDelay: TimeInterval = 0.5
   private static let repeatInterval: TimeInterval = 0.065
   private var page = Page.letters
@@ -179,6 +180,7 @@ final class KeyflowKeyboardView: UIView {
   override func didMoveToWindow() {
     super.didMoveToWindow()
     if window == nil { cancelTouches() }
+    onFrameChange?()
   }
 
   func metrics() -> [String: Any] {
@@ -249,6 +251,7 @@ final class KeyflowKeyboardView: UIView {
       rowHeight: rowHeight, typingTop: typingTop,
       canSwitchLanguage: canSwitchLanguage, page: page
     ).apply(to: rows, in: bounds)
+    onFrameChange?()
   }
 
   private func key(_ caption: String, _ action: KeyflowAction, symbol: String? = nil) -> KeyflowKey

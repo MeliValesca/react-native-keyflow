@@ -3,14 +3,16 @@
 Two independent theme tokens control the highlighted long-press choice:
 
 ```tsx
-<KeyflowTextInput
+import { TextInput } from 'react-native';
+<KeyflowKeyboard
   keyboardTheme={{
     ...transparentKeyboardTheme,
     pressedKeyBackground: '#FFFFFF55',
     selectedKeyBackground: '#A35CEA99',
     selectedKeyForeground: '#102D46',
   }}
-/>
+  renderInput={(bindings) => <TextInput {...bindings} />}
+/>;
 ```
 
 The Apple letter inventory was captured from actual holds on the iOS 26.5 English keyboard: `artifacts/accent-parity/apple-*.png`. It adds previously missing alternatives and matches the observed base-letter position. Uppercase I uses dotted İ instead of duplicating I; uppercase S retains ß and uses Apple's separately observed ordering. This reference is specific to that locale and OS, not every installed language.

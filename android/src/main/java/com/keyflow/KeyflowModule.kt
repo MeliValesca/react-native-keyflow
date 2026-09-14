@@ -8,19 +8,13 @@ class KeyflowModule : Module() {
     Name("Keyflow")
     View(KeyflowInputView::class) {
       Events(
-        "onKeyflowTextChange",
-        "onKeyflowSubmit",
         "onKeyflowModeChange",
         "onKeyflowHeightChange",
         "onKeyflowFrameChange",
         "onKeyflowLanguageChange",
       )
-      Prop("defaultValue") { view: KeyflowInputView, value: String -> view.initialValue(value) }
-      Prop("placeholder") { view: KeyflowInputView, value: String -> view.placeholder(value) }
-      Prop("inputAccessibilityLabel") { view: KeyflowInputView, value: String -> view.label(value) }
-      Prop("autoFocus") { view: KeyflowInputView, value: Boolean -> view.autoFocus = value }
-      Prop("autoCorrect") { view: KeyflowInputView, value: Boolean -> view.autoCorrect = value }
-      Prop("editable") { view: KeyflowInputView, value: Boolean -> view.editable(value) }
+      AsyncFunction("attachInput") { view: KeyflowInputView, tag: Int? -> view.attachInput(tag) }
+      AsyncFunction("updateInputContext") { view: KeyflowInputView -> view.updateInputContext() }
       Prop("hapticsEnabled") { view: KeyflowInputView, value: Boolean -> view.haptics(value) }
       Prop("showSecondaryKeyLabels", true) { view: KeyflowInputView, value: Boolean ->
         view.showSecondaryKeyLabels(value)
