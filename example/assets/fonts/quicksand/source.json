@@ -1,0 +1,21 @@
+{
+  "source": "https://github.com/expo/google-fonts/tree/main/font-packages/quicksand",
+  "license": "https://raw.githubusercontent.com/expo/google-fonts/main/font-packages/quicksand/LICENSE_FONT",
+  "files": [
+    {
+      "file": "Quicksand_400Regular.ttf",
+      "url": "https://raw.githubusercontent.com/expo/google-fonts/main/font-packages/quicksand/400Regular/Quicksand_400Regular.ttf",
+      "sha256": "7953184f6fcb2191e643b2f5e206b985914b420efa7f46e63a6093e6810c82b1"
+    },
+    {
+      "file": "Quicksand_600SemiBold.ttf",
+      "url": "https://raw.githubusercontent.com/expo/google-fonts/main/font-packages/quicksand/600SemiBold/Quicksand_600SemiBold.ttf",
+      "sha256": "11fc358c00af45748b2fdb8f5e23030a46affa77542d2a371145b140f3e9db43"
+    },
+    {
+      "file": "Quicksand_700Bold.ttf",
+      "url": "https://raw.githubusercontent.com/expo/google-fonts/main/font-packages/quicksand/700Bold/Quicksand_700Bold.ttf",
+      "sha256": "65561a329de20024699162ef86bec0e79a0415c90b30a60ebc301fc00d67f87b"
+    }
+  ]
+}

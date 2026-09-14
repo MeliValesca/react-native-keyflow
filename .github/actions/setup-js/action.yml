@@ -1,0 +1,17 @@
+name: Prepare JavaScript workspace
+description: Install the pinned Node/Yarn toolchain and immutable workspace dependencies.
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version-file: .nvmrc
+    - run: corepack enable
+      shell: bash
+    - uses: actions/cache@v4
+      with:
+        path: .yarn/cache
+        key: yarn-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+        restore-keys: yarn-${{ runner.os }}-
+    - run: yarn install --immutable
+      shell: bash

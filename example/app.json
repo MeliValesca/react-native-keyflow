@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Keyflow",
+    "slug": "keyflow-example",
+    "version": "0.0.1",
+    "orientation": "default",
+    "ios": {
+      "bundleIdentifier": "com.keyflow.example",
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIViewControllerBasedStatusBarAppearance": true
+      }
+    },
+    "android": {
+      "package": "com.keyflow.example"
+    },
+    "plugins": [
+      "expo-asset",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ]
+    ]
+  }
+}

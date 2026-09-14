@@ -1,0 +1,9 @@
+{
+  "platforms": ["ios", "android"],
+  "apple": {
+    "modules": ["KeyflowModule"]
+  },
+  "android": {
+    "modules": ["com.keyflow.KeyflowModule"]
+  }
+}

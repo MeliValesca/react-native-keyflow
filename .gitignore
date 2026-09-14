@@ -1,0 +1,17 @@
+node_modules/
+lib/
+.yarn/*
+!.yarn/patches/
+.DS_Store
+coverage/
+*.tsbuildinfo
+example/.expo/
+example/ios/
+example/android/
+ios/build/
+android/build/
+android/.gradle/
+android/local.properties
+artifacts/
+
+__pycache__/

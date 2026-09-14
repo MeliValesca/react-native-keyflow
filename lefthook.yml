@@ -1,0 +1,10 @@
+pre-commit:
+  commands:
+    lint:
+      run: corepack yarn lint
+    types:
+      run: corepack yarn typecheck
+commit-msg:
+  commands:
+    conventional-message:
+      run: corepack yarn commitlint --edit "{1}"

@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": ["src/__tests__", "lib", "node_modules"],
+  "compilerOptions": {
+    "types": ["react"]
+  }
+}

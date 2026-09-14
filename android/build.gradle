@@ -1,0 +1,36 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+group = 'com.keyflow'
+version = '0.0.0'
+android {
+  namespace 'com.keyflow'
+  defaultConfig {
+    versionCode 1
+    versionName '0.0.0'
+    testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+  }
+}
+dependencies {
+  testImplementation 'junit:junit:4.13.2'
+  androidTestImplementation 'androidx.test:runner:1.6.2'
+  androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+  androidTestImplementation 'androidx.test:core-ktx:1.6.1'
+  implementation "com.facebook.react:react-android"
+  implementation 'androidx.activity:activity-ktx:1.10.1'
+  implementation 'androidx.core:core-ktx:1.16.0'
+}
+
+// Pin the formatter so local checks and CI produce identical Kotlin source.
+configurations { keyflowFormatter }
+dependencies { keyflowFormatter 'com.facebook:ktfmt:0.54:jar-with-dependencies' }
+['Check', 'Write'].each { mode ->
+  tasks.register("formatKotlin${mode}", JavaExec) {
+    classpath = configurations.keyflowFormatter
+    mainClass = 'com.facebook.ktfmt.cli.Main'
+    args '--google-style'
+    if (mode == 'Check') args '--dry-run', '--set-exit-if-changed'
+    args fileTree('src').matching { include '**/*.kt' }.files.sort().collect { it.absolutePath }
+  }
+}

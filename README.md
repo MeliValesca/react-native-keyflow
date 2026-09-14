@@ -1,0 +1,313 @@
+# Keyflow
+
+**Native keyboards. Your app’s style.**
+
+A customizable, app-owned keyboard for React Native, built with UIKit on iOS and Kotlin on Android. Keep familiar typing interactions while choosing your colors, fonts, key surfaces, and long-press appearance.
+
+**Unpublished preview · iOS + Android · Phones + tablets**
+
+Keyflow recreates keyboard UI; it does not reskin Apple’s keyboard or Gboard. Platform layouts and interactions differ, and some explicit styling still needs cross-platform alignment. See [current limitations](#current-limitations).
+
+[Get started](#get-started) · [Customize](#customization) · [Native-style features](#native-style-features) · [API guide](docs/api.md) · [Example app](#example-app) · [Testing](#testing) · [Limitations](#current-limitations)
+
+## A keyboard that belongs in your app
+
+<table>
+<tr><th>Raised surfaces</th><th>Independent transparency</th><th>Your own font</th></tr>
+<tr>
+<td><img src="docs/media/studio.jpg" alt="Plum, rose and aqua raised keys in the Story Studio iPad example" width="300" /></td>
+<td><img src="docs/media/transparent.jpg" alt="Translucent keys and keyboard panel over the example’s coastal photograph on iPad" width="300" /></td>
+<td><img src="docs/media/custom-font.jpg" alt="Quicksand letter shapes on the iPad keyboard" width="300" /></td>
+</tr>
+</table>
+
+Real iPad example captures. These themes use the public API; Story Studio is example styling, not a library preset. [Media details and recording provenance](docs/media/README.md).
+
+## Get started
+
+The package is not published to npm yet. Run the example from this repository:
+
+```sh
+git clone https://github.com/MeliValesca/react-native-keyflow.git
+cd react-native-keyflow
+corepack yarn install
+corepack yarn build
+npm install --global stim@1.2.0
+cd example
+stim start
+stim ios
+# Or: stim android
+```
+
+The example uses **Expo SDK 57, React Native 0.86.3, and React 19.2.3**. Keyflow requires Expo Modules and a native development or production build; Expo Go and web are not supported. The example targets iOS 16.4+ and Android API 24+. See [compatibility and local installation](docs/api.md#compatibility-and-local-installation).
+
+### Your first input
+
+Connect the input’s keyboard frame to `KeyflowAvoidingView`. It handles keyboard avoidance through the same integration on both platforms.
+
+```tsx
+import { useState } from 'react';
+import { Text } from 'react-native';
+import { KeyflowAvoidingView, KeyflowTextInput } from 'react-native-keyflow';
+import type { KeyflowKeyboardFrame } from 'react-native-keyflow';
+
+export function Composer() {
+  const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
+
+  return (
+    <KeyflowAvoidingView
+      keyboardFrame={frame}
+      style={{ flex: 1, justifyContent: 'flex-end', padding: 16 }}
+    >
+      <Text>Write the next chapter.</Text>
+      <KeyflowTextInput
+        placeholder="Start typing…"
+        defaultValue=""
+        inputAccessibilityLabel="Message"
+        onKeyboardFrameChange={setFrame}
+        onChangeText={(text) => console.log(text)}
+        style={{ height: 52 }}
+      />
+    </KeyflowAvoidingView>
+  );
+}
+```
+
+This is a **single-line, native-owned input**. Use `defaultValue` for initial text; a controlled `value` prop is not supported. The input’s `style` controls its outer layout; `keyboardTheme` styles the keyboard. For navigation headers and custom containers, see [keyboard avoidance](docs/api.md#keyboard-avoidance).
+
+## Customization
+
+Use small section objects. Shared settings live under `font` and `keyboard`; override individual sections only where needed.
+
+```tsx
+import type { KeyboardThemeOverrides } from 'react-native-keyflow';
+
+const theme = {
+  keyboard: {
+    background: '#F4F0FF',
+    material: { type: 'raised', depth: 4, shadowColor: '#241D46' },
+  },
+  font: { size: 20, weight: 'medium' },
+  keys: {
+    background: '#342B62',
+    color: '#F4F0FF',
+    cornerRadius: 8,
+    pressedBackground: '#55458F',
+    pressedColor: '#FFFFFF',
+  },
+  specialKeys: { background: '#E05B8D', color: '#FFFFFF' },
+  returnKey: { background: '#E05B8D', color: '#FFFFFF' },
+  deleteKey: { background: '#A8DADC', color: '#241D46' },
+  preview: { background: '#342B62', color: '#F4F0FF' },
+  selection: { background: '#E05B8D', color: '#FFFFFF' },
+} satisfies KeyboardThemeOverrides;
+
+<KeyflowTextInput keyboardTheme={theme} />;
+```
+
+| Section                   | Controls                                                          |
+| ------------------------- | ----------------------------------------------------------------- |
+| `keyboard`                | Panel color, opacity, flat or raised material                     |
+| `font`                    | Shared font family, size and weight                               |
+| `keys`                    | Letter, digit and space-key appearance                            |
+| `specialKeys`             | Modifier and layout-switch keys                                   |
+| `deleteKey` / `returnKey` | Delete and return appearance                                      |
+| `preview`                 | Long-press popup appearance                                       |
+| `selection`               | Focused accent appearance; also used by Android’s active Caps key |
+| `toolbar`                 | Android clipboard and dismiss controls                            |
+
+Sections support colors, pressed colors, borders, corner radius, fonts, and icon sizing where applicable. `color` supplies the icon and pressed foreground unless explicitly overridden. If you set `iconColor`, remember to give selected states a contrasting icon color too.
+
+The API is shared across phone, tablet, portrait and landscape. Native layout determines the key geometry; customization does not define new rows or touch targets. [Full theme options and limits](docs/api.md#theme-reference).
+
+### Transparent panel, transparent keys—or both
+
+```tsx
+<KeyflowTextInput
+  keyboardTheme={{
+    keyboard: {
+      background: '#16324F',
+      backgroundOpacity: 0.35,
+      keyOpacity: 0.7,
+    },
+  }}
+/>
+```
+
+Both values range from `0` to `1`. Panel opacity and key-surface opacity are independent; text and icons retain their configured colors. Put your background image outside the avoiding view so it can continue beneath the keyboard. The example includes separate 0–100% sliders.
+
+### Use a font bundled with your app
+
+Load the font before rendering the input. With `expo-font`, for example:
+
+```tsx
+import { useFonts } from 'expo-font';
+import { KeyflowTextInput } from 'react-native-keyflow';
+
+export function BrandedInput() {
+  const [loaded, error] = useFonts({
+    Quicksand: require('./assets/Quicksand_600SemiBold.ttf'),
+  });
+  if (error) throw error;
+  if (!loaded) return null;
+
+  return (
+    <KeyflowTextInput
+      keyboardTheme={{
+        font: { family: 'Quicksand', weight: 'medium' },
+        keys: { color: '#16324F' },
+      }}
+      style={{ height: 52 }}
+    />
+  );
+}
+```
+
+Use your own asset path. System aliases (`system-rounded`, `system-serif`, `system-monospace`) are also supported. Missing font names fall back to the system font. See the [custom-font example](example/src/screens/CustomFontScreen.tsx) for loaded weights and validation.
+
+For reusable validated themes, use `createKeyboardTheme(overrides, base)`. Included bases are `lightKeyboardTheme`, `darkKeyboardTheme`, `androidKeyboardTheme`, `androidDarkKeyboardTheme`, and `transparentKeyboardTheme`.
+
+## Native-style features
+
+These behaviors are implemented in **Keyflow’s custom keyboard**. They are inspired by the sampled Apple and Gboard keyboards; “implemented” does not mean every animation, setting or pixel is identical to the system keyboard.
+
+| Behavior                   | iOS / iPadOS                                                                                          | Android                                                                                                 |
+| -------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Typing and editing         | Letters, numbers, symbols, space, return, selected-text replacement and deletion                      | Same core editing operations                                                                            |
+| Capitalization             | Sentence capitalization, one-shot Shift, Caps Lock and double-space punctuation                       | Sentence capitalization, one-shot Shift, Caps Lock and double-space punctuation                         |
+| Press and hold             | Key previews, accent choices, drag-to-choice with instant highlight switching, held-delete repetition | Key previews, accent/number shortcuts, moving accent highlight, cancellation and held-delete repetition |
+| Cursor movement            | Hold space, then move horizontally                                                                    | Slide horizontally on space                                                                             |
+| Layouts                    | iPhone/iPad profiles, portrait/landscape, number/decimal/phone pads                                   | Phone/tablet profiles, portrait/landscape, number/decimal/phone pads                                    |
+| Tablet controls            | Functional Tab, Caps Lock, Shift, Delete, Return and dismissal; alternate-character flicks            | Functional Tab, Caps Lock, Shift, Delete, Return and page switching                                     |
+| Presentation               | UIKit keyboard presentation/dismissal and keyboard avoidance                                          | App-owned panel presentation/dismissal, Android Back and frame-driven avoidance                         |
+| Accessibility and feedback | Key labels, selected-state information, accessible accent actions and optional haptics                | Key labels, selected-state information, accessible accent actions and optional haptics                  |
+
+**Platform-specific details:** iPhone uses a single-row accent presentation; iPad uses its own accent grid. Android adds a clipboard-paste/dismiss toolbar and optional visible number shortcuts on letter keys. Clipboard paste is not a clipboard-history manager.
+
+English/French switching is also implemented, but the globe cycles Keyflow’s configured languages rather than reproducing the complete system language menu. [Language configuration](#layouts-and-languages).
+
+### Default layouts on phones and tablets
+
+<table>
+<tr><th>iPhone</th><th>Android phone</th></tr>
+<tr>
+<td><img src="docs/media/default-iphone.jpg" width="300" alt="Keyflow’s default iPhone QWERTY keyboard from the recorded PR example" /></td>
+<td><img src="docs/media/default-android-phone.jpg" width="300" alt="Keyflow’s default Android phone QWERTY keyboard from the recorded PR example" /></td>
+</tr>
+<tr><th>iPad</th><th>Android tablet</th></tr>
+<tr>
+<td><img src="docs/media/default-ipad.jpg" width="300" alt="Keyflow’s default iPad QWERTY keyboard with tablet modifiers" /></td>
+<td><img src="docs/media/default-android-tablet.jpg" width="300" alt="Keyflow’s default Android tablet QWERTY keyboard with tablet modifiers" /></td>
+</tr>
+</table>
+
+These are **Keyflow**, not the actual system keyboards. The default-layout previews reuse earlier development captures; [capture details and devices](docs/media/development-captures/README.md) are recorded separately from the newer themed videos below. They illustrate the layout families, not a current pixel-parity audit.
+
+### Opening, dismissal and keyboard avoidance
+
+<table>
+<tr><th>iPad · UIKit</th><th>Android phone · Kotlin</th></tr>
+<tr>
+<td><a href="docs/media/ios-transitions.mp4"><img src="docs/media/ios-transitions.gif" width="260" alt="iPad keyboard opening and dismissing while the composer moves above it" /></a></td>
+<td><a href="docs/media/android-transitions.mp4"><img src="docs/media/android-transitions.gif" width="260" alt="Android keyboard opening and dismissing with the composer following its frame" /></a></td>
+</tr>
+</table>
+
+Watch the MP4s: [iPad transitions](docs/media/ios-transitions.mp4) · [Android transitions](docs/media/android-transitions.mp4).
+
+### Long press and accent selection
+
+<table>
+<tr><th>iPad · Hold and move between accents</th><th>Android phone · Hold for accents and shortcuts</th></tr>
+<tr>
+<td><a href="docs/media/ios-accents.mp4"><img src="docs/media/ios-accents.gif" width="360" alt="iPad long-press accent grid with the theme’s rose selection highlight" /></a></td>
+<td><a href="docs/media/android-accents.mp4"><img src="docs/media/android-accents.gif" width="360" alt="Android long-press popup showing accented letters and the number shortcut" /></a></td>
+</tr>
+</table>
+
+Watch the MP4s: [iPad accent selection](docs/media/ios-accents.mp4) · [Android long press](docs/media/android-accents.mp4).
+
+The previews are reduced to 10 fps; the MP4s retain the recordings’ timing. These are examples of Keyflow’s current behavior, not native-parity or physical-device performance benchmarks.
+
+The clips demonstrate the named interactions only. The other behaviors in the table are covered by the relevant [native and app test suites](docs/coverage.md), with device-review limits documented there.
+
+## Layouts and languages
+
+```tsx
+<KeyflowTextInput keyboardType="decimal-pad" />;
+
+<KeyflowTextInput
+  keyboardLanguages={[
+    { language: 'en', layout: 'qwerty' },
+    { language: 'fr', layout: 'azerty' },
+  ]}
+/>;
+```
+
+- Layouts: `default`, `number-pad`, `decimal-pad`, and `phone-pad`.
+- Phone/tablet and portrait/landscape layouts are selected internally.
+- English and French can be selected through the globe when both are configured.
+- Omit `keyboardLanguages` to discover supported device language preferences. Exact software layout preferences are not always exposed by the OS; explicit configuration chooses the template.
+
+Need the user’s actual keyboard and its full feature set? Use `keyboardMode="system"`. See [mode switching and input props](docs/api.md#input-api) and [language behavior](docs/languages.md).
+
+## Example app
+
+| Category    | Explore                                                                |
+| ----------- | ---------------------------------------------------------------------- |
+| Behavior    | Typing, long presses, deletion, cursor movement and native comparisons |
+| Transitions | Presentation, dismissal, mode handoffs and keyboard avoidance          |
+| Layouts     | Number pads, rotation, English/French switching                        |
+| Appearance  | Fonts, borders, sizes, focused accents and customization bounds        |
+| Showcases   | Platform defaults, Story Studio, Quicksand and transparency            |
+
+The example source lives in [`example/`](example). `corepack yarn example:export` also prepares a standalone example repository under `artifacts/keyflow-example-repo` with a bundled library package.
+
+## Testing
+
+```sh
+corepack yarn check
+python3 -m unittest discover -s scripts/android-tests -p 'test_*.py' -v
+```
+
+CI builds the app and test binaries once per platform, then shares them with parallel phone/tablet test jobs. It also runs library checks. Platform filtering avoids unrelated native jobs; extra device profiles run weekly. The retained suite covers native rendering, press/hold behavior and layouts, plus iOS example customization, transparency and transition diagnostics. Android example-level lifecycle and performance automation are not included.
+
+See [test commands](docs/testing.md), [coverage and limits](docs/coverage.md), and [visual comparisons](docs/visual-feature-tests.md). Passing these checks does not certify every native visual detail, complete VoiceOver/TalkBack navigation, or real-device smoothness.
+
+## Current limitations
+
+### What the custom keyboard does not implement
+
+This comparison describes **Keyflow**, not a restriction on the user’s actual keyboard. Android references are sampled Gboard layouts; there is no single keyboard implementation shared by every Android device.
+
+| Missing capability                   | iOS / iPadOS                                                                                                             | Android                                                                                                                               |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Suggestions and automatic correction | No QuickType prediction/completion, automatic word replacement, learned dictionary or system text-replacement engine     | No Gboard/IME prediction/completion, automatic word replacement or personalized suggestion engine                                     |
+| Emoji, voice and rich media          | No emoji picker, frequently used emoji, dictation, stickers or Memoji                                                    | No emoji picker, frequently used emoji, voice input, stickers or GIF browser                                                          |
+| Gesture typing and advanced editing  | No QuickPath word entry or full native trackpad-selection gesture set; space movement is horizontal cursor movement      | No glide/swipe word entry, swipe-to-delete-word gesture or complete IME editing toolbar; space movement is horizontal cursor movement |
+| Language engines                     | No non-Latin composition/candidate engines or full system language-switch menu; custom templates are English/French only | No non-Latin composition/candidate engines or full installed-IME language/settings menu; custom templates are English/French only     |
+| Extra keyboard tools                 | No keyboard-owned shortcut/undo/redo toolbar or system personalization controls                                          | No clipboard history/pinning or IME personalization controls; the paste button inserts current clipboard text                         |
+| Alternate keyboard modes             | No iPad floating/split keyboard or iPhone one-handed layout                                                              | No floating, split, one-handed or user-resized IME layout; no separate Samsung Keyboard/SwiftKey implementations                      |
+
+Use `keyboardMode="system"` for the installed keyboard and whatever features its settings, device and language configuration make available. Keyflow cannot apply its theme to that keyboard. Native editor selection handles, context menus or OS-provided editing services may still appear; they are not a custom feature implemented by Keyflow.
+
+### Fidelity and accessibility limits
+
+- **Styling is not fully aligned:** Android’s active Caps key uses `selection`, while iOS modifiers remain under `specialKeys`; explicit radii also receive different platform adjustments. Native icon shapes, alternate-label placement and layout proportions differ.
+- **Reference coverage is finite:** the layouts are tuned to sampled docked Apple/Gboard keyboards, not every OS release, OEM, foldable posture or window configuration. The same theme API works across device classes; that is not a promise of identical pixels.
+- **Accessibility actions are implemented and tested**, but complete VoiceOver/TalkBack speech, navigation, touch exploration and screen-reader typing modes have not been fully validated.
+- **Animation tests are regression checks**, not proof of identical native latency or sustained 60/120-fps performance on physical devices. The documentation GIFs are reduced-frame-rate previews.
+
+### Integration limits
+
+- `KeyflowTextInput` is single-line and native-owned. It has `defaultValue`, not a controlled `value`, and does not expose the complete React Native `TextInput` API—including secure-entry and semantic/AutoFill configuration props.
+- Supported preview peers are Expo SDK 57, React Native 0.86.x (0.86.3+) and React 19.2.3+. Earlier combinations are not claimed as supported. A native build with Expo Modules is required; Expo Go and web are unsupported.
+- Keyflow is an **in-app keyboard component**, not a system-wide keyboard extension/IME that users can install for other apps.
+
+See [automated coverage and remaining manual checks](docs/coverage.md) for the precise boundary of the CI guarantees.
+
+## Contributing
+
+Use the versions pinned in the repository, run the applicable local checks, and submit a PR. Native changes need a rebuild; example TypeScript changes use Fast Refresh.
+
+[Architecture](docs/architecture.md) · [API reference](docs/api.md) · [Verification](docs/verification.md) · [MIT license](LICENSE) · [Third-party notices](THIRD_PARTY_NOTICES.md)

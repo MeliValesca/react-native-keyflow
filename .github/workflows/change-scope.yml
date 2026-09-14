@@ -1,0 +1,31 @@
+name: Detect affected platforms
+
+on:
+  workflow_call:
+    outputs:
+      ios:
+        value: ${{ jobs.scope.outputs.ios }}
+      android:
+        value: ${{ jobs.scope.outputs.android }}
+
+permissions:
+  contents: read
+
+jobs:
+  scope:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      ios: ${{ steps.detect.outputs.ios }}
+      android: ${{ steps.detect.outputs.android }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect changed platforms
+        id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/ci-scope.mjs

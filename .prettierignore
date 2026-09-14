@@ -1,0 +1,11 @@
+node_modules
+lib
+.yarn
+yarn.lock
+example/ios
+example/android
+example/.expo
+artifacts
+android/build
+android/.gradle
+ios/build

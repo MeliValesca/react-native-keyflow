@@ -1,0 +1,19 @@
+{
+  "git": {
+    "requireBranch": "main",
+    "requireCleanWorkingDir": true,
+    "commit": false,
+    "tagName": "v${version}",
+    "tag": true,
+    "push": true
+  },
+  "npm": {
+    "publish": true
+  },
+  "github": {
+    "release": true
+  },
+  "hooks": {
+    "before:init": "corepack yarn check"
+  }
+}

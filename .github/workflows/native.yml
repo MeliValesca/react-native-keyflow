@@ -1,0 +1,210 @@
+name: Native builds and device tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '20 7 * * 1'
+
+concurrency:
+  group: native-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  scope:
+    uses: ./.github/workflows/change-scope.yml
+
+  android:
+    needs: scope
+    # Unknown scope runs both. Required job names remain stable for protection.
+    if: ${{ !cancelled() && (needs.scope.result != 'success' || needs.scope.outputs.android != 'false') }}
+    name: Android unit tests, lint, and example build
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-js
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: Generate Android project
+        working-directory: example
+        run: yarn expo prebuild --platform android --no-install
+      - name: Check Kotlin formatting
+        working-directory: example/android
+        run: ./gradlew --build-cache -PreactNativeArchitectures=x86_64 :react-native-keyflow:formatKotlinCheck
+      - name: Test and lint the Android library
+        working-directory: example/android
+        run: ./gradlew --build-cache -PreactNativeArchitectures=x86_64 :react-native-keyflow:testDebugUnitTest :react-native-keyflow:lintDebug
+      - name: Build example and native test APKs once
+        working-directory: example/android
+        run: ./gradlew --build-cache -PreactNativeArchitectures=x86_64 :app:assembleDebug :react-native-keyflow:assembleDebugAndroidTest
+      - name: Collect shared Android binaries
+        run: |
+          mkdir -p artifacts/ci/android
+          cp example/android/app/build/outputs/apk/debug/app-debug.apk artifacts/ci/android/example.apk
+          cp android/build/outputs/apk/androidTest/debug/react-native-keyflow-debug-androidTest.apk artifacts/ci/android/native-tests.apk
+          git rev-parse HEAD > artifacts/ci/android/build-commit.txt
+      - name: Upload shared Android binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-test-build
+          path: artifacts/ci/android/
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload Android lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-lint
+          path: android/build/reports/lint-results-debug.html
+          if-no-files-found: ignore
+
+  ios:
+    needs: scope
+    if: ${{ !cancelled() && (needs.scope.result != 'success' || needs.scope.outputs.ios != 'false') }}
+    name: iOS example build
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-js
+      - name: Identify Xcode toolchain
+        id: xcode
+        run: echo "version=$(xcodebuild -version | shasum -a 256 | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+      - name: Cache iOS compiler objects and Pod downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.stim/compilation-cache
+            ~/Library/Caches/CocoaPods
+          key: ios-compiler-v1-${{ runner.arch }}-${{ steps.xcode.outputs.version }}-${{ hashFiles('yarn.lock') }}-${{ github.sha }}
+          restore-keys: |
+            ios-compiler-v1-${{ runner.arch }}-${{ steps.xcode.outputs.version }}-${{ hashFiles('yarn.lock') }}-
+      - name: Check Swift formatting
+        run: xcrun swift-format lint --strict --recursive ios
+      - name: Generate iOS project
+        working-directory: example
+        run: yarn expo prebuild --platform ios --no-install
+      - name: Install CocoaPods dependencies
+        working-directory: example/ios
+        run: pod install --repo-update
+      - name: Build example and both XCTest bundles once
+        run: bash scripts/ci/build-ios.sh
+      - name: Upload shared iOS binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-test-build
+          path: artifacts/ci/ios-test-build.tar.gz
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 7
+
+  android-interactions:
+    needs: [scope, android]
+    # A platform with no changes still publishes the required device checks.
+    if: ${{ !cancelled() }}
+    name: ${{ matrix.label }} interactions, pads, holds, and layouts
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(github.event_name == 'schedule' && '[{"label":"Android phone","profile":"pixel_6","api":36},{"label":"Android tablet","profile":"pixel_c","api":36},{"label":"Android older API","profile":"pixel_6","api":35}]' || '[{"label":"Android phone","profile":"pixel_6","api":36},{"label":"Android tablet","profile":"pixel_c","api":36}]') }}
+    steps:
+      - name: Require successful shared build
+        if: ${{ needs.android.result != 'success' && needs.android.result != 'skipped' }}
+        run: exit 1
+      - uses: actions/checkout@v4
+        if: ${{ needs.android.result == 'success' }}
+      - uses: ./.github/actions/setup-js
+        if: ${{ needs.android.result == 'success' }}
+      - uses: actions/download-artifact@v4
+        if: ${{ needs.android.result == 'success' }}
+        with:
+          name: android-test-build
+          path: artifacts/ci/android
+      - name: Enable and verify KVM acceleration
+        if: ${{ needs.android.result == 'success' }}
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo udevadm settle
+          sudo chmod 0666 /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
+      - name: Run native and example UI suites without rebuilding
+        if: ${{ needs.android.result == 'success' }}
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          disable-linux-hw-accel: false
+          arch: x86_64
+          profile: ${{ matrix.profile }}
+          cores: 4
+          ram-size: 4096M
+          disable-animations: false
+          emulator-options: -no-window -gpu software -no-snapshot -noaudio -no-boot-anim
+          script: bash scripts/android-tests/run-prebuilt-ci.sh
+      - name: Upload Android UI reports
+        if: ${{ always() && needs.android.result == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-${{ matrix.label }}-ui-${{ github.run_id }}
+          path: artifacts/android-app/
+          if-no-files-found: warn
+          retention-days: 30
+
+  ios-interactions:
+    needs: [scope, ios]
+    if: ${{ !cancelled() }}
+    name: ${{ matrix.label }} interactions, layouts, holds, and rotation
+    runs-on: macos-26
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(github.event_name == 'schedule' && '[{"label":"iPhone","device":"iPhone 17 Pro"},{"label":"iPad","device":"iPad Pro 11-inch (M5)"},{"label":"Large iPhone","device":"iPhone 17 Pro Max"},{"label":"Large iPad","device":"iPad Pro 13-inch (M5)"}]' || '[{"label":"iPhone","device":"iPhone 17 Pro"},{"label":"iPad","device":"iPad Pro 11-inch (M5)"}]') }}
+    steps:
+      - name: Require successful shared build
+        if: ${{ needs.ios.result != 'success' && needs.ios.result != 'skipped' }}
+        run: exit 1
+      - uses: actions/checkout@v4
+        if: ${{ needs.ios.result == 'success' }}
+      - uses: ./.github/actions/setup-js
+        if: ${{ needs.ios.result == 'success' }}
+      - uses: actions/download-artifact@v4
+        if: ${{ needs.ios.result == 'success' }}
+        with:
+          name: ios-test-build
+          path: artifacts/ci
+      - name: Unpack shared iOS binaries
+        if: ${{ needs.ios.result == 'success' }}
+        run: |
+          mkdir -p artifacts/ci/ios
+          tar -xzf artifacts/ci/ios-test-build.tar.gz -C artifacts/ci/ios
+      - name: Install Stim for Metro
+        if: ${{ needs.ios.result == 'success' }}
+        run: npm install --global stim@1.2.0 --registry=https://registry.npmjs.org
+      - name: Run rendering and interaction suites without rebuilding
+        if: ${{ needs.ios.result == 'success' }}
+        run: bash scripts/ci/run-ios.sh "${{ matrix.device }}"
+      - name: Upload iOS UI evidence
+        if: ${{ always() && needs.ios.result == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-${{ matrix.label }}-ui-${{ github.run_id }}
+          path: |
+            artifacts/ios-ui/
+            artifacts/ios-qwerty-tests/run-*
+            artifacts/ios-qwerty-tests/latest.json
+          if-no-files-found: warn
+          retention-days: 30

@@ -1,0 +1,29 @@
+{
+  "locale": "English",
+  "platform": "iPadOS 26.5",
+  "source": "Native uppercase and lowercase held-key recordings, iPad Pro 11-inch (M5), 2026-09-13. Rows read top to bottom.",
+  "lowercase": {
+    "a": "ąăåãæāǎâàáä",
+    "e": "ėēẽęěêèéë",
+    "i": "ıīĩįǐîìíï",
+    "o": "õőøœōǒôòóö",
+    "u": "ųűūũůǔûùúü",
+    "c": "čçćċ",
+    "n": "ņñńň",
+    "s": "šșßşś",
+    "y": "ÿýŷ",
+    "z": "żźž",
+    "l": "ľłļ",
+    "d": "ďð",
+    "r": "ř",
+    "t": "þțť",
+    "g": "ğġ",
+    "h": "ħ",
+    "k": "ķ",
+    "w": "ŵ"
+  },
+  "uppercase": {
+    "i": "İĪĨĮǏÎÌÍÏ",
+    "s": "ȘŠßŚŞ"
+  }
+}

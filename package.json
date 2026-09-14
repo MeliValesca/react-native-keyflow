@@ -1,0 +1,162 @@
+{
+  "name": "react-native-keyflow",
+  "version": "0.1.1",
+  "description": "Customizable native keyboards for React Native",
+  "main": "./lib/module/index.js",
+  "types": "./lib/typescript/src/index.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./lib/typescript/src/index.d.ts",
+      "default": "./lib/module/index.js"
+    },
+    "./package.json": "./package.json",
+    "./testing": {
+      "source": "./src/testing.ts",
+      "types": "./lib/typescript/src/testing.d.ts",
+      "default": "./lib/module/testing.js"
+    }
+  },
+  "files": [
+    "src",
+    "lib",
+    "ios",
+    "expo-module.config.json",
+    "THIRD_PARTY_NOTICES.md",
+    "!**/__tests__",
+    "!ios/build",
+    "android",
+    "!android/build",
+    "!android/.gradle",
+    "!android/local.properties",
+    "assets",
+    "!artifacts/**",
+    "!example/**",
+    "!android/src/androidTest",
+    "!android/src/test"
+  ],
+  "scripts": {
+    "build": "bob build",
+    "typecheck": "tsc --noEmit && tsc -p example/tsconfig.json --noEmit",
+    "test": "jest",
+    "test:visual:ios": "node scripts/compare-ios-keyboards.mjs",
+    "format:check": "prettier . --check",
+    "format:write": "prettier . --write",
+    "check": "yarn format:check && yarn lint && yarn typecheck && yarn test && yarn test:visual:helpers && yarn test:ci && yarn build",
+    "example:export": "yarn build && node scripts/export-example.mjs",
+    "test:visual:qwerty": "node scripts/compare-qwerty-defaults.mjs",
+    "test:device:ios": "node scripts/run-ios-qwerty-tests.mjs",
+    "test:device:android": "node scripts/compare-native-interactions.mjs android",
+    "test:visual:accents": "node scripts/capture-accent-contrast.mjs",
+    "test:features": "node scripts/visual/run.mjs",
+    "test:features:report": "node scripts/visual/report.mjs",
+    "test:visual:compare": "node scripts/visual/compare.mjs",
+    "test:visual:helpers": "node --test scripts/visual/pixels.test.mjs scripts/visual/customization-pixels.test.mjs scripts/visual/tablet-geometry.test.mjs",
+    "test:visual:transitions": "node scripts/visual/transitions.mjs",
+    "test:visual:transparency": "node scripts/visual/transparency.mjs",
+    "test:visual:custom-fonts": "node scripts/visual/custom-fonts.mjs",
+    "test:visual:customization": "node scripts/visual/customization.mjs",
+    "test:visual:layouts": "node scripts/visual/layouts.mjs",
+    "test:visual:tablets": "node scripts/visual/tablets.mjs",
+    "test:tablet:sizes": "node --test scripts/visual/tablet-geometry.test.mjs",
+    "test:visual:layouts:report": "node scripts/visual/layout-report.mjs",
+    "test:visual:customization-layouts": "node scripts/visual/customization-layouts.mjs",
+    "test:visual:customization-layouts:report": "node scripts/visual/customization-layouts-report.mjs",
+    "test:languages:ios": "node scripts/test-language-resolution.mjs",
+    "test:visual:languages": "node scripts/visual/languages.mjs",
+    "test:ci": "node --test scripts/ci/workflow.test.mjs scripts/launch-ios-ci.test.mjs scripts/ci-scope.test.mjs scripts/release.test.mjs",
+    "prepack": "yarn build",
+    "lint": "eslint src example/src --max-warnings 0",
+    "hooks:install": "lefthook install",
+    "release:prepare": "release-it --config .release-it.json",
+    "release:publish": "release-it --config .release-it.publish.json --no-increment"
+  },
+  "packageManager": "yarn@4.11.0",
+  "engines": {
+    "node": ">=22.20.0"
+  },
+  "workspaces": [
+    "example",
+    "docs"
+  ],
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@babel/preset-env": "^7.25.3",
+    "@babel/preset-typescript": "^7.25.2",
+    "@commitlint/cli": "^19",
+    "@commitlint/config-conventional": "^19",
+    "@eslint/js": "^9",
+    "@react-native/eslint-config": "0.86.3",
+    "@release-it/conventional-changelog": "10.0.1",
+    "@types/jest": "^29.5.14",
+    "@types/react": "^19.2.0",
+    "babel-jest": "^29.7.0",
+    "conventional-changelog-angular": "^8.3.0",
+    "eslint": "^9",
+    "eslint-config-prettier": "^10",
+    "expo": "~57.0.17",
+    "jest": "^29.7.0",
+    "lefthook": "^2",
+    "pngjs": "^7.0.0",
+    "prettier": "^2.8.8",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-builder-bob": "^0.40.18",
+    "release-it": "^19",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8",
+    "yaml": "^2.8.1"
+  },
+  "react-native-builder-bob": {
+    "source": "src",
+    "output": "lib",
+    "targets": [
+      [
+        "module",
+        {
+          "esm": true
+        }
+      ],
+      [
+        "typescript",
+        {
+          "project": "tsconfig.build.json"
+        }
+      ]
+    ]
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "modulePathIgnorePatterns": [
+      "<rootDir>/artifacts/"
+    ],
+    "testMatch": [
+      "<rootDir>/src/__tests__/**/*.test.ts"
+    ],
+    "transform": {
+      "^.+\\.tsx?$": "babel-jest"
+    }
+  },
+  "prettier": {
+    "singleQuote": true,
+    "trailingComma": "all"
+  },
+  "peerDependencies": {
+    "expo": "^57.0.0",
+    "react": "^19.2.3",
+    "react-native": "^0.86.3"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MeliValesca/react-native-keyflow.git"
+  },
+  "homepage": "https://github.com/MeliValesca/react-native-keyflow#readme",
+  "bugs": {
+    "url": "https://github.com/MeliValesca/react-native-keyflow/issues"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  }
+}

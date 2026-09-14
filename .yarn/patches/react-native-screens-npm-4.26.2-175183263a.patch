@@ -1,0 +1,37 @@
+diff --git a/android/src/main/cpp/NativeProxy.cpp b/android/src/main/cpp/NativeProxy.cpp
+index 239e03a3dad5591b6a34aaf70e4cc0ce44e3a6f8..eed947a61c5f46d994d579f3457cbb703388a06a 100644
+--- a/android/src/main/cpp/NativeProxy.cpp
++++ b/android/src/main/cpp/NativeProxy.cpp
+@@ -32,7 +32,10 @@ void NativeProxy::nativeAddMutationsListener(
+   auto uiManager =
+       fabricUIManager->getBinding()->getScheduler()->getUIManager();
+ 
+-  if (!screenRemovalListener_) {
++  // initialize() and the asynchronously delivered onHostResume() can both
++  // enter here. Concurrent shared_ptr assignment corrupts the weak delegates
++  // held by MountingCoordinator; publish exactly one listener to both callers.
++  std::call_once(screenRemovalListenerOnce_, [this] {
+     screenRemovalListener_ =
+         std::make_shared<RNSScreenRemovalListener>([this](int tag) {
+           static const auto method =
+@@ -40,7 +43,7 @@ void NativeProxy::nativeAddMutationsListener(
+                   "notifyScreenRemoved");
+           method(javaPart_, tag);
+         });
+-  }
++  });
+ 
+   cleanupExpiredMountingCoordinators();
+ 
+diff --git a/android/src/main/cpp/NativeProxy.h b/android/src/main/cpp/NativeProxy.h
+index c4dbb1253731e61d7c74570fded5c2cfe3650a1d..89366059ec8806b48a79279ae6a110837fdef078 100644
+--- a/android/src/main/cpp/NativeProxy.h
++++ b/android/src/main/cpp/NativeProxy.h
+@@ -26,6 +26,7 @@ class NativeProxy : public jni::HybridClass<NativeProxy> {
+   friend HybridBase;
+   jni::global_ref<NativeProxy::javaobject> javaPart_;
+ 
++  std::once_flag screenRemovalListenerOnce_;
+   std::mutex coordinatorsMutex_;
+ 
+   explicit NativeProxy(jni::alias_ref<NativeProxy::javaobject> jThis);

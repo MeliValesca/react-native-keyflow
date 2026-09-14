@@ -1,0 +1,124 @@
+name: Native keyboard regression
+
+on:
+  workflow_dispatch:
+    inputs:
+      ios_phone_session:
+        description: agent-device session for the running iPhone example
+        required: true
+        default: keyflow
+      ios_phone_id:
+        description: iOS Simulator UDID
+        required: true
+      android_phone_session:
+        description: agent-device session for the running Android example
+        required: true
+        default: keyflow-android
+      android_phone_id:
+        description: Android emulator serial
+        required: true
+        default: emulator-5568
+      run_tablets:
+        description: Run the tablet layout matrix
+        required: true
+        type: boolean
+        default: true
+      ios_tablet_session:
+        description: agent-device session for the running iPad example
+        required: false
+        default: keyflow-ipad
+      ios_tablet_id:
+        description: iPad Simulator UDID
+        required: false
+      android_tablet_session:
+        description: agent-device session for the running Android tablet example
+        required: false
+        default: keyflow-android-tablet
+      android_tablet_id:
+        description: Android tablet emulator serial
+        required: false
+
+concurrency:
+  group: keyflow-native-keyboard-lab
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  devices:
+    name: Phone and tablet parity suites
+    runs-on: [self-hosted, macOS, keyflow-mobile]
+    timeout-minutes: 120
+    env:
+      AGENT_DEVICE: agent-device
+      IOS_PHONE_SESSION: ${{ inputs.ios_phone_session }}
+      IOS_PHONE_ID: ${{ inputs.ios_phone_id }}
+      ANDROID_PHONE_SESSION: ${{ inputs.android_phone_session }}
+      ANDROID_PHONE_ID: ${{ inputs.android_phone_id }}
+      IOS_TABLET_SESSION: ${{ inputs.ios_tablet_session }}
+      IOS_TABLET_ID: ${{ inputs.ios_tablet_id }}
+      ANDROID_TABLET_SESSION: ${{ inputs.android_tablet_session }}
+      ANDROID_TABLET_ID: ${{ inputs.android_tablet_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-js
+      - name: Install official Stim
+        run: npm install --global stim@1.2.0 --registry=https://registry.npmjs.org
+      - name: Fix Stim iOS simulator readiness probe
+        run: node scripts/patch-stim-ios-readiness.mjs
+      - name: Verify Stim package
+        run: npm list --global --depth=0 stim
+      - name: Start Metro
+        working-directory: example
+        run: stim start
+      - name: Build and launch this checkout on iPhone
+        working-directory: example
+        run: stim ios --device "$IOS_PHONE_ID"
+      - name: Build and launch this checkout on Android
+        if: ${{ !cancelled() }}
+        working-directory: example
+        run: stim android --device "$ANDROID_PHONE_ID"
+      - name: Verify device tooling and sessions
+        if: ${{ !cancelled() }}
+        run: |
+          command -v "$AGENT_DEVICE"
+          "$AGENT_DEVICE" snapshot --session "$IOS_PHONE_SESSION" --json
+          "$AGENT_DEVICE" snapshot --session "$ANDROID_PHONE_SESSION" --json
+      - name: iOS phone feature suite
+        if: ${{ !cancelled() }}
+        run: yarn test:features ios "$IOS_PHONE_SESSION" "$IOS_PHONE_ID"
+      - name: Android phone feature suite
+        if: ${{ !cancelled() }}
+        run: yarn test:features android "$ANDROID_PHONE_SESSION" "$ANDROID_PHONE_ID"
+      - name: Build and launch this checkout on iPad
+        if: ${{ !cancelled() && inputs.run_tablets }}
+        working-directory: example
+        run: stim ios --device "$IOS_TABLET_ID"
+      - name: Build and launch this checkout on Android tablet
+        if: ${{ !cancelled() && inputs.run_tablets }}
+        working-directory: example
+        run: stim android --device "$ANDROID_TABLET_ID"
+      - name: iPad layout suite
+        if: ${{ !cancelled() && inputs.run_tablets }}
+        run: yarn test:visual:tablets ios "$IOS_TABLET_SESSION" "$IOS_TABLET_ID"
+      - name: Android tablet layout suite
+        if: ${{ !cancelled() && inputs.run_tablets }}
+        run: yarn test:visual:tablets android "$ANDROID_TABLET_SESSION" "$ANDROID_TABLET_ID"
+      - name: Build visual report
+        if: always()
+        run: yarn test:features:report
+      - name: Capture application errors
+        if: always()
+        run: |
+          mkdir -p artifacts
+          cd example
+          stim logs --errors > ../artifacts/stim-errors.txt
+      - name: Upload screenshots, videos, metrics, and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-keyboard-regression-${{ github.run_id }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 30
