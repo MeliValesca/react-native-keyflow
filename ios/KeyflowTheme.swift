@@ -8,7 +8,7 @@ struct KeyflowTheme: Decodable, Equatable {
   var background = "#E0E2E7"
   var keyBackground = "#FFFFFF"
   var keyForeground = "#000000"
-  var pressedKeyBackground = "#FFFFFF"
+  var pressedKeyBackground = "#C1C3C6"
   var selectedKeyBackground = "#008FFF"
   var selectedKeyForeground = "#FFFFFF"
   var specialKeyBackground = "#FFFFFF"

@@ -51,6 +51,7 @@ final class KeyflowKey: UIView {
       label.alpha = hidesLegend || !preview.isHidden ? 0 : (isDisabledKey ? 0.35 : 1)
       padSubtitle.alpha = hidesLegend ? 0 : (isDisabledKey ? 0.35 : 1)
       icon.alpha = hidesLegend ? 0 : 1
+      face.alpha = hidesLegend ? 0.5 : 1
     }
   }
   var allowsPreview = true

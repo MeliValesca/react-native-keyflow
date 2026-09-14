@@ -15,7 +15,10 @@ export const lightKeyboardTheme: KeyboardTheme = Object.freeze({
   background: '#E0E2E7',
   keyBackground: '#FFFFFF',
   keyForeground: '#000000',
-  pressedKeyBackground: '#FFFFFF',
+  pressedKeyBackground: '#C1C3C6',
+  sectionOverrides: Object.freeze({
+    preview: Object.freeze({ background: '#FFFFFF' as const }),
+  }),
   selectedKeyBackground: '#008FFF',
   selectedKeyForeground: '#FFFFFF',
   specialKeyBackground: '#FFFFFF',
@@ -40,6 +43,9 @@ export const darkKeyboardTheme: KeyboardTheme = Object.freeze({
   keyBackground: '#5E5F61',
   keyForeground: '#FFFFFF',
   pressedKeyBackground: '#8E8E93',
+  sectionOverrides: Object.freeze({
+    preview: Object.freeze({ background: '#8E8E93' as const }),
+  }),
   specialKeyBackground: '#5E5F61',
   actionKeyBackground: '#5E5F61',
   actionKeyForeground: '#FFFFFF',

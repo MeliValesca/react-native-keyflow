@@ -303,10 +303,23 @@ final class KeyflowQwertyTests: XCTestCase {
       key(["numbers", "123"]).tap()
       let editMenu = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Select All' OR label == 'AutoFill'")).firstMatch
       XCTAssertFalse(editMenu.exists && editMenu.isHittable, "Punctuation hold must start without an edit menu")
-      key([symbol]).press(forDuration: 1.2)
+      let source = key([symbol])
+      if tablet && symbol == "$" {
+        // iPadOS can highlight cents yet cancel a stationary release at the
+        // original dollar key. Explicitly enter the popup before releasing.
+        // Derive the target from the key frame, not a device-specific point.
+        let origin = source.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let choice = source.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: -0.5))
+        origin.press(forDuration: 1.2, thenDragTo: choice, withVelocity: .slow, thenHoldForDuration: 0.1)
+      } else {
+        source.press(forDuration: 1.2)
+      }
       if native {
         expected = text
         XCTAssertNotEqual(expected, "alpha beta", "Native hold must insert a character")
+        if tablet && symbol == "$" {
+          XCTAssertEqual(expected, "alpha beta¢", "The currency gesture must select cents, not merely type a dollar")
+        }
       }
       else { XCTAssertEqual(text, expected, "Held \(symbol) release must match Apple") }
       capture("\(native ? "apple" : "keyflow")-punctuation-\(symbol.unicodeScalars.first!.value)")

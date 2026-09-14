@@ -140,6 +140,13 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
       group === 'iosRendering'
         ? [
             'testPhoneDoubleShiftLocksCaseAndShowsLockGlyph',
+            'testSpacePressChangesDefaultFillAndRestoresOnRelease',
+            'testSpacePressRestoresCustomFillOnCancellation',
+            'testSpaceTrackpadSoftensFacesAndRestoresCustomColors',
+            'testTabletDollarHoldCommitsInitialChoiceWithoutDrag',
+            'testSpaceTrackpadLegendsFadeOnEntry',
+            'testSpaceTrackpadReleaseRestoresLegendsDuringFade',
+            'testSpaceTrackpadCancellationRestoresLegends',
             'testHeldDeleteStopsOnRelease',
             'testHeldDeleteStopsOnCancellation',
             'testHeldDeleteStopsOutsideKey',
@@ -172,6 +179,9 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
     'tabletShiftThenCapsRemainSelected',
     'shiftedCommaDisplaysAndInsertsPlatformValue',
     'shiftedPeriodDisplaysAndInsertsPlatformValue',
+    'spaceTrackpadKeepsPressedColorUntilRelease',
+    'raisedSpaceTrackpadKeepsPressedColor',
+    'spaceTrackpadCancellationRestoresColor',
     'flatPressedGlyphActuallyRenders',
     'raisedPressedGlyphActuallyRenders',
     'flatRestingGlyphActuallyRenders',

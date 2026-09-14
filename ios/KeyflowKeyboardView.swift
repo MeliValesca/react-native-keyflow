@@ -460,9 +460,8 @@ final class KeyflowKeyboardView: UIView {
           guard let self, let key, touchesByID[id] === key else { return }
           key.isPressed = false
           if value == " " {
-            cursorMode = true
             cursorLastX = heldOrigin.x
-            rows.flatMap { $0 }.forEach { $0.hidesLegend = true }
+            setCursorMode(true)
             if hapticsEnabled { haptic.impactOccurred() }
           } else {
             showAccents(for: key, value: value)
@@ -724,11 +723,23 @@ final class KeyflowKeyboardView: UIView {
     return true
   }
 
+  private func setCursorMode(_ active: Bool) {
+    guard cursorMode != active else { return }
+    cursorMode = active
+    UIView.animate(
+      withDuration: UIAccessibility.isReduceMotionEnabled ? 0 : 0.2,
+      delay: 0,
+      options: [.beginFromCurrentState, .allowUserInteraction, .curveEaseOut]
+    ) {
+      self.rows.flatMap { $0 }.forEach { $0.hidesLegend = active }
+    }
+  }
+
   private func cancelTouches() {
     holdWork?.cancel()
     holdWork = nil
     heldTouch = nil
-    cursorMode = false
+    setCursorMode(false)
     accentKeys.forEach { $0.removeFromSuperview() }
     accentKeys = []
     selectedAccent = nil
@@ -736,7 +747,6 @@ final class KeyflowKeyboardView: UIView {
     accentSelectionIndicator.isHidden = true
     accentItemWidth = 0
     updateAccessibleKeys()
-    rows.flatMap { $0 }.forEach { $0.hidesLegend = false }
     touchesByID.values.forEach { $0.isPressed = false }
     touchesByID.removeAll()
     originalKeysByID.removeAll()
