@@ -17,11 +17,13 @@ Device scripts require a running example and the appropriate device/session argu
 
 The repository includes two automatic GitHub Actions workflows and an optional manual comparison workflow:
 
-- **Library checks** runs formatting, both TypeScript projects, Jest, visual-helper unit tests, source-integrity checks, and package generation on every pull request and push to `main`.
+- **Library checks** runs formatting, both TypeScript projects, Jest, visual-helper unit tests, source-integrity checks, and package generation on pull requests and pushes to `main` with code changes.
 - **Native builds and device tests** builds the Android example/test APKs and iOS app/XCTest bundles once, then shares them with parallel phone and tablet jobs. Device jobs install those artifacts and run the recorded baseline test inventory without compiling again. Focused Android glyph and cross-platform modifier-state regressions supplement that inventory; see [coverage](coverage.md) for the exact retained suite. There is no optional expanded suite. Platform filtering avoids unrelated work; weekly runs add larger iOS devices and an older Android API. The seven protected check names stay unchanged.
 - **Native keyboard regression** is a manual workflow for the real simulator/emulator comparisons. It builds and launches the current checkout, runs the phone feature suites, optionally runs both tablet matrices, and uploads screenshots, videos, metrics, reports, and Stim logs for 30 days.
 
-The device workflow needs a macOS self-hosted runner labeled `keyflow-mobile`. The runner must have Xcode, Android Studio/SDK, CocoaPods, Stim, and `agent-device`; Stim-owned iPhone, iPad, Android phone, and Android tablet devices; Gboard configured on Android; and the four `agent-device` sessions named by the workflow inputs. Supply both tablet device IDs when tablet tests are enabled. The Android tablet suite prepares Gboard and requires its real keys to be visible. The Android tablet must use an actual tablet hardware profile such as Pixel Tablet. A phone AVD with an overridden resolution is invalid because Gboard can retain its phone, external-keyboard, or floating-mode policy. Keep these reference devices on fixed OS, display-scale, locale, appearance, and keyboard versions so a baseline change reflects code rather than runner drift. The workflow serializes all device runs through one concurrency group because simulators, Metro, and keyboard state are shared resources.
+CI uses isolated GitHub-hosted runners for each job. Android device jobs run on
+Ubuntu with KVM; iOS device jobs run on macOS. Local visual comparisons still need
+configured reference keyboards and the devices reported by Stim.
 
 Use **Native keyboard regression → Run workflow** in GitHub Actions and supply the iPhone Simulator UDID and Android emulator serial shown by `stim status`. Disable `run_tablets` while servicing a tablet runner. A device-suite failure still uploads the collected artifacts through the `always()` steps.
 
@@ -100,3 +102,18 @@ failed scope detection never silently skips tests.
 Required check names and branch protection stay unchanged. Unaffected build/library
 jobs are skipped; device check entries report that no relevant changes were found
 without installing dependencies, building binaries, or launching a simulator.
+
+### Overlapping pushes
+
+A newer PR run cancels the older run for that PR. Its scope covers the full PR
+diff, so an iOS commit followed by an Android commit runs both platforms in the
+replacement pipeline.
+
+Every `main` push has its own concurrency group in both workflows. Newer pushes
+cannot cancel or replace older running or pending pipelines. They may execute
+in parallel or wait for available GitHub runners; completion order is not guaranteed.
+Manual and scheduled runs also have separate groups.
+
+This deliberately avoids GitHub’s default single-pending-run concurrency queue,
+which can replace an older pending run even with `cancel-in-progress: false`.
+See [GitHub’s concurrency documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#concurrency).

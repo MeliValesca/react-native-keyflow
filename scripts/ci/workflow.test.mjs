@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { parse } from 'yaml';
+import { runInNewContext } from 'node:vm';
 const workflow = parse(readFileSync('.github/workflows/native.yml', 'utf8'));
 const jobs = workflow.jobs;
 
@@ -215,4 +216,65 @@ test('scope passes event-specific base and head for PRs and main pushes', () => 
     assert.ok(scope.on.workflow_call.outputs[key]);
     assert.ok(scope.jobs.scope.outputs[key]);
   }
+});
+
+for (const file of ['ci.yml', 'native.yml']) {
+  test(`${file}: PRs share a group, non-PR runs retain their own group`, () => {
+    const { concurrency } = parse(
+      readFileSync(`.github/workflows/${file}`, 'utf8'),
+    );
+    assert.equal(
+      concurrency.group,
+      "${{ github.workflow }}-${{ github.event_name }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}",
+    );
+    assert.equal(
+      concurrency['cancel-in-progress'],
+      "${{ github.event_name == 'pull_request' }}",
+    );
+  });
+}
+
+test('overlapping main pushes stay distinct while PR updates replace the same PR', () => {
+  const render = (value, github) =>
+    value.replace(/\$\{\{(.*?)\}\}/g, (_, expression) =>
+      String(runInNewContext(expression.trim(), { github }, { timeout: 100 })),
+    );
+  const contexts = ['ci.yml', 'native.yml'].map((file) =>
+    parse(readFileSync(`.github/workflows/${file}`, 'utf8')),
+  );
+  const mainGroups = [];
+  for (const workflow of contexts) {
+    for (const run_id of [101, 102, 103]) {
+      const github = {
+        workflow: workflow.name,
+        event_name: 'push',
+        ref: 'refs/heads/main',
+        run_id,
+      };
+      mainGroups.push(render(workflow.concurrency.group, github));
+      assert.equal(
+        render(workflow.concurrency['cancel-in-progress'], github),
+        'false',
+      );
+    }
+    const prGroups = [101, 102].map((run_id) => {
+      const github = {
+        workflow: workflow.name,
+        event_name: 'pull_request',
+        ref: 'refs/pull/2/merge',
+        run_id,
+      };
+      assert.equal(
+        render(workflow.concurrency['cancel-in-progress'], github),
+        'true',
+      );
+      return render(workflow.concurrency.group, github);
+    });
+    assert.equal(prGroups[0], prGroups[1]);
+  }
+  assert.equal(
+    new Set(mainGroups).size,
+    6,
+    'Neither later pushes nor other workflows can replace a main run',
+  );
 });
