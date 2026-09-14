@@ -217,6 +217,59 @@ final class KeyflowRenderingTests: XCTestCase {
     wait(for: [stopped], timeout: 0.2)
   }
 
+  func testSpacePressChangesDefaultFillAndRestoresOnRelease() throws {
+    try assertSpacePress(theme: KeyflowTheme(), cancel: false)
+  }
+
+  func testSpacePressRestoresCustomFillOnCancellation() throws {
+    var theme = KeyflowTheme()
+    theme.keyBackground = "#17324F"
+    theme.pressedKeyBackground = "#A13FC5"
+    try assertSpacePress(theme: theme, cancel: true)
+  }
+
+  private func assertSpacePress(theme: KeyflowTheme, cancel: Bool) throws {
+    let keyboard = KeyflowKeyboardView()
+    keyboard.theme = theme
+    let screen = UIScreen.main.bounds.size
+    keyboard.updateViewport(screen, insets: .zero)
+    keyboard.frame = CGRect(x: 0, y: 0, width: screen.width, height: keyboard.intrinsicContentSize.height)
+    keyboard.layoutIfNeeded()
+    let space = try XCTUnwrap(keyboard.subviews.compactMap { $0 as? KeyflowKey }.first { $0.action == .text(" ") })
+    let resting = space.face.backgroundColor
+    var actions: [KeyflowAction] = []
+    keyboard.onAction = { actions.append($0) }
+    let touch = AccentTouch()
+    touch.point = CGPoint(x: space.frame.midX, y: space.frame.midY)
+    keyboard.touchesBegan([touch], with: nil)
+    XCTAssertNotEqual(space.face.backgroundColor, resting, "Space must visibly change fill on touch-down")
+    XCTAssertEqual(space.face.backgroundColor, UIColor(keyflowHex: theme.pressedKeyBackground))
+    if cancel { keyboard.touchesCancelled([touch], with: nil) }
+    else { keyboard.touchesEnded([touch], with: nil) }
+    XCTAssertEqual(space.face.backgroundColor, resting)
+    XCTAssertEqual(actions, cancel ? [] : [.text(" ")])
+  }
+
+  func testSpaceTrackpadSoftensFacesAndRestoresCustomColors() throws {
+    try withTrackpad { keyboard, touch, _ in
+      let space = try XCTUnwrap(keyboard.subviews.compactMap { $0 as? KeyflowKey }.first { $0.action == .text(" ") })
+      XCTAssertEqual(space.face.alpha, 0.5)
+      XCTAssertNotNil(space.face.layer.animation(forKey: "opacity"), "Trackpad faces must fade with the legends")
+      var theme = keyboard.theme
+      theme.keyBackground = "#17324F"
+      theme.pressedKeyBackground = "#A13FC5"
+      space.theme = theme
+      XCTAssertEqual(space.face.backgroundColor, UIColor(keyflowHex: theme.keyBackground))
+      XCTAssertEqual(space.face.alpha, 0.5, "Trackpad must preserve custom fills while softening them")
+      touch.point.x -= 24
+      keyboard.touchesMoved([touch], with: nil)
+      XCTAssertEqual(space.face.alpha, 0.5)
+      keyboard.touchesEnded([touch], with: nil)
+      XCTAssertEqual(space.face.alpha, 1)
+      XCTAssertEqual(space.face.backgroundColor, UIColor(keyflowHex: theme.keyBackground))
+    }
+  }
+
   func testSpaceTrackpadLegendsFadeOnEntry() throws {
     try withTrackpad { keyboard, touch, legends in
       for legend in legends {
@@ -247,7 +300,7 @@ final class KeyflowRenderingTests: XCTestCase {
       keyboard.touchesCancelled([touch], with: nil)
       RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.3))
       for legend in legends { XCTAssertEqual(legend.layer.presentation()?.opacity ?? legend.layer.opacity, 1, accuracy: 0.01) }
-      XCTAssertFalse(keyboard.subviews.compactMap { $0 as? KeyflowKey }.contains { $0.hidesLegend })
+      XCTAssertFalse(keyboard.subviews.compactMap { $0 as? KeyflowKey }.contains { $0.hidesLegend || $0.face.alpha != 1 })
     }
   }
 

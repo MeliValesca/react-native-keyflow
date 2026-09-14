@@ -4,7 +4,7 @@
 
 The device suite retains the pre-release test inventory recorded in
 [`baseline-tests.json`](../scripts/ci/baseline-tests.json),
-plus four Android regressions for disappearing glyphs, eight for Android modifier states, five for iOS modifier states, three iOS held-delete cases, and six trackpad feedback cases. The tests run against the
+plus four Android regressions for disappearing glyphs, eight for Android modifier states, five for iOS modifier states, three iOS held-delete cases, and nine space/trackpad feedback cases. The tests run against the
 current keyboard implementation. There is no optional expanded suite or runtime
 filter hiding additional cases.
 
@@ -12,12 +12,12 @@ filter hiding additional cases.
 | -------------- | ------------------------------------------------------------- |
 | Android phone  | 48 original + 4 glyph + 8 Shift + 3 trackpad regressions = 63 |
 | Android tablet | 48 original + 4 glyph + 8 Shift + 3 trackpad regressions = 63 |
-| iPhone         | 46 rendering + 60 interaction cases                           |
-| iPad           | 46 rendering + 60 interaction cases                           |
+| iPhone         | 49 rendering + 60 interaction cases                           |
+| iPad           | 49 rendering + 60 interaction cases                           |
 
 `scripts/ci/baseline-tests.json` records the original inventory for verification.
 A fast workflow test checks that the actual device sources contain precisely that
-inventory plus the seventeen retained glyph/modifier cases plus three held-delete lifecycle cases and six trackpad feedback cases. It does not select or skip tests.
+inventory plus the seventeen retained glyph/modifier cases plus three held-delete lifecycle cases and nine space/trackpad feedback cases. It does not select or skip tests.
 
 iOS coverage includes typing, symbol pages, long presses, accent selection,
 number pads, tablet layouts, customization, transparency and transition diagnostics.
@@ -25,7 +25,7 @@ Android native coverage includes layouts, input, accent interactions and press-r
 styling. The four additional cases verify actual visible glyph pixels in flat and
 raised materials, both at rest and while pressed. Shift regressions check left/right activation, filled-arrow pixels, one-letter reset, independent Android Caps Lock/Shift activation, shifted punctuation output, and the separate automatic-capitalization state. iPad regressions verify its distinct modifier behavior and `! ?` punctuation, including accessibility labels and rendered attachments. Phone regressions check persistent uppercase and the distinct Caps Lock glyph on both platforms.
 
-Trackpad regressions verify iOS legend fade entry, restoration on release during the fade, and cancellation. Android tests compare rendered space-bar pixels during cursor movement in flat and raised materials, and verify that release or cancellation restores the resting color without inserting a space.
+Space/trackpad regressions verify iOS touch-down fill contrast, normal release and custom-color cancellation, legend and key-face fading, restoration during an interrupted fade, and restoration after cursor dragging. Android tests compare rendered space-bar pixels during cursor movement in flat and raised materials, and verify that release or cancellation restores the resting color without inserting a space.
 
 The newer Android React Native app automation, additional accessibility/window
 suites and iOS allocation/performance/background cases were removed. Android

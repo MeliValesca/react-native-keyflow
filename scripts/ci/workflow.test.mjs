@@ -140,6 +140,9 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
       group === 'iosRendering'
         ? [
             'testPhoneDoubleShiftLocksCaseAndShowsLockGlyph',
+            'testSpacePressChangesDefaultFillAndRestoresOnRelease',
+            'testSpacePressRestoresCustomFillOnCancellation',
+            'testSpaceTrackpadSoftensFacesAndRestoresCustomColors',
             'testSpaceTrackpadLegendsFadeOnEntry',
             'testSpaceTrackpadReleaseRestoresLegendsDuringFade',
             'testSpaceTrackpadCancellationRestoresLegends',

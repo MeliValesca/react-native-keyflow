@@ -3,6 +3,7 @@ import {
   createKeyboardTheme,
   androidKeyboardTheme,
   androidDarkKeyboardTheme,
+  darkKeyboardTheme,
 } from '../theme';
 
 test('Android previews use native bubble fills and accept independent customization', () => {
@@ -91,4 +92,22 @@ test('focused long-press colors remain independent through serialization', () =>
   });
   expect(native.sections.preview.background).toBe('#173E42');
   expect(native.sections.keys.background).toBe('#FFFFFF');
+});
+
+test('iOS pressed faces contrast with resting keys while previews retain their own fill', () => {
+  const light = createKeyboardTheme();
+  expect(light.sections?.keys?.pressedBackground).toBe('#C1C3C6');
+  expect(light.sections?.keys?.pressedBackground).not.toBe(
+    light.sections?.keys?.background,
+  );
+  expect(light.sections?.preview?.background).toBe('#FFFFFF');
+  expect(
+    createKeyboardTheme({}, darkKeyboardTheme).sections?.preview?.background,
+  ).toBe('#8E8E93');
+  const custom = createKeyboardTheme({
+    keys: { pressedBackground: '#123456' },
+    preview: { background: '#654321' },
+  });
+  expect(custom.sections?.keys?.pressedBackground).toBe('#123456');
+  expect(custom.sections?.preview?.background).toBe('#654321');
 });
