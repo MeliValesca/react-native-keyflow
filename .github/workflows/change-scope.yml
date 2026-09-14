@@ -3,6 +3,8 @@ name: Detect affected platforms
 on:
   workflow_call:
     outputs:
+      library:
+        value: ${{ jobs.scope.outputs.library }}
       ios:
         value: ${{ jobs.scope.outputs.ios }}
       android:
@@ -10,22 +12,50 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   scope:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 140
     outputs:
+      library: ${{ steps.detect.outputs.library }}
       ios: ${{ steps.detect.outputs.ios }}
       android: ${{ steps.detect.outputs.android }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Fingerprint merged code and test inputs
+        id: inputs
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: node scripts/ci-reuse.mjs prepare
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ci-inputs-${{ steps.inputs.outputs.key }}
+          path: /tmp/keyflow-ci-inputs.txt
+          retention-days: 7
+          overwrite: true
+      - name: Reuse or await matching successful workflow
+        id: reuse
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          INPUT_KEY: ${{ steps.inputs.outputs.key }}
+        run: node scripts/ci-reuse.mjs
       - name: Detect changed platforms
         id: detect
         env:
+          REUSED: ${{ steps.reuse.outputs.reused }}
           EVENT_NAME: ${{ github.event_name }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: node scripts/ci-scope.mjs
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [ "$REUSED" = true ]; then
+            printf 'library=false\nios=false\nandroid=false\n' >> "$GITHUB_OUTPUT"
+          else
+            node scripts/ci-scope.mjs
+          fi

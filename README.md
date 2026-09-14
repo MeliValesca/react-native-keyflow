@@ -25,7 +25,7 @@ Real iPad example captures. These themes use the public API; Story Studio is exa
 
 ## Get started
 
-The package is not published to npm yet. Run the example from this repository:
+The first npm release is being prepared. Until it is published, install a [local package in your app](docs/api.md#compatibility-and-local-installation), or run the example from this repository:
 
 ```sh
 git clone https://github.com/MeliValesca/react-native-keyflow.git
@@ -39,7 +39,7 @@ stim ios
 # Or: stim android
 ```
 
-The example uses **Expo SDK 57, React Native 0.86.3, and React 19.2.3**. Keyflow requires Expo Modules and a native development or production build; Expo Go and web are not supported. The example targets iOS 16.4+ and Android API 24+. See [compatibility and local installation](docs/api.md#compatibility-and-local-installation).
+The example uses **Expo SDK 57, React Native 0.86.3, and React 19.2.3**. Keyflow requires Expo Modules and a native development or production build; Expo Go is not supported. On web, render your own fallback instead of `KeyflowTextInput`; see [web fallback](docs/api.md#web-fallback). The example targets iOS 16.4+ and Android API 24+. See [compatibility and local installation](docs/api.md#compatibility-and-local-installation).
 
 ### Your first input
 
@@ -218,16 +218,28 @@ Watch the MP4s: [iPad transitions](docs/media/ios-transitions.mp4) · [Android t
 ### Long press and accent selection
 
 <table>
-<tr><th>iPad · Hold and move between accents</th><th>Android phone · Hold for accents and shortcuts</th></tr>
+<tr><th>iPad · Hold and slide between accents</th><th>Android phone · Hold and slide between accents</th></tr>
 <tr>
-<td><a href="docs/media/ios-accents.mp4"><img src="docs/media/ios-accents.gif" width="360" alt="iPad long-press accent grid with the theme’s rose selection highlight" /></a></td>
-<td><a href="docs/media/android-accents.mp4"><img src="docs/media/android-accents.gif" width="360" alt="Android long-press popup showing accented letters and the number shortcut" /></a></td>
+<td><a href="docs/media/ios-accents.mp4"><img src="docs/media/ios-accents.gif" width="420" alt="Slide between iPad accent choices with Story Studio’s rose selection highlight" /></a></td>
+<td><a href="docs/media/android-accents.mp4"><img src="docs/media/android-accents.gif" width="420" alt="Android accent highlight following a continuous drag across rows and columns" /></a></td>
 </tr>
 </table>
 
 Watch the MP4s: [iPad accent selection](docs/media/ios-accents.mp4) · [Android long press](docs/media/android-accents.mp4).
 
-The previews are reduced to 10 fps; the MP4s retain the recordings’ timing. These are examples of Keyflow’s current behavior, not native-parity or physical-device performance benchmarks.
+### Space-bar trackpad
+
+<table>
+<tr><th>iPad · Hold space, then move</th><th>Android phone · Slide on space</th></tr>
+<tr>
+<td><a href="docs/media/ios-trackpad.mp4"><img src="docs/media/ios-trackpad.gif" width="420" alt="iPad key labels fading during space-bar cursor movement and returning on release" /></a></td>
+<td><a href="docs/media/android-trackpad.mp4"><img src="docs/media/android-trackpad.gif" width="420" alt="Android space retaining its pressed color while the cursor moves left and right" /></a></td>
+</tr>
+</table>
+
+Watch the MP4s: [iPad trackpad](docs/media/ios-trackpad.mp4) · [Android trackpad](docs/media/android-trackpad.mp4).
+
+The Android accent and trackpad GIFs use 50 fps; the iOS versions use 25 fps; the transition previews use 10 fps. The MP4s retain the recordings’ timing. These are examples of Keyflow’s current behavior, not native-parity or physical-device performance benchmarks.
 
 The clips demonstrate the named interactions only. The other behaviors in the table are covered by the relevant [native and app test suites](docs/coverage.md), with device-review limits documented there.
 
@@ -301,7 +313,7 @@ Use `keyboardMode="system"` for the installed keyboard and whatever features its
 ### Integration limits
 
 - `KeyflowTextInput` is single-line and native-owned. It has `defaultValue`, not a controlled `value`, and does not expose the complete React Native `TextInput` API—including secure-entry and semantic/AutoFill configuration props.
-- Supported preview peers are Expo SDK 57, React Native 0.86.x (0.86.3+) and React 19.2.3+. Earlier combinations are not claimed as supported. A native build with Expo Modules is required; Expo Go and web are unsupported.
+- Supported preview peers are Expo SDK 57, React Native 0.86.x (0.86.3+) and React 19.2.3+. Earlier combinations are not claimed as supported. A native build with Expo Modules is required; Expo Go is unsupported. On web, rendering `KeyflowTextInput` throws; provide your own [fallback](docs/api.md#web-fallback).
 - Keyflow is an **in-app keyboard component**, not a system-wide keyboard extension/IME that users can install for other apps.
 
 See [automated coverage and remaining manual checks](docs/coverage.md) for the precise boundary of the CI guarantees.

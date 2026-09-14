@@ -192,3 +192,58 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
     [...baseline.androidInstrumentation, ...regressions].sort(),
   );
 });
+
+test('library checks skip only an explicitly unaffected scope and retain their protected name', () => {
+  const library = parse(readFileSync('.github/workflows/ci.yml', 'utf8'));
+  assert.equal(library.jobs.scope.uses, './.github/workflows/change-scope.yml');
+  assert.equal(library.jobs.check.needs, 'scope');
+  assert.equal(library.jobs.check.name, 'Format, types, tests, and package');
+  assert.match(library.jobs.check.if, /needs.scope.result != 'success'/);
+  assert.match(library.jobs.check.if, /needs.scope.outputs.library != 'false'/);
+});
+test('scope passes event-specific base and head for PRs and main pushes', () => {
+  const scope = parse(
+    readFileSync('.github/workflows/change-scope.yml', 'utf8'),
+  );
+  assert.equal(scope.jobs.scope.steps[0].with['fetch-depth'], 0);
+  const detect = scope.jobs.scope.steps.find((step) => step.id === 'detect');
+  assert.match(detect.env.BASE_SHA, /github.event.before/);
+  assert.match(detect.env.BASE_SHA, /github.event.pull_request.base.sha/);
+  assert.match(detect.env.HEAD_SHA, /github.event.pull_request.head.sha/);
+  assert.match(detect.env.HEAD_SHA, /github.sha/);
+  for (const key of ['ios', 'android', 'library']) {
+    assert.ok(scope.on.workflow_call.outputs[key]);
+    assert.ok(scope.jobs.scope.outputs[key]);
+  }
+});
+
+for (const file of ['ci.yml', 'native.yml']) {
+  test(`${file}: newer runs cannot cancel matching checks being reused`, () => {
+    const workflow = parse(readFileSync(`.github/workflows/${file}`, 'utf8'));
+    assert.equal(
+      workflow.concurrency.group,
+      '${{ github.workflow }}-${{ github.run_id }}',
+    );
+    assert.equal(workflow.concurrency['cancel-in-progress'], false);
+    assert.equal(workflow.permissions.actions, 'read');
+  });
+}
+
+test('reuse is verified before affected platforms can be skipped', () => {
+  const scope = parse(
+    readFileSync('.github/workflows/change-scope.yml', 'utf8'),
+  );
+  const steps = scope.jobs.scope.steps;
+  assert.ok(
+    steps.findIndex((step) => step.id === 'reuse') <
+      steps.findIndex((step) => step.id === 'detect'),
+  );
+  assert.equal(
+    steps.find((step) => step.id === 'detect').env.REUSED,
+    '${{ steps.reuse.outputs.reused }}',
+  );
+  assert.match(
+    steps.find((step) => step.id === 'detect').run,
+    /node scripts\/ci-scope.mjs/,
+  );
+});
