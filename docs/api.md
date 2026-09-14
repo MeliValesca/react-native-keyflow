@@ -2,15 +2,21 @@
 
 [← README](../README.md)
 
-[Installation](#compatibility-and-local-installation) · [Input](#input-api) · [Avoidance](#keyboard-avoidance) · [Themes](#theme-reference) · [Diagnostics](#diagnostics)
+[Installation](#compatibility-and-installation) · [Input](#input-api) · [Avoidance](#keyboard-avoidance) · [Themes](#theme-reference) · [Diagnostics](#diagnostics)
 
-## Compatibility and local installation
+## Compatibility and installation
 
-Keyflow is an unpublished preview. The supported peer range is Expo SDK 57, React Native 0.86.x (0.86.3+) and React 19.2.3+. The example uses the exact versions in its lockfile and targets iOS 16.4+ and Android API 24+.
+The supported peer range is Expo SDK 57, React Native 0.86.x (0.86.3+) and React 19.2.3+. The example uses the exact versions in its lockfile and targets iOS 16.4+ and Android API 24+.
 
 The native bridge uses Expo Modules. A consuming React Native app needs Expo Modules configured and a native development or production build. Expo Go and web cannot load this custom native module. Earlier Expo/RN combinations are not claimed as supported.
 
-To try it in another compatible app, create a local package:
+Install Keyflow from npm, then rebuild the native app:
+
+```sh
+npm install react-native-keyflow
+```
+
+To test an unpublished checkout in another compatible app, create a local package:
 
 ```sh
 # From the Keyflow repository, after installing dependencies:

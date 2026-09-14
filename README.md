@@ -4,7 +4,7 @@
 
 A customizable native keyboard for app-owned React Native text inputs, built with UIKit on iOS and Kotlin on Android. Keep familiar typing interactions while choosing your colors, fonts, key surfaces, and long-press appearance.
 
-**Unpublished preview · iOS + Android · Phones + tablets**
+**Available on npm · iOS + Android · Phones + tablets**
 
 Keyflow recreates keyboard UI; it does not reskin Apple’s keyboard or Gboard. Platform layouts and interactions differ, and some explicit styling still needs cross-platform alignment. See [current limitations](#current-limitations).
 
@@ -25,7 +25,13 @@ Real iPad example captures. These themes use the public API; Story Studio is exa
 
 ## Get started
 
-The first npm release is being prepared. Until it is published, install a [local package in your app](docs/api.md#compatibility-and-local-installation), or run the example from this repository:
+Install Keyflow from npm:
+
+```sh
+npm install react-native-keyflow
+```
+
+To run the example from this repository:
 
 ```sh
 git clone https://github.com/MeliValesca/react-native-keyflow.git
@@ -39,7 +45,7 @@ stim ios
 # Or: stim android
 ```
 
-The example uses **Expo SDK 57, React Native 0.86.3, and React 19.2.3**. Keyflow requires Expo Modules and a native development or production build; Expo Go is not supported. On web, render your own fallback instead of calling `useKeyflow`; see [web fallback](docs/api.md#web-fallback). The example targets iOS 16.4+ and Android API 24+. See [compatibility and local installation](docs/api.md#compatibility-and-local-installation).
+The example uses **Expo SDK 57, React Native 0.86.3, and React 19.2.3**. Keyflow requires Expo Modules and a native development or production build; Expo Go is not supported. On web, render your own fallback instead of calling `useKeyflow`; see [web fallback](docs/api.md#web-fallback). The example targets iOS 16.4+ and Android API 24+. See [compatibility and installation](docs/api.md#compatibility-and-installation).
 
 ### Your first input
 

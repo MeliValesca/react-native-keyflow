@@ -16,7 +16,7 @@ Keep public exports in `src/index.ts`; test diagnostics belong in the `/testing`
 
 ## Releases
 
-The library is an unpublished preview. Publication is an explicit maintainer action, not an automatic consequence of merging.
+Publication is an explicit maintainer action, not an automatic consequence of merging.
 
 1. On the current work branch, start from a clean tree and run `corepack yarn release:prepare patch` (or `minor`/`major`). This updates `package.json` and `CHANGELOG.md` without committing, tagging, pushing, or publishing. Use `--dry-run` to preview.
 2. Commit those changes with `chore: prepare release X.Y.Z`, submit a PR, and wait for all required checks before merging.
