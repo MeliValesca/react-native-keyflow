@@ -15,7 +15,12 @@ permissions:
   contents: read
 
 jobs:
+  scope:
+    uses: ./.github/workflows/change-scope.yml
+
   check:
+    needs: scope
+    if: ${{ !cancelled() && (needs.scope.result != 'success' || needs.scope.outputs.library != 'false') }}
     name: Format, types, tests, and package
     runs-on: ubuntu-latest
     timeout-minutes: 15

@@ -2,11 +2,17 @@ import { execFileSync } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
-// Unknown/shared paths deliberately run both platforms.
+// Only known documentation assets skip code checks. Unknown/shared paths run all.
+const fullScope = () => ({ ios: true, android: true, library: true });
+const documentation = (path) =>
+  /\.md$/.test(path) ||
+  /^docs\/media\/.*\.(gif|mp4|png|jpe?g|webp|svg)$/.test(path);
 export function changeScope(paths) {
-  const scope = { ios: false, android: false };
-  if (!paths.length) return { ios: true, android: true };
+  const scope = { ios: false, android: false, library: false };
+  if (!paths.length) return fullScope();
   for (const path of paths) {
+    if (documentation(path)) continue;
+    scope.library = true;
     if (
       /^(ios\/|example\/ios\/|scripts\/ios-tests\/)/.test(path) ||
       /^scripts\/(run-ios-qwerty-tests|launch-ios-ci(?:\.test)?|patch-stim-ios-readiness)\.mjs$/.test(
@@ -23,7 +29,7 @@ export function changeScope(paths) {
     ) {
       scope.android = true;
     } else {
-      return { ios: true, android: true };
+      return fullScope();
     }
   }
   return scope;
@@ -35,16 +41,17 @@ export function detectScope(
   head,
   diff = (args) => execFileSync('git', args, { encoding: 'utf8' }),
 ) {
-  if (event !== 'pull_request') return { ios: true, android: true };
+  if (!['pull_request', 'push'].includes(event)) return fullScope();
+  if (event === 'push' && /^0{40}$/.test(base ?? '')) return fullScope();
   if (![base, head].every((sha) => /^[a-f0-9]{40}$/.test(sha ?? ''))) {
-    throw new Error('Expected full PR base and head commit SHAs');
+    throw new Error('Expected full base and head commit SHAs');
   }
   const paths = diff([
     'diff',
     '--name-only',
     '--no-renames',
     '-z',
-    `${base}...${head}`,
+    `${base}${event === 'pull_request' ? '...' : '..'}${head}`,
   ])
     .split('\0')
     .filter(Boolean);
@@ -63,6 +70,6 @@ if (
   console.log(scope);
   appendFileSync(
     process.env.GITHUB_OUTPUT,
-    `ios=${scope.ios}\nandroid=${scope.android}\n`,
+    `ios=${scope.ios}\nandroid=${scope.android}\nlibrary=${scope.library}\n`,
   );
 }

@@ -3,6 +3,8 @@ name: Detect affected platforms
 on:
   workflow_call:
     outputs:
+      library:
+        value: ${{ jobs.scope.outputs.library }}
       ios:
         value: ${{ jobs.scope.outputs.ios }}
       android:
@@ -16,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
+      library: ${{ steps.detect.outputs.library }}
       ios: ${{ steps.detect.outputs.ios }}
       android: ${{ steps.detect.outputs.android }}
     steps:
@@ -26,6 +29,6 @@ jobs:
         id: detect
         env:
           EVENT_NAME: ${{ github.event_name }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         run: node scripts/ci-scope.mjs

@@ -120,6 +120,9 @@ jobs:
       matrix:
         include: ${{ fromJSON(github.event_name == 'schedule' && '[{"label":"Android phone","profile":"pixel_6","api":36},{"label":"Android tablet","profile":"pixel_c","api":36},{"label":"Android older API","profile":"pixel_6","api":35}]' || '[{"label":"Android phone","profile":"pixel_6","api":36},{"label":"Android tablet","profile":"pixel_c","api":36}]') }}
     steps:
+      - name: No android changes
+        if: ${{ needs.android.result == 'skipped' }}
+        run: echo "No relevant android changes; build and device tests were not run."
       - name: Require successful shared build
         if: ${{ needs.android.result != 'success' && needs.android.result != 'skipped' }}
         run: exit 1
@@ -174,6 +177,9 @@ jobs:
       matrix:
         include: ${{ fromJSON(github.event_name == 'schedule' && '[{"label":"iPhone","device":"iPhone 17 Pro"},{"label":"iPad","device":"iPad Pro 11-inch (M5)"},{"label":"Large iPhone","device":"iPhone 17 Pro Max"},{"label":"Large iPad","device":"iPad Pro 13-inch (M5)"}]' || '[{"label":"iPhone","device":"iPhone 17 Pro"},{"label":"iPad","device":"iPad Pro 11-inch (M5)"}]') }}
     steps:
+      - name: No ios changes
+        if: ${{ needs.ios.result == 'skipped' }}
+        run: echo "No relevant ios changes; build and device tests were not run."
       - name: Require successful shared build
         if: ${{ needs.ios.result != 'success' && needs.ios.result != 'skipped' }}
         run: exit 1

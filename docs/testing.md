@@ -79,3 +79,24 @@ or iOS implementation. Keep the patch file tracked with the lockfile so immutabl
 CI installs apply it. When upgrading screens, verify that upstream serializes
 listener initialization before removing the patch. The device suites exercise
 cold launches, background/resume, navigation, and customization on phone and tablet.
+
+## Which changes run tests?
+
+PRs use the full branch diff against the base branch. Pushes to `main` compare
+before and after the push, including all commits in that push.
+
+| Changed files                                                                    | Suites                                         |
+| -------------------------------------------------------------------------------- | ---------------------------------------------- |
+| Markdown or images/videos under `docs/media/` only                               | No code suites                                 |
+| iOS native code or iOS-specific test/build helpers                               | Library checks and iOS phone/tablet suites     |
+| Android native code or Android-specific test helpers                             | Library checks and Android phone/tablet suites |
+| Shared source, example code/assets, dependencies, CI workflows, or unknown paths | All suites                                     |
+
+Documentation changes mixed with code do not broaden the code’s platform scope.
+`docs/package.json` is a dependency input, not documentation, so it runs all suites.
+Manual and scheduled runs always run everything. An empty diff, initial push, or
+failed scope detection never silently skips tests.
+
+Required check names and branch protection stay unchanged. Unaffected build/library
+jobs are skipped; device check entries report that no relevant changes were found
+without installing dependencies, building binaries, or launching a simulator.
