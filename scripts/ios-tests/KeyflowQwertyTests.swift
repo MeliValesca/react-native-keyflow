@@ -48,7 +48,12 @@ final class KeyflowQwertyTests: XCTestCase {
     XCTAssertTrue(app.buttons["Reset Empty"].waitForExistence(timeout: 10))
   }
   func mode(_ native: Bool) {
-    let element = app.descendants(matching: .any).matching(identifier: native ? "Apple native" : "Keyflow").allElementsBoundByIndex.first { $0.frame.minY > 100 && $0.frame.maxY < 190 }!
+    let element = app.descendants(matching: .any)
+      .matching(identifier: native ? "interaction-mode-system" : "interaction-mode-custom").firstMatch
+    let ready = NSPredicate(format: "exists == true AND hittable == true")
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: ready, object: element)], timeout: 10),
+      .completed, "Keyboard mode tab must be visible and hittable")
     element.tap()
     Thread.sleep(forTimeInterval: 0.8)
   }

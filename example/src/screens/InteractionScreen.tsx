@@ -149,9 +149,14 @@ export function InteractionScreen() {
         <ComparisonTabs<'custom' | 'system'>
           value={mode}
           options={[
-            { value: 'custom', label: 'Keyflow' },
+            {
+              value: 'custom',
+              label: 'Keyflow',
+              testID: 'interaction-mode-custom',
+            },
             {
               value: 'system',
+              testID: 'interaction-mode-system',
               label: Platform.OS === 'ios' ? 'Apple native' : 'Android native',
             },
           ]}
