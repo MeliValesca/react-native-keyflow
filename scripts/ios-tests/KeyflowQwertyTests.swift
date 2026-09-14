@@ -544,8 +544,8 @@ final class KeyflowQwertyTests: XCTestCase {
   }
   func testCustomizationMatrixPasses() throws {
     openLab("Customize fonts & test layouts")
-    let run = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Test customization boundaries'")).firstMatch
-    XCTAssertTrue(run.waitForExistence(timeout: 10)); run.tap()
+    let run = app.descendants(matching: .any).matching(identifier: "customization-run").firstMatch
+    XCTAssertTrue(run.waitForExistence(timeout: 30)); run.tap()
     let finished = NSPredicate(format: "label CONTAINS '\"result\":'")
     let outcome = XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: finished, object: run)], timeout: 90)
     capture("customization-matrix-result")

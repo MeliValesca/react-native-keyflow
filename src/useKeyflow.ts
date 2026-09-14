@@ -137,14 +137,19 @@ export function useKeyflow(
   );
   const languagesJSON = serializeKeyboardLanguages(keyboardLanguages);
 
-  const attachInput = useCallback(async () => {
-    const tag = inputRef.current && findNodeHandle(inputRef.current);
-    if (tag == null)
-      throw new Error(
-        'useKeyflow requires a ref attached to a native single-line TextInput.',
-      );
-    await KeyflowNative.attachInput(id, tag);
-  }, [id, inputRef]);
+  const attachInput = useCallback(
+    async (required = true) => {
+      const tag = inputRef.current && findNodeHandle(inputRef.current);
+      if (tag == null) {
+        if (!required) return;
+        throw new Error(
+          'useKeyflow requires a ref attached to a native single-line TextInput.',
+        );
+      }
+      await KeyflowNative.attachInput(id, tag);
+    },
+    [id, inputRef],
+  );
 
   useLayoutEffect(() => {
     mounted.current = true;
@@ -164,7 +169,7 @@ export function useKeyflow(
       hapticsEnabled,
       showSecondaryKeyLabels,
     )
-      .then(attachInput)
+      .then(() => attachInput(false))
       .catch((cause: Error) => {
         if (active) setError(cause);
       });

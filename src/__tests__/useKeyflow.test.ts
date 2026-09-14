@@ -33,10 +33,12 @@ beforeEach(() => {
 
 function HookInput({
   inputRef,
+  mounted = true,
   replacement = false,
   onFrame,
 }: {
   inputRef: RefObject<TextInput | null>;
+  mounted?: boolean;
   replacement?: boolean;
   onFrame?: jest.Mock;
 }) {
@@ -47,6 +49,7 @@ function HookInput({
     hapticsEnabled: true,
     onKeyboardFrameChange: onFrame,
   });
+  if (!mounted) return null;
   return createElement('AppInput', {
     ...bindings,
     ref: inputRef,
@@ -104,14 +107,16 @@ test('attaches an app-owned input while preserving its value and style', async (
   expect(mockNative.destroy).toHaveBeenCalledWith(id);
 });
 
-test('reattaches a replacement input on focus and synchronizes selection', async () => {
+test('supports delayed and replacement inputs through their focus binding', async () => {
   const inputRef = createRef<TextInput>();
   let renderer!: ReactTestRenderer;
   await act(async () => {
-    renderer = create(createElement(HookInput, { inputRef }), {
+    renderer = create(createElement(HookInput, { inputRef, mounted: false }), {
       createNodeMock,
     });
   });
+  expect(mockNative.configure).toHaveBeenCalled();
+  expect(mockNative.attachInput).not.toHaveBeenCalled();
   await act(async () => {
     renderer.update(createElement(HookInput, { inputRef, replacement: true }));
   });
