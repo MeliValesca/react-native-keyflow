@@ -239,7 +239,7 @@ Watch the MP4s: [iPad accent selection](docs/media/ios-accents.mp4) · [Android 
 
 Watch the MP4s: [iPad trackpad](docs/media/ios-trackpad.mp4) · [Android trackpad](docs/media/android-trackpad.mp4).
 
-The accent and trackpad GIFs use 25 fps; the transition previews use 10 fps. The MP4s retain the recordings’ timing. These are examples of Keyflow’s current behavior, not native-parity or physical-device performance benchmarks.
+The Android accent and trackpad GIFs use 50 fps; the iOS versions use 25 fps; the transition previews use 10 fps. The MP4s retain the recordings’ timing. These are examples of Keyflow’s current behavior, not native-parity or physical-device performance benchmarks.
 
 The clips demonstrate the named interactions only. The other behaviors in the table are covered by the relevant [native and app test suites](docs/coverage.md), with device-review limits documented there.
 
