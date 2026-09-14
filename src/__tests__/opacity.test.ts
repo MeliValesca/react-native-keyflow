@@ -1,5 +1,5 @@
-import { serializeKeyboardTheme } from '../serializeTheme';
-import { createKeyboardTheme, transparentKeyboardTheme } from '../theme';
+import { serializeKeyflowTheme } from '../serializeTheme';
+import { createKeyflowTheme, transparentKeyflowTheme } from '../theme';
 import { resolveInputTheme } from '../inputTheme';
 
 test.each(['ios', 'android'])(
@@ -7,7 +7,7 @@ test.each(['ios', 'android'])(
   (platform) => {
     const render = (backgroundOpacity: number, keyOpacity: number) =>
       JSON.parse(
-        serializeKeyboardTheme(
+        serializeKeyflowTheme(
           resolveInputTheme(platform, false, 'default', {
             keyboard: { backgroundOpacity, keyOpacity },
           }),
@@ -38,12 +38,12 @@ test.each(['ios', 'android'])(
 );
 
 test('key opacity composes with global opacity and section alpha without changing reusable colors', () => {
-  const theme = createKeyboardTheme({
+  const theme = createKeyflowTheme({
     keyboard: { backgroundOpacity: 0.5, keyOpacity: 0.5, surfaceOpacity: 0.5 },
     keys: { background: '#FFFFFF80', borderColor: '#AABBCC80', borderWidth: 1 },
     preview: { background: '#FFFFFF80' },
   });
-  const before = serializeKeyboardTheme(theme);
+  const before = serializeKeyflowTheme(theme);
   const native = JSON.parse(before);
   expect(native.background).toBe('#E0E2E740');
   expect(native.keyBackground).toBe('#FFFFFF40');
@@ -52,16 +52,16 @@ test('key opacity composes with global opacity and section alpha without changin
   expect(native.sectionOverrides.keys.background).toBe('#FFFFFF20');
   expect(native.sections.preview.background).toBe('#FFFFFF20');
   expect(theme.sections?.keys?.background).toBe('#FFFFFF80');
-  expect(serializeKeyboardTheme(createKeyboardTheme({}, theme))).toBe(before);
+  expect(serializeKeyflowTheme(createKeyflowTheme({}, theme))).toBe(before);
   const backgroundOnly = JSON.parse(
-    serializeKeyboardTheme(
-      createKeyboardTheme({ keyboard: { backgroundOpacity: 1 } }, theme),
+    serializeKeyflowTheme(
+      createKeyflowTheme({ keyboard: { backgroundOpacity: 1 } }, theme),
     ),
   );
   expect(backgroundOnly.sections).toEqual(native.sections);
   const keysOnly = JSON.parse(
-    serializeKeyboardTheme(
-      createKeyboardTheme({ keyboard: { keyOpacity: 1 } }, theme),
+    serializeKeyflowTheme(
+      createKeyflowTheme({ keyboard: { keyOpacity: 1 } }, theme),
     ),
   );
   expect(keysOnly.background).toBe(native.background);
@@ -71,7 +71,7 @@ test('key opacity composes with global opacity and section alpha without changin
 test.each([-1, 1.01, NaN, Infinity])(
   'rejects invalid key opacity %s',
   (keyOpacity) => {
-    expect(() => createKeyboardTheme({ keyboard: { keyOpacity } })).toThrow(
+    expect(() => createKeyflowTheme({ keyboard: { keyOpacity } })).toThrow(
       RangeError,
     );
   },
@@ -84,43 +84,43 @@ test.each([
   [0.75, 'bf'],
   [1, 'ff'],
 ])('panel opacity %s affects only the panel', (opacity, alpha) => {
-  const theme = createKeyboardTheme(
+  const theme = createKeyflowTheme(
     {
       keyboard: { background: '#E0E8EF', backgroundOpacity: opacity as number },
     },
-    transparentKeyboardTheme,
+    transparentKeyflowTheme,
   );
   expect(theme.background).toBe(`#E0E8EF${alpha}`);
-  expect(theme.keyForeground).toBe(transparentKeyboardTheme.keyForeground);
-  expect(theme.keyBackground).toBe(transparentKeyboardTheme.keyBackground);
+  expect(theme.keyForeground).toBe(transparentKeyflowTheme.keyForeground);
+  expect(theme.keyBackground).toBe(transparentKeyflowTheme.keyBackground);
   expect(theme.material).toEqual({ type: 'flat' });
 });
 test('opacity replaces color alpha and does not accumulate across theme updates', () => {
-  const base = createKeyboardTheme({
+  const base = createKeyflowTheme({
     keyboard: { background: '#102D4640', backgroundOpacity: 0.5 },
   });
-  const next = createKeyboardTheme(
+  const next = createKeyflowTheme(
     { keyboard: { backgroundOpacity: 0.5 } },
     base,
   );
   expect(next.background).toBe('#102D4680');
-  expect(createKeyboardTheme({}, next).background).toBe(next.background);
+  expect(createKeyflowTheme({}, next).background).toBe(next.background);
 });
 test.each([-1, 1.01, NaN, Infinity])('rejects invalid opacity %s', (value) => {
   expect(() =>
-    createKeyboardTheme({ keyboard: { backgroundOpacity: value } }),
+    createKeyflowTheme({ keyboard: { backgroundOpacity: value } }),
   ).toThrow();
 });
 
 test('surface opacity includes keycaps, popups, selection, borders and shadows while preserving ink', () => {
-  const theme = createKeyboardTheme({
+  const theme = createKeyflowTheme({
     keyboard: { surfaceOpacity: 0.5 },
     keys: { background: '#FFFFFF', borderColor: '#12345680', borderWidth: 1 },
     preview: { background: '#CCDDEEFF' },
     selection: { background: '#225577' },
     toolbar: { background: '#FFFFFF80' },
   });
-  const native = JSON.parse(serializeKeyboardTheme(theme));
+  const native = JSON.parse(serializeKeyflowTheme(theme));
   expect(native.background).toBe('#E0E2E780');
   expect(native.keyBackground).toBe('#FFFFFF80');
   expect(native.sections.keys.background).toBe('#FFFFFF80');
@@ -139,8 +139,8 @@ test('surface opacity includes keycaps, popups, selection, borders and shadows w
 
 test('raised shadow opacity is scoped to the raised material object', () => {
   const native = JSON.parse(
-    serializeKeyboardTheme(
-      createKeyboardTheme({
+    serializeKeyflowTheme(
+      createKeyflowTheme({
         keyboard: {
           keyOpacity: 0.5,
           material: {
@@ -158,26 +158,26 @@ test('raised shadow opacity is scoped to the raised material object', () => {
 });
 
 test('surface opacity does not accumulate when reusing, rendering or restyling a theme', () => {
-  const theme = createKeyboardTheme({ keyboard: { surfaceOpacity: 0.5 } });
-  const before = serializeKeyboardTheme(theme);
-  expect(serializeKeyboardTheme(theme)).toBe(before);
-  expect(serializeKeyboardTheme(createKeyboardTheme({}, theme))).toBe(before);
-  const styled = createKeyboardTheme({ font: { weight: 'bold' } }, theme);
-  expect(JSON.parse(serializeKeyboardTheme(styled)).keyBackground).toBe(
+  const theme = createKeyflowTheme({ keyboard: { surfaceOpacity: 0.5 } });
+  const before = serializeKeyflowTheme(theme);
+  expect(serializeKeyflowTheme(theme)).toBe(before);
+  expect(serializeKeyflowTheme(createKeyflowTheme({}, theme))).toBe(before);
+  const styled = createKeyflowTheme({ font: { weight: 'bold' } }, theme);
+  expect(JSON.parse(serializeKeyflowTheme(styled)).keyBackground).toBe(
     '#FFFFFF80',
   );
   expect(theme.keyBackground).toBe('#FFFFFF');
   expect(
     JSON.parse(
-      serializeKeyboardTheme(
-        createKeyboardTheme({ keyboard: { surfaceOpacity: 1 } }, theme),
+      serializeKeyflowTheme(
+        createKeyflowTheme({ keyboard: { surfaceOpacity: 1 } }, theme),
       ),
     ).keyBackground,
   ).toBe('#FFFFFF');
   expect(
     JSON.parse(
-      serializeKeyboardTheme(
-        createKeyboardTheme({ keyboard: { surfaceOpacity: 0 } }, theme),
+      serializeKeyflowTheme(
+        createKeyflowTheme({ keyboard: { surfaceOpacity: 0 } }, theme),
       ),
     ).keyBackground,
   ).toBe('#FFFFFF00');
@@ -186,7 +186,7 @@ test('surface opacity does not accumulate when reusing, rendering or restyling a
 test.each([-1, 1.01, NaN, Infinity])(
   'rejects invalid surface opacity %s',
   (surfaceOpacity) => {
-    expect(() => createKeyboardTheme({ keyboard: { surfaceOpacity } })).toThrow(
+    expect(() => createKeyflowTheme({ keyboard: { surfaceOpacity } })).toThrow(
       RangeError,
     );
   },

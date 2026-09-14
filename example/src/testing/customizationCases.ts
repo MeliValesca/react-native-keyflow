@@ -1,9 +1,9 @@
 import { studioTheme } from '../themes/studio';
 import { Platform } from 'react-native';
 import {
-  createKeyboardTheme,
-  androidKeyboardTheme,
-  lightKeyboardTheme,
+  createKeyflowTheme,
+  androidKeyflowTheme,
+  lightKeyflowTheme,
 } from 'react-native-keyflow';
 import type { KeyboardSectionStyle } from 'react-native-keyflow';
 export const customizationFonts = [
@@ -14,7 +14,7 @@ export const customizationFonts = [
   { label: 'Bundled font', family: 'KeyflowDemoMono' },
 ];
 export const customizationBase =
-  Platform.OS === 'android' ? androidKeyboardTheme : lightKeyboardTheme;
+  Platform.OS === 'android' ? androidKeyflowTheme : lightKeyflowTheme;
 export const customizationMaterials = {
   flat: customizationBase,
   raised: studioTheme,
@@ -58,7 +58,7 @@ export const customizationCases = [
         [0, 24].map((radius) => ({
           name: `${font.label}/${material}/${fontSize}/${radius}`,
           bundled: font.family === 'KeyflowDemoMono',
-          theme: createKeyboardTheme(
+          theme: createKeyflowTheme(
             {
               fontFamily: font.family,
               fontSize,
@@ -86,17 +86,14 @@ export const customizationCases = [
     [0, 24].map((radius) => ({
       name: `sections/${size}/${radius}`,
       bundled: false,
-      theme: createKeyboardTheme(
-        colorSections(size, radius),
-        customizationBase,
-      ),
+      theme: createKeyflowTheme(colorSections(size, radius), customizationBase),
     })),
   ),
   ...(['flat', 'raised'] as const).flatMap((material) =>
     [0, 0.35, 1].map((opacity) => ({
       name: `opacity/${material}/${opacity}`,
       bundled: false,
-      theme: createKeyboardTheme(
+      theme: createKeyflowTheme(
         {
           keyboard: { background: '#16324F', backgroundOpacity: opacity },
           font: { family: 'system-serif', size: 32, weight: 'bold' },
@@ -109,7 +106,7 @@ export const customizationCases = [
 export const customizationVisuals = (['flat', 'raised'] as const).map(
   (material) => ({
     name: material,
-    theme: createKeyboardTheme(
+    theme: createKeyflowTheme(
       {
         ...colorSections(32, 24),
         keyboard: {

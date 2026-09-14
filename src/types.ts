@@ -20,7 +20,7 @@ export type KeyboardMaterialOverride =
       shadowColor?: KeyboardColor;
     }>;
 
-export type KeyboardTheme = Readonly<{
+export type KeyflowTheme = Readonly<{
   /** Resolved native styles. Prefer the section objects when overriding. */
   sections?: Readonly<Record<string, Required<KeyboardSectionStyle>>>;
   sectionOverrides?: Partial<Record<KeyboardSectionName, KeyboardSectionStyle>>;
@@ -73,10 +73,7 @@ export type KeyboardSectionName =
   | 'preview'
   | 'selection'
   | 'toolbar';
-export type KeyboardThemeOverrides = Omit<
-  Partial<KeyboardTheme>,
-  'material'
-> & {
+export type KeyflowThemeOverrides = Omit<Partial<KeyflowTheme>, 'material'> & {
   keyboard?: {
     background?: KeyboardColor;
     /** Panel alpha, 0–1. Overrides the background color's alpha without fading keys. */

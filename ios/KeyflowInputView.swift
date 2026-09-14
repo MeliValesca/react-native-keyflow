@@ -2,10 +2,10 @@ import ExpoModulesCore
 import UIKit
 
 final class KeyflowInputView: ExpoView {
-  let onKeyflowModeChange = EventDispatcher()
-  let onKeyflowFrameChange = EventDispatcher()
+  var onKeyflowModeChange: (([String: Any]) -> Void)?
+  var onKeyflowFrameChange: (([String: Any]) -> Void)?
   private var lastKeyboardFrame: CGRect?
-  let onKeyflowLanguageChange = EventDispatcher()
+  var onKeyflowLanguageChange: (([String: Any]) -> Void)?
   private weak var attachedEditor: UITextField?
   private var usesCustomKeyboard = true
   private var customInputSurface: UIView?
@@ -53,7 +53,7 @@ final class KeyflowInputView: ExpoView {
         domain: "Keyflow", code: 1,
         userInfo: [
           NSLocalizedDescriptionKey:
-            "KeyflowKeyboard requires a single-line React Native TextInput ref."
+            "Keyflow requires a single-line React Native TextInput ref."
         ])
     }
     if attachedEditor !== field {
@@ -104,12 +104,12 @@ final class KeyflowInputView: ExpoView {
 
   @objc private func reportCustomFrame() {
     guard usesCustomKeyboard, attachedEditor?.isFirstResponder == true,
-      let window, keyboard.window != nil
+      let window = attachedEditor?.window, keyboard.window != nil
     else { return }
     let frame = keyboard.convert(keyboard.bounds, to: window)
     guard frame.height > 0, frame != lastKeyboardFrame else { return }
     lastKeyboardFrame = frame
-    onKeyflowFrameChange([
+    onKeyflowFrameChange?([
       "screenY": frame.minY, "height": frame.height, "visible": true, "source": "custom",
     ])
   }
@@ -122,9 +122,9 @@ final class KeyflowInputView: ExpoView {
     guard attachedEditor?.isFirstResponder == true,
       let frame = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?
         .cgRectValue,
-      let window
+      let window = attachedEditor?.window
     else { return }
-    onKeyflowFrameChange([
+    onKeyflowFrameChange?([
       "screenY": frame.minY, "height": frame.height,
       "visible": frame.minY < window.bounds.maxY, "source": "system",
     ])
@@ -132,8 +132,8 @@ final class KeyflowInputView: ExpoView {
 
   private func clearKeyboardFrame() {
     lastKeyboardFrame = nil
-    onKeyflowFrameChange([
-      "screenY": window?.bounds.height ?? 0, "height": 0, "visible": false,
+    onKeyflowFrameChange?([
+      "screenY": attachedEditor?.window?.bounds.height ?? 0, "height": 0, "visible": false,
       "source": usesCustomKeyboard ? "custom" : "system",
     ])
   }
@@ -173,7 +173,7 @@ final class KeyflowInputView: ExpoView {
     language = value
     keyboard.setLanguage(value, canSwitch: languages.count > 1)
     guard changed else { return }
-    onKeyflowLanguageChange(["language": value.language, "layout": value.layout])
+    onKeyflowLanguageChange?(["language": value.language, "layout": value.layout])
     lastSpaceTime = 0
     keyboard.updateContext(beforeCursor())
   }
@@ -228,7 +228,8 @@ final class KeyflowInputView: ExpoView {
         self.usesCustomKeyboard, self.customKeyboard != nil
       else { return }
       let refresh: () -> Void = { [weak self] in
-        guard let self, let window = self.window, self.attachedEditor?.isFirstResponder == true,
+        guard let self, let window = self.attachedEditor?.window,
+          self.attachedEditor?.isFirstResponder == true,
           self.usesCustomKeyboard, self.customKeyboard != nil,
           self.keyboard.window != nil
         else { return }
@@ -257,7 +258,9 @@ final class KeyflowInputView: ExpoView {
 
   override func layoutSubviews() {
     super.layoutSubviews()
-    if let window { keyboard.updateViewport(window.bounds.size, insets: window.safeAreaInsets) }
+    if let window = attachedEditor?.window {
+      keyboard.updateViewport(window.bounds.size, insets: window.safeAreaInsets)
+    }
   }
 
   override func didMoveToWindow() {
@@ -268,6 +271,11 @@ final class KeyflowInputView: ExpoView {
     } else if let window {
       keyboard.updateViewport(window.bounds.size, insets: window.safeAreaInsets)
     }
+  }
+
+  func cleanup() {
+    detachInput()
+    removeFromSuperview()
   }
 
   func applyProps() {
@@ -308,7 +316,7 @@ final class KeyflowInputView: ExpoView {
     result["keyboardMode"] = usesCustomKeyboard ? "custom" : "system"
     result["focused"] = textField.isFirstResponder
     result["inputReloadCount"] = inputReloadCount
-    if let window {
+    if let window = attachedEditor?.window {
       result["editorBottom"] = textField.convert(textField.bounds, to: window).maxY
       result["screenY"] = keyboard.convert(keyboard.bounds, to: window).minY
     }
@@ -326,9 +334,12 @@ final class KeyflowInputView: ExpoView {
   private func prepareKeyboardForPresentation() {
     refreshLanguages()
     guard usesCustomKeyboard else { return }
+    if let window = attachedEditor?.window {
+      keyboard.updateViewport(window.bounds.size, insets: window.safeAreaInsets)
+    }
     updateInputSurface()
     UIView.performWithoutAnimation {
-      keyboard.frame.size.width = window?.bounds.width ?? bounds.width
+      keyboard.frame.size.width = attachedEditor?.window?.bounds.width ?? bounds.width
       keyboard.setNeedsLayout()
       keyboard.layoutIfNeeded()
       keyboard.subviews.forEach { $0.layoutIfNeeded() }
@@ -450,7 +461,7 @@ final class KeyflowInputView: ExpoView {
       selectLanguage(languages[(index + 1) % languages.count])
     case .system:
       setKeyboardMode("system")
-      onKeyflowModeChange(["mode": "system"])
+      onKeyflowModeChange?(["mode": "system"])
     default: break
     }
   }

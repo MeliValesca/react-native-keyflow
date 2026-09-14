@@ -1,19 +1,17 @@
 # Keyboard types and landscape
 
 ```tsx
-import { TextInput } from 'react-native';
-<KeyflowKeyboard keyboardType="number-pad" renderInput={(bindings) => (<TextInput {...bindings} keyboardType="number-pad" />)} />
-<KeyflowKeyboard keyboardType="decimal-pad" renderInput={(bindings) => (<TextInput {...bindings} keyboardType="decimal-pad" />)} />
-<KeyflowKeyboard keyboardType="phone-pad" renderInput={(bindings) => (<TextInput {...bindings} keyboardType="phone-pad" />)} />
+const bindings = useKeyflow(inputRef, { keyboardType: 'decimal-pad' });
+<TextInput {...bindings} ref={inputRef} keyboardType="decimal-pad" />;
 ```
 
-Omit `keyboardType` (or use `"default"`) for the alphabet layout selected by [language configuration](languages.md). Types select the custom layout and the corresponding native editor input type, including in `keyboardMode="system"`. Changing the prop preserves the existing text and selection; it does not remount or validate the input. Pasted text is not filtered. Validate PINs, prices, and phone numbers in your application.
+Omit `keyboardType` (or use `"default"`) for the alphabet layout selected by [language configuration](languages.md). The hook option selects the custom layout; set the matching prop on your input for system mode. Changing the option preserves the existing text and selection; it does not remount or validate the input. Pasted text is not filtered. Validate PINs, prices, and phone numbers in your application.
 
 - iOS uses three-column pads. Phone supports `+*#` and pause/wait punctuation; as on the recorded Apple keyboard, holding `0` still enters `0`.
 - Android follows the recorded Gboard four-column pad: digits, dash, space, delete, punctuation, and Done. Phone provides its telephone legends, held `0` for `+`, and a symbol page with pause/wait. Apple returns to digits after a phone symbol; Gboard keeps the symbol page until `123` is pressed.
 - Decimal separators come from the current device locale. This selects the separator, not a complete localized digit/alphabet layout.
 - Suggestions and QWERTY modifiers are absent from dedicated pads. The QWERTY `123` page remains available separately.
-- `keyboardTheme` works across types. Pad defaults resolve before your overrides, including `specialKeys`, `deleteKey`, and fonts.
+- `keyflowTheme` works across types. Pad defaults resolve before your overrides, including `specialKeys`, `deleteKey`, and fonts.
 
 On phones, rotation selects compact rows and recalculates the occupied keyboard height. iOS respects horizontal safe areas. Android asks its system IME to keep editing inline instead of entering full-screen extract mode. Use `KeyflowAvoidingView` as in the other examples; wire `onKeyboardFrameChange` on Android. Your app must allow landscape orientation. The example's Expo orientation is `default`.
 
@@ -21,8 +19,8 @@ Open **Compare layouts & rotation** in the example. Select QWERTY, Number, Decim
 
 Tablet geometry uses the platform's device-class signal rather than hardcoded device models: iOS checks the `.pad` user-interface idiom and Android checks a smallest width of at least 600dp. Row heights, insets, and the iPad input-assistant band scale from the viewport's short edge. iPad portrait and landscape use separate measured profiles because Apple's landscape keyboard is proportionally taller.
 
-This adaptation does not change the React API. Use the same `KeyflowKeyboard`
-props and one `keyboardTheme` on phones and tablets in every orientation.
+This adaptation does not change the React API. Use the same `useKeyflow`
+options and one `keyflowTheme` on phones and tablets in every orientation.
 Keyflow owns the device-class check and geometry; applications do not pass a
 tablet flag or maintain separate theme objects. Theme values style the active
 native layout without changing its measured key frames.

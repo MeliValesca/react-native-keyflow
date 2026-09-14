@@ -2,14 +2,11 @@ import { ExampleTextInput } from '../components/common/ExampleTextInput';
 import { settledKeyboardMode } from '../testing/settledKeyboardMode';
 import { getKeyboardMetrics } from 'react-native-keyflow/testing';
 import { useCallback, useRef, useState } from 'react';
-import { Platform, Pressable, Text, View } from 'react-native';
+import { Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
-import { KeyflowAvoidingView, KeyflowKeyboard } from 'react-native-keyflow';
-import type {
-  KeyflowKeyboardFrame,
-  KeyflowKeyboardRef,
-} from 'react-native-keyflow';
+import { KeyflowAvoidingView, useKeyflow } from 'react-native-keyflow';
+import type { KeyflowKeyboardFrame } from 'react-native-keyflow';
 import { ComparisonTabs } from '../components/common/ComparisonTabs';
 
 const cases = {
@@ -22,7 +19,7 @@ const cases = {
 const pause = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 export function InteractionScreen() {
-  const input = useRef<KeyflowKeyboardRef>(null);
+  const input = useRef<TextInput>(null);
   const [mode, setMode] = useState<'custom' | 'system'>('custom');
   const [revision, setRevision] = useState(0);
   const [text, setText] = useState('');
@@ -32,6 +29,11 @@ export function InteractionScreen() {
   const alive = useRef(true);
   const request = useRef(0);
   const header = useHeaderHeight();
+  const bindings = useKeyflow(input, {
+    keyboardMode: mode,
+    keyboardAppearance: 'light',
+    onKeyboardFrameChange: setFrame,
+  });
   useFocusEffect(
     useCallback(() => {
       alive.current = true;
@@ -45,8 +47,8 @@ export function InteractionScreen() {
   const switchMode = async (next: 'custom' | 'system') => {
     const id = ++request.current;
     setMode(next);
-    await input.current?.setKeyboardMode(next);
-    if (alive.current && id === request.current) await input.current?.focus();
+    await pause(0);
+    if (alive.current && id === request.current) input.current?.focus();
   };
   const reset = async (name: keyof typeof cases) => {
     await input.current?.blur();
@@ -56,7 +58,7 @@ export function InteractionScreen() {
     setRevision((value) => value + 1);
   };
   const inspect = async () => {
-    const metrics = await getKeyboardMetrics(input.current);
+    const metrics = await getKeyboardMetrics(input);
     setDiagnostic(JSON.stringify(metrics));
     console.info('KEYFLOW_INTERACTION_STATE', JSON.stringify(metrics));
   };
@@ -65,18 +67,15 @@ export function InteractionScreen() {
     setRunning(true);
     const results: object[] = [];
     try {
-      const initial = await getKeyboardMetrics(input.current);
+      const initial = await getKeyboardMetrics(input);
       for (let cycle = 0; cycle < 3; cycle++) {
         for (const next of ['system', 'custom'] as const) {
           if (!alive.current) throw new Error('Screen closed');
           await switchMode(next);
           const metrics =
             Platform.OS === 'android'
-              ? await settledKeyboardMode(
-                  () => getKeyboardMetrics(input.current),
-                  next,
-                )
-              : await pause(400).then(() => getKeyboardMetrics(input.current));
+              ? await settledKeyboardMode(() => getKeyboardMetrics(input), next)
+              : await pause(400).then(() => getKeyboardMetrics(input));
           if (metrics.keyboardMode !== next || !metrics.focused)
             throw new Error(`Wrong focus/mode: ${JSON.stringify(metrics)}`);
           if (
@@ -201,36 +200,29 @@ export function InteractionScreen() {
         style={{ flex: 1 }}
       >
         <View style={{ flex: 1 }} />
-        <KeyflowKeyboard
+        <ExampleTextInput
+          {...bindings}
           key={revision}
           ref={input}
-          keyboardMode={mode}
+          autoFocus
+          value={text}
           keyboardAppearance="light"
-          onKeyboardFrameChange={setFrame}
-          renderInput={(bindings) => (
-            <ExampleTextInput
-              {...bindings}
-              autoFocus
-              value={text}
-              keyboardAppearance="light"
-              accessibilityLabel="Interaction test input"
-              placeholder="Start typing…"
-              onChangeText={(value) => {
-                setText(value);
-                console.info(
-                  'KEYFLOW_EDIT',
-                  JSON.stringify({ mode, text: value, time: Date.now() }),
-                );
-              }}
-              style={{
-                height: 48,
-                marginHorizontal: 12,
-                marginBottom: 8,
-                backgroundColor: 'white',
-                borderRadius: 12,
-              }}
-            />
-          )}
+          accessibilityLabel="Interaction test input"
+          placeholder="Start typing…"
+          onChangeText={(value) => {
+            setText(value);
+            console.info(
+              'KEYFLOW_EDIT',
+              JSON.stringify({ mode, text: value, time: Date.now() }),
+            );
+          }}
+          style={{
+            height: 48,
+            marginHorizontal: 12,
+            marginBottom: 8,
+            backgroundColor: 'white',
+            borderRadius: 12,
+          }}
         />
       </KeyflowAvoidingView>
     </View>

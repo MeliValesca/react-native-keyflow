@@ -7,7 +7,7 @@ import type { KeyflowKeyboardFrame } from './keyboardGeometry';
 export type KeyflowAvoidingViewProps = ViewProps & {
   enabled?: boolean;
   keyboardVerticalOffset?: number;
-  /** Connect the active KeyflowKeyboard's onKeyboardFrameChange for shared iOS/Android integration. */
+  /** Connect the active useKeyflow frame callback for shared iOS/Android integration. */
   keyboardFrame?: KeyflowKeyboardFrame | null;
 };
 

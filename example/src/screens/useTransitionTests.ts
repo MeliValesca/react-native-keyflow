@@ -1,5 +1,6 @@
 import { getKeyboardMetrics } from 'react-native-keyflow/testing';
 import { launchTest, testPlatform, testMaterial } from '../testing/launch';
+import { studioTheme } from '../themes/studio';
 import {
   assertAnimatedOpening,
   assertKeyboardTransition,
@@ -14,10 +15,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import type {
-  KeyflowKeyboardFrame,
-  KeyflowKeyboardRef,
-} from 'react-native-keyflow';
+import type { KeyflowKeyboardFrame } from 'react-native-keyflow';
+import { useKeyflow } from 'react-native-keyflow';
 
 type Engine = 'custom' | 'system' | 'baseline';
 const pause = (ms: number) =>
@@ -35,7 +34,7 @@ export function useTransitionTests() {
   );
   const [running, setRunning] = useState(false);
   const alive = useRef(true);
-  const input = useRef<KeyflowKeyboardRef>(null);
+  const input = useRef<TextInput>(null);
   const baseline = useRef<TextInput>(null);
   const composer = useRef<View>(null);
   const record = (next: KeyflowKeyboardFrame) => {
@@ -43,6 +42,12 @@ export function useTransitionTests() {
     frames.current.push(next);
     setFrame(next);
   };
+  const bindings = useKeyflow(input, {
+    enabled: engine !== 'baseline',
+    keyboardMode: engine === 'baseline' ? 'custom' : engine,
+    keyflowTheme: raised ? studioTheme : undefined,
+    onKeyboardFrameChange: record,
+  });
   useEffect(() => {
     alive.current = true;
     const mountedInput = input.current;
@@ -150,7 +155,7 @@ export function useTransitionTests() {
         if (
           Platform.OS !== 'android' ||
           target !== 'system' ||
-          (await getKeyboardMetrics(input.current))?.systemKeyboardVisible
+          (await getKeyboardMetrics(input))?.systemKeyboardVisible
         )
           return;
       }
@@ -160,9 +165,7 @@ export function useTransitionTests() {
       `${target}: keyboard did not become visible and settle: ${JSON.stringify({
         frames: frames.current,
         native:
-          target === 'baseline'
-            ? undefined
-            : await getKeyboardMetrics(input.current),
+          target === 'baseline' ? undefined : await getKeyboardMetrics(input),
       })}`,
     );
   };
@@ -225,7 +228,7 @@ export function useTransitionTests() {
           let nativeEditorBottom: number | undefined;
           let nativeKeyboardTop: number | undefined;
           if (Platform.OS === 'android' && target === 'custom') {
-            const native = await getKeyboardMetrics(input.current);
+            const native = await getKeyboardMetrics(input);
             // The occupied frame includes Android's taskbar/navigation inset,
             // which can change after the system IME hides. Preserve the actual
             // keyboard surface height, not that OS-owned inset.
@@ -353,7 +356,7 @@ export function useTransitionTests() {
         const visible = currentFrame();
         const surfaceHeight =
           Platform.OS === 'android' && target === 'custom'
-            ? (await getKeyboardMetrics(input.current)).height
+            ? (await getKeyboardMetrics(input)).height
             : visible?.height;
         if (
           target === 'custom' &&
@@ -386,7 +389,7 @@ export function useTransitionTests() {
               visible,
               editorBottom,
               frames: frames.current,
-              native: await getKeyboardMetrics(input.current),
+              native: await getKeyboardMetrics(input),
             })}`,
           );
       }
@@ -403,7 +406,7 @@ export function useTransitionTests() {
         await wait(delay);
         await input.current?.blur();
         await wait(900);
-        let metrics = await getKeyboardMetrics(input.current);
+        let metrics = await getKeyboardMetrics(input);
         if (
           metrics.focused ||
           metrics.popupVisible ||
@@ -421,7 +424,7 @@ export function useTransitionTests() {
         await wait(delay);
         await input.current?.focus();
         await waitForKeyboard('custom');
-        metrics = await getKeyboardMetrics(input.current);
+        metrics = await getKeyboardMetrics(input);
         if (
           !metrics.focused ||
           metrics.keyboardMode !== 'custom' ||
@@ -492,6 +495,7 @@ export function useTransitionTests() {
     composer,
     baseline,
     input,
+    bindings,
     record,
     run,
   };

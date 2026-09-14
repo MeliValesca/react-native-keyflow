@@ -1,8 +1,7 @@
 /** Optional diagnostics for integration tests; not part of the consumer component API. */
-import type {
-  KeyflowKeyboardType,
-  KeyflowKeyboardRef,
-} from './KeyflowKeyboard';
+import type { RefObject } from 'react';
+import type { TextInput } from 'react-native';
+import type { KeyflowKeyboardType } from './useKeyflow';
 export type KeyflowKeyboardMetrics = {
   /** Read-only screen-space touch targets for device regression tests. */
   keyFrames?: {
@@ -48,20 +47,20 @@ export type KeyflowKeyboardMetrics = {
 };
 
 const readers = new WeakMap<
-  KeyflowKeyboardRef,
+  RefObject<TextInput | null>,
   () => Promise<KeyflowKeyboardMetrics>
 >();
 /** @internal Register a mounted component's diagnostic reader. */
 export function registerDiagnostics(
-  ref: KeyflowKeyboardRef,
+  ref: RefObject<TextInput | null>,
   read: () => Promise<KeyflowKeyboardMetrics>,
-): KeyflowKeyboardRef {
+): RefObject<TextInput | null> {
   readers.set(ref, read);
   return ref;
 }
 /** Focus the input before inspecting its native geometry. */
 export function getKeyboardMetrics(
-  ref: KeyflowKeyboardRef | null,
+  ref: RefObject<TextInput | null> | null,
 ): Promise<KeyflowKeyboardMetrics> {
   const read = ref && readers.get(ref);
   if (!read) return Promise.reject(new Error('Keyflow input is not mounted'));

@@ -3,14 +3,13 @@
 Keyflow's custom keyboard supports English and French, with QWERTY and AZERTY templates. Non-Latin keyboards and their composition engines are outside the custom keyboard's scope. This does not restrict pasted text or the real system keyboard.
 
 ```tsx
-import { TextInput } from 'react-native';
-<KeyflowKeyboard
-  keyboardLanguages={[{ language: 'en' }, { language: 'fr', layout: 'azerty' }]}
-  onKeyboardLanguageChange={({ language, layout }) => {
+const bindings = useKeyflow(inputRef, {
+  keyboardLanguages: [{ language: 'en' }, { language: 'fr', layout: 'azerty' }],
+  onKeyboardLanguageChange: ({ language, layout }) => {
     // Optional: update your app's language indicator.
-  }}
-  renderInput={(bindings) => <TextInput {...bindings} />}
-/>;
+  },
+});
+<TextInput {...bindings} ref={inputRef} />;
 ```
 
 The globe key cycles the configured languages. It appears only when both languages are available and is styled through `specialKeys`, including its icon and pressed state. Switching preserves text, selection, and focus, resets temporary modifier state. It does not reopen the keyboard. The selection is retained for the lifetime of the input; it is not stored as a device keyboard preference. Number/phone pads do not show a language switcher.
@@ -23,7 +22,7 @@ These APIs do not reliably expose the user's exact software layout variant. Keyf
 
 Custom word suggestions and automatic word replacements are disabled. Keyflow does not query `UITextChecker` or open an Android spell-checker session. The iOS suggestion strip is removed; Android retains its paste/system/dismiss toolbar. `autoCorrect` only configures system-keyboard behavior and cannot enable custom word replacement. Language switching still changes letter layout and accent entry remains available.
 
-`keyboardMode="system"` ignores Keyflow's language configuration. The actual iOS or installed Android keyboard owns its languages, switching, layout, and composition, including non-Latin languages. Keyflow's globe is a two-language custom control; it does not reproduce the system keyboard's entire language menu or multilingual prediction.
+`keyboardMode: 'system'` ignores Keyflow's language configuration. The actual iOS or installed Android keyboard owns its languages, switching, layout, and composition, including non-Latin languages. Keyflow's globe is a two-language custom control; it does not reproduce the system keyboard's entire language menu or multilingual prediction.
 
 Active keyboard metadata stays on-device. The iOS library bundles `PrivacyInfo.xcprivacy` with the display-customization reason `54BD.1` for active keyboard access. Do not send keyboard-language diagnostics to analytics services.
 

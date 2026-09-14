@@ -1,22 +1,20 @@
-import { serializeKeyboardTheme } from '../serializeTheme';
+import { serializeKeyflowTheme } from '../serializeTheme';
 import {
-  createKeyboardTheme,
-  androidKeyboardTheme,
-  androidDarkKeyboardTheme,
-  darkKeyboardTheme,
+  createKeyflowTheme,
+  androidKeyflowTheme,
+  androidDarkKeyflowTheme,
+  darkKeyflowTheme,
 } from '../theme';
 
 test('Android previews use native bubble fills and accept independent customization', () => {
-  expect(androidKeyboardTheme.sections?.preview).toMatchObject({
+  expect(androidKeyflowTheme.sections?.preview).toMatchObject({
     background: '#FFFFFF',
     fontSize: 28,
   });
-  expect(androidDarkKeyboardTheme.sections?.preview?.background).toBe(
-    '#33343A',
-  );
-  const theme = createKeyboardTheme(
+  expect(androidDarkKeyflowTheme.sections?.preview?.background).toBe('#33343A');
+  const theme = createKeyflowTheme(
     { preview: { background: '#123456', fontSize: 30 } },
-    androidKeyboardTheme,
+    androidKeyflowTheme,
   );
   expect(theme.sections?.preview).toMatchObject({
     background: '#123456',
@@ -26,7 +24,7 @@ test('Android previews use native bubble fills and accept independent customizat
 });
 
 test('section colors and fonts inherit shared defaults', () => {
-  const theme = createKeyboardTheme({
+  const theme = createKeyflowTheme({
     font: { family: 'system-serif', weight: 'bold' },
     keys: { color: '#FF0000' },
   });
@@ -39,10 +37,10 @@ test('section colors and fonts inherit shared defaults', () => {
   });
 });
 test('explicit section overrides survive partial updates without mutating the base', () => {
-  const base = createKeyboardTheme({
+  const base = createKeyflowTheme({
     toolbar: { color: '#123456', fontFamily: 'system-serif' },
   });
-  const theme = createKeyboardTheme(
+  const theme = createKeyflowTheme(
     {
       font: { family: 'system-monospace' },
       toolbar: { color: undefined, borderWidth: 2 },
@@ -60,7 +58,7 @@ test('explicit section overrides survive partial updates without mutating the ba
 });
 test('section fonts can reset to system and invalid styles are rejected', () => {
   expect(
-    createKeyboardTheme({
+    createKeyflowTheme({
       font: { family: 'system-serif' },
       keys: { fontFamily: null },
     }).sections?.keys?.fontFamily,
@@ -73,19 +71,19 @@ test('section fonts can reset to system and invalid styles are rejected', () => 
     { fontWeight: 'heavy' },
     { fontFamily: '' },
   ]) {
-    expect(() => createKeyboardTheme({ keys: style as never })).toThrow();
+    expect(() => createKeyflowTheme({ keys: style as never })).toThrow();
   }
 });
 
 test('focused long-press colors remain independent through serialization', () => {
-  const theme = createKeyboardTheme(
+  const theme = createKeyflowTheme(
     {
       preview: { background: '#173E42', color: '#E1F7F1' },
       selection: { background: '#A8E6CF', color: '#123B32' },
     },
-    androidKeyboardTheme,
+    androidKeyflowTheme,
   );
-  const native = JSON.parse(serializeKeyboardTheme(theme));
+  const native = JSON.parse(serializeKeyflowTheme(theme));
   expect(native.sectionOverrides.selection).toEqual({
     background: '#A8E6CF',
     color: '#123B32',
@@ -95,16 +93,16 @@ test('focused long-press colors remain independent through serialization', () =>
 });
 
 test('iOS pressed faces contrast with resting keys while previews retain their own fill', () => {
-  const light = createKeyboardTheme();
+  const light = createKeyflowTheme();
   expect(light.sections?.keys?.pressedBackground).toBe('#C1C3C6');
   expect(light.sections?.keys?.pressedBackground).not.toBe(
     light.sections?.keys?.background,
   );
   expect(light.sections?.preview?.background).toBe('#FFFFFF');
   expect(
-    createKeyboardTheme({}, darkKeyboardTheme).sections?.preview?.background,
+    createKeyflowTheme({}, darkKeyflowTheme).sections?.preview?.background,
   ).toBe('#8E8E93');
-  const custom = createKeyboardTheme({
+  const custom = createKeyflowTheme({
     keys: { pressedBackground: '#123456' },
     preview: { background: '#654321' },
   });

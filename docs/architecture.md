@@ -1,15 +1,15 @@
 # Keyflow architecture
 
-Keyflow provides in-app keyboards using Swift/UIKit and Kotlin/Android views through an Expo Modules view bridge. The package uses React Native Builder Bob and Yarn workspaces. The example targets Expo SDK 57, React Native 0.86.3, and React 19.2.3.
+Keyflow provides in-app keyboards using Swift/UIKit and Kotlin/Android controllers through an Expo Module. The package uses React Native Builder Bob and Yarn workspaces. The example targets Expo SDK 57, React Native 0.86.3, and React 19.2.3.
 
 ## Library boundaries
 
-- `src/KeyflowKeyboard.tsx` adapts typed props, themes, events, and the native ref. It binds a consumer-rendered React Native input to the native keyboard controller. React Native retains ownership of the editor and its text/event pipeline.
+- `src/useKeyflow.ts` exposes `useKeyflow`, adapts typed options, themes, events, and the native ref, and returns only the bindings required by the app-owned input. React Native retains ownership of the editor and its text/event pipeline.
 - `src/KeyflowAvoidingView.tsx` handles keyboard avoidance. Android consumers connect the active input's frame callback; iOS combines UIKit notifications with the custom keyboard’s actual native frame, including attachment to an autofocus input.
 - Theme sections, defaults, serialization, language configuration, and overlap geometry live in separate TypeScript modules.
 - `src/testing.ts` exposes diagnostics separately from the ordinary input ref. Native metrics remain available to the example and device suites.
 
-The consumer supplies one single-line React Native `TextInput` through `renderInput`, forwarding the provided bindings. Controlled values use React Native’s existing revision handling. The library creates no text editor and applies no input appearance. The example app owns its `ExampleTextInput` styles.
+The consumer passes a single-line React Native `TextInput` ref to `useKeyflow` and spreads the returned bindings onto that input. Controlled values use React Native’s existing revision handling. The library creates no text editor and applies no input appearance. The example app owns its `ExampleTextInput` styles.
 
 ## iOS
 

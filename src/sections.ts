@@ -1,6 +1,6 @@
 import type {
-  KeyboardTheme,
-  KeyboardThemeOverrides,
+  KeyflowTheme,
+  KeyflowThemeOverrides,
   KeyboardSectionStyle,
   KeyboardSectionName,
 } from './types';
@@ -30,9 +30,9 @@ const ranges = {
   iconSize: [12, 28],
 } as const;
 export function resolveSections(
-  theme: KeyboardTheme,
-  overrides: KeyboardThemeOverrides,
-  base: KeyboardTheme,
+  theme: KeyflowTheme,
+  overrides: KeyflowThemeOverrides,
+  base: KeyflowTheme,
 ) {
   const inherited = overrides.sectionOverrides ?? base.sectionOverrides ?? {};
   const raw: Partial<Record<KeyboardSectionName, KeyboardSectionStyle>> = {

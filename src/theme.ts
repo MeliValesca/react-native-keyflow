@@ -1,8 +1,8 @@
 import { resolveSections } from './sections';
-import type { KeyboardTheme, KeyboardThemeOverrides } from './types';
+import type { KeyflowTheme, KeyflowThemeOverrides } from './types';
 
 /** Supported ranges keep customization inside the fixed native key geometry. */
-export const keyboardThemeLimits = Object.freeze({
+export const keyflowThemeLimits = Object.freeze({
   fontSize: Object.freeze({ min: 12, max: 32 }),
   keyCornerRadius: Object.freeze({ min: 0, max: 24 }),
   materialDepth: Object.freeze({ min: 0, max: 6 }),
@@ -11,7 +11,7 @@ export const keyboardThemeLimits = Object.freeze({
 });
 
 /** Initial design tokens, not a pixel-exact copy of any system keyboard. */
-export const lightKeyboardTheme: KeyboardTheme = Object.freeze({
+export const lightKeyflowTheme: KeyflowTheme = Object.freeze({
   background: '#E0E2E7',
   keyBackground: '#FFFFFF',
   keyForeground: '#000000',
@@ -35,8 +35,8 @@ export const lightKeyboardTheme: KeyboardTheme = Object.freeze({
   keyCornerRadius: 8,
 });
 
-export const darkKeyboardTheme: KeyboardTheme = Object.freeze({
-  ...lightKeyboardTheme,
+export const darkKeyflowTheme: KeyflowTheme = Object.freeze({
+  ...lightKeyflowTheme,
   specialKeyForeground: '#FFFFFF',
   deleteKeyBackground: '#5E5F61',
   background: '#404143',
@@ -52,10 +52,10 @@ export const darkKeyboardTheme: KeyboardTheme = Object.freeze({
 });
 
 /** Resolve and validate tokens before crossing the native boundary. */
-export function createKeyboardTheme(
-  overrides: KeyboardThemeOverrides = {},
-  base: KeyboardTheme = lightKeyboardTheme,
-): KeyboardTheme {
+export function createKeyflowTheme(
+  overrides: KeyflowThemeOverrides = {},
+  base: KeyflowTheme = lightKeyflowTheme,
+): KeyflowTheme {
   for (const deviceScope of [
     'phone',
     'tablet',
@@ -66,7 +66,7 @@ export function createKeyboardTheme(
   ])
     if (Object.prototype.hasOwnProperty.call(overrides, deviceScope))
       throw new TypeError(
-        `${deviceScope} theme overrides are not supported; pass one keyboardTheme and Keyflow will adapt its native geometry automatically`,
+        `${deviceScope} theme overrides are not supported; pass one keyflowTheme and Keyflow will adapt its native geometry automatically`,
       );
   for (const legacy of ['material', 'keyDepth', 'keyShadow', 'keyHighlight'])
     if (Object.prototype.hasOwnProperty.call(overrides, legacy))
@@ -74,9 +74,7 @@ export function createKeyboardTheme(
         `${legacy} belongs in keyboard.material; use { type: 'flat' } or { type: 'raised', depth, shadowColor }`,
       );
   const theme = { ...base };
-  for (const key of Object.keys(
-    lightKeyboardTheme,
-  ) as (keyof KeyboardTheme)[]) {
+  for (const key of Object.keys(lightKeyflowTheme) as (keyof KeyflowTheme)[]) {
     if (key === 'material') continue;
     const value = overrides[key];
     if (value !== undefined) Object.assign(theme, { [key]: value });
@@ -146,7 +144,7 @@ export function createKeyboardTheme(
     'surfaceOpacity',
     'keyOpacity',
   ] as const) {
-    const { min, max } = keyboardThemeLimits[key];
+    const { min, max } = keyflowThemeLimits[key];
     if (!Number.isFinite(theme[key]) || theme[key] < min || theme[key] > max)
       throw new RangeError(`${key} must be between ${min} and ${max}`);
   }
@@ -161,7 +159,7 @@ export function createKeyboardTheme(
     );
   }
   if (theme.material.type === 'raised') {
-    const { min, max } = keyboardThemeLimits.materialDepth;
+    const { min, max } = keyflowThemeLimits.materialDepth;
     if (
       !Number.isFinite(theme.material.depth) ||
       theme.material.depth < min ||
@@ -181,7 +179,7 @@ export function createKeyboardTheme(
 }
 
 /** Gboard 15.1 default Material palette on the Android reference emulator. */
-export const androidKeyboardTheme = createKeyboardTheme({
+export const androidKeyflowTheme = createKeyflowTheme({
   background: '#EEEDF4',
   keyBackground: '#FFFFFF',
   keyForeground: '#1A1B21',
@@ -196,7 +194,7 @@ export const androidKeyboardTheme = createKeyboardTheme({
   actionKeyForeground: '#414659',
   keyCornerRadius: 6,
 });
-export const androidDarkKeyboardTheme = createKeyboardTheme(
+export const androidDarkKeyflowTheme = createKeyflowTheme(
   {
     background: '#1E1F25',
     keyBackground: '#33343A',
@@ -209,10 +207,10 @@ export const androidDarkKeyboardTheme = createKeyboardTheme(
     actionKeyBackground: '#414659',
     actionKeyForeground: '#DDE2F9',
   },
-  androidKeyboardTheme,
+  androidKeyflowTheme,
 );
 /** Defined translucent keycaps over the app's background, including the space bar. */
-export const transparentKeyboardTheme = createKeyboardTheme({
+export const transparentKeyflowTheme = createKeyflowTheme({
   keyOpacity: 0.7,
   keyboard: {
     background: '#D9E9F2',

@@ -11,17 +11,15 @@ import {
   ScrollView,
   Switch,
   Text,
+  TextInput,
   View,
   useWindowDimensions,
 } from 'react-native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { KeyflowKeyboard, KeyflowAvoidingView } from 'react-native-keyflow';
-import type {
-  KeyflowKeyboardFrame,
-  KeyflowKeyboardRef,
-} from 'react-native-keyflow';
+import { useKeyflow, KeyflowAvoidingView } from 'react-native-keyflow';
+import type { KeyflowKeyboardFrame } from 'react-native-keyflow';
 import type { Routes } from '../App';
 export const KeyboardScreen = observer(function KeyboardScreenContent({
   route,
@@ -39,14 +37,14 @@ export const KeyboardScreen = observer(function KeyboardScreenContent({
         animated: false,
       });
   };
-  const input = useRef<KeyflowKeyboardRef>(null);
+  const input = useRef<TextInput>(null);
   const [mode, setMode] = useState<'custom' | 'system'>('custom');
   const switchRequest = useRef(0);
   const switchMode = async (next: 'custom' | 'system') => {
     const request = ++switchRequest.current;
     setMode(next);
-    await input.current?.setKeyboardMode(next);
-    if (request === switchRequest.current) await input.current?.focus();
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    if (request === switchRequest.current) input.current?.focus();
   };
   const { dark, haptics, setDark, setHaptics } = settings;
 
@@ -56,6 +54,18 @@ export const KeyboardScreen = observer(function KeyboardScreenContent({
   const headerHeight = useHeaderHeight();
   const [text, setText] = useState('');
   const [submitted, setSubmitted] = useState<string | null>(null);
+  const game = preset === 'studio';
+  const bindings = useKeyflow(input, {
+    keyboardMode: mode,
+    keyboardAppearance: dark ? 'dark' : 'light',
+    keyflowTheme: game ? studioTheme : undefined,
+    hapticsEnabled: haptics,
+    onKeyboardModeChange: setMode,
+    onKeyboardFrameChange: (next) => {
+      setFrame(next);
+      if (Platform.OS === 'android' && next.visible) revealInput();
+    },
+  });
   useFocusEffect(
     useCallback(
       () => () => {
@@ -72,7 +82,6 @@ export const KeyboardScreen = observer(function KeyboardScreenContent({
       }),
     [navigation],
   );
-  const game = preset === 'studio';
   const background = game ? '#132B4B' : '#F7F8FA';
   const foreground = game ? '#FFFFFF' : '#192231';
   return (
@@ -151,36 +160,19 @@ export const KeyboardScreen = observer(function KeyboardScreenContent({
               inputY.current = event.nativeEvent.layout.y;
             }}
           >
-            <KeyflowKeyboard
+            <ExampleTextInput
+              {...bindings}
               ref={input}
-              keyboardMode={mode}
+              placeholder="Write something…"
+              accessibilityLabel="Try Keyflow"
               keyboardAppearance={dark ? 'dark' : 'light'}
-              keyboardTheme={game ? studioTheme : undefined}
-              hapticsEnabled={haptics}
-              onKeyboardModeChange={setMode}
-              onKeyboardFrameChange={(next) => {
-                setFrame(next);
-                if (Platform.OS === 'android' && next.visible) {
-                  revealInput();
-                }
+              onChangeText={setText}
+              onSubmitEditing={(event) => setSubmitted(event.nativeEvent.text)}
+              style={{
+                height: 54,
+                backgroundColor: '#FFFFFF',
+                borderRadius: 12,
               }}
-              renderInput={(bindings) => (
-                <ExampleTextInput
-                  {...bindings}
-                  placeholder="Write something…"
-                  accessibilityLabel="Try Keyflow"
-                  keyboardAppearance={dark ? 'dark' : 'light'}
-                  onChangeText={setText}
-                  onSubmitEditing={(event) =>
-                    setSubmitted(event.nativeEvent.text)
-                  }
-                  style={{
-                    height: 54,
-                    backgroundColor: '#FFFFFF',
-                    borderRadius: 12,
-                  }}
-                />
-              )}
             />
           </View>
           <Text style={{ color: foreground }}>

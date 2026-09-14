@@ -26,17 +26,16 @@ import androidx.core.view.WindowInsetsAnimationCompat
 import androidx.core.view.WindowInsetsCompat
 import com.facebook.react.views.textinput.ReactEditText
 import expo.modules.kotlin.AppContext
-import expo.modules.kotlin.viewevent.EventDispatcher
 import expo.modules.kotlin.views.ExpoView
 import java.util.Locale
 import org.json.JSONObject
 
 class KeyflowInputView(context: Context, private val expoContext: AppContext) :
   ExpoView(context, expoContext) {
-  val onKeyflowModeChange by EventDispatcher()
-  val onKeyflowLanguageChange by EventDispatcher()
-  val onKeyflowHeightChange by EventDispatcher()
-  val onKeyflowFrameChange by EventDispatcher()
+  var onKeyflowModeChange: ((Map<String, Any>) -> Unit)? = null
+  var onKeyflowLanguageChange: ((Map<String, Any>) -> Unit)? = null
+  var onKeyflowHeightChange: ((Map<String, Any>) -> Unit)? = null
+  var onKeyflowFrameChange: ((Map<String, Any>) -> Unit)? = null
   private var panelAnimator: ValueAnimator? = null
   private var visiblePanelHeight = 0f
   private var panelTarget = 0f
@@ -93,7 +92,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
       )
     if (frame != lastFrame) {
       lastFrame = frame
-      onKeyflowFrameChange(frame)
+      onKeyflowFrameChange?.invoke(frame)
     }
   }
 
@@ -116,7 +115,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
         keyboard.translationY = 0f
         clearNavigationScrim()
       }
-      onKeyflowHeightChange(mapOf("height" to (target / resources.displayMetrics.density)))
+      onKeyflowHeightChange?.invoke(mapOf("height" to (target / resources.displayMetrics.density)))
     }
     if (
       !animated || (android.os.Build.VERSION.SDK_INT >= 26 && !ValueAnimator.areAnimatorsEnabled())
@@ -188,7 +187,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     require(
       field != null && field.inputType and android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE == 0
     ) {
-      "KeyflowKeyboard requires a single-line React Native TextInput ref."
+      "Keyflow requires a single-line React Native TextInput ref."
     }
     val changed = attachedEditor !== field
     if (changed) {
@@ -300,7 +299,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     val changed = language != value
     language = value
     if (changed) {
-      onKeyflowLanguageChange(mapOf("language" to value.language, "layout" to value.layout))
+      onKeyflowLanguageChange?.invoke(mapOf("language" to value.language, "layout" to value.layout))
       lastSpace = 0
     }
     keyboard.setLanguage(value, languages.size > 1)
@@ -479,6 +478,11 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     super.onDetachedFromWindow()
   }
 
+  fun cleanup() {
+    detachInput()
+    (parent as? ViewGroup)?.removeView(this)
+  }
+
   private fun showKeyboard() {
     if (attachedEditor == null || !isAttachedToWindow || !editor.hasFocus() || !editor.isEnabled)
       return
@@ -531,7 +535,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
             ?.onBackPressedDispatcher
             ?.addCallback(it)
         }
-    onKeyflowHeightChange(mapOf("height" to keyboard.panelHeight))
+    onKeyflowHeightChange?.invoke(mapOf("height" to keyboard.panelHeight))
     keyboard.postOnAnimation {
       if (
         popup != null && attachedEditor?.hasFocus() == true && mode == "custom" && panelTarget > 0
@@ -551,7 +555,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     back = null
     if (popup != null) animatePanel(0f, animated)
     else {
-      onKeyflowHeightChange(mapOf("height" to 0))
+      onKeyflowHeightChange?.invoke(mapOf("height" to 0))
       reportFrame()
     }
   }

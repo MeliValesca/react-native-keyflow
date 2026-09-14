@@ -6,15 +6,15 @@ import {
   Pressable,
   ScrollView,
   Text,
+  TextInput,
   View,
   useWindowDimensions,
 } from 'react-native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { KeyflowKeyboard, KeyflowAvoidingView } from 'react-native-keyflow';
+import { useKeyflow, KeyflowAvoidingView } from 'react-native-keyflow';
 import type {
   KeyflowKeyboardType,
-  KeyflowKeyboardRef,
   KeyflowKeyboardFrame,
 } from 'react-native-keyflow';
 import { ComparisonTabs } from '../components/common/ComparisonTabs';
@@ -27,7 +27,7 @@ const types = [
 ] as const;
 
 export function LayoutsScreen() {
-  const input = useRef<KeyflowKeyboardRef>(null);
+  const input = useRef<TextInput>(null);
   const [type, setType] = useState<KeyflowKeyboardType>('default');
   const [mode, setMode] = useState<'custom' | 'system'>('custom');
   const [text, setText] = useState('');
@@ -40,9 +40,15 @@ export function LayoutsScreen() {
   const landscape = width > height;
   const insets = useSafeAreaInsets();
   const header = useHeaderHeight();
+  const bindings = useKeyflow(input, {
+    keyboardType: type,
+    keyboardMode: mode,
+    onKeyboardModeChange: setMode,
+    onKeyboardFrameChange: setFrame,
+  });
   const inspect = async () => {
     try {
-      const metrics = await getKeyboardMetrics(input.current);
+      const metrics = await getKeyboardMetrics(input);
       const failures = [...metrics.violations];
       if (mode === 'custom' && metrics.keyboardType !== type)
         failures.push('Wrong keyboard type');
@@ -101,36 +107,26 @@ export function LayoutsScreen() {
                 { value: 'system', label: 'Native' },
               ]}
               onChange={(next) => {
-                void input.current?.setKeyboardMode(next).then(() => {
-                  setMode(next);
-                  return input.current?.focus();
-                });
+                setMode(next);
+                setTimeout(() => input.current?.focus(), 0);
               }}
             />
           </View>
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <KeyflowKeyboard
+          <ExampleTextInput
+            {...bindings}
             ref={input}
+            placeholder="Try this layout…"
+            accessibilityLabel="Layout input"
             keyboardType={type}
-            keyboardMode={mode}
-            onKeyboardModeChange={setMode}
-            onKeyboardFrameChange={setFrame}
-            renderInput={(bindings) => (
-              <ExampleTextInput
-                {...bindings}
-                placeholder="Try this layout…"
-                accessibilityLabel="Layout input"
-                keyboardType={type}
-                onChangeText={setText}
-                style={{
-                  flex: 1,
-                  height: 44,
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: 8,
-                }}
-              />
-            )}
+            onChangeText={setText}
+            style={{
+              flex: 1,
+              height: 44,
+              backgroundColor: '#FFFFFF',
+              borderRadius: 8,
+            }}
           />
           <Pressable
             accessibilityRole="button"

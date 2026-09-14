@@ -1,14 +1,11 @@
 import { ExampleTextInput } from '../components/common/ExampleTextInput';
 import { getKeyboardMetrics } from 'react-native-keyflow/testing';
 import { useCallback, useRef, useState } from 'react';
-import { Platform, Pressable, Text, View } from 'react-native';
+import { Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
-import { KeyflowAvoidingView, KeyflowKeyboard } from 'react-native-keyflow';
-import type {
-  KeyflowKeyboardFrame,
-  KeyflowKeyboardRef,
-} from 'react-native-keyflow';
+import { KeyflowAvoidingView, useKeyflow } from 'react-native-keyflow';
+import type { KeyflowKeyboardFrame } from 'react-native-keyflow';
 import { ComparisonTabs } from '../components/common/ComparisonTabs';
 
 const cases = {
@@ -19,7 +16,7 @@ const cases = {
 };
 
 export function LongPressScreen() {
-  const input = useRef<KeyflowKeyboardRef>(null);
+  const input = useRef<TextInput>(null);
   const [mode, setMode] = useState<'custom' | 'system'>('custom');
   const [seed, setSeed] = useState('');
   const [revision, setRevision] = useState(0);
@@ -27,13 +24,18 @@ export function LongPressScreen() {
   const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
   const [diagnostic, setDiagnostic] = useState('Ready for comparison.');
   const header = useHeaderHeight();
+  const bindings = useKeyflow(input, {
+    keyboardMode: mode,
+    keyboardAppearance: 'light',
+    onKeyboardFrameChange: setFrame,
+  });
 
   useFocusEffect(useCallback(() => () => void input.current?.blur(), []));
 
   const switchMode = async (next: 'custom' | 'system') => {
     setMode(next);
-    await input.current?.setKeyboardMode(next);
-    await input.current?.focus();
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    input.current?.focus();
   };
 
   const reset = async (name: keyof typeof cases) => {
@@ -45,7 +47,7 @@ export function LongPressScreen() {
   };
 
   const inspect = async () => {
-    const metrics = await getKeyboardMetrics(input.current);
+    const metrics = await getKeyboardMetrics(input);
     const result = {
       mode,
       text: metrics?.text,
@@ -125,30 +127,23 @@ export function LongPressScreen() {
         style={{ flex: 1 }}
       >
         <View style={{ flex: 1 }} />
-        <KeyflowKeyboard
+        <ExampleTextInput
+          {...bindings}
           key={revision}
           ref={input}
-          keyboardMode={mode}
+          autoFocus
+          defaultValue={seed}
           keyboardAppearance="light"
-          onKeyboardFrameChange={setFrame}
-          renderInput={(bindings) => (
-            <ExampleTextInput
-              {...bindings}
-              autoFocus
-              defaultValue={seed}
-              keyboardAppearance="light"
-              accessibilityLabel="Long press test input"
-              placeholder="Hold a key…"
-              onChangeText={setText}
-              style={{
-                height: 48,
-                marginHorizontal: 12,
-                marginBottom: 8,
-                backgroundColor: '#FFFFFF',
-                borderRadius: 12,
-              }}
-            />
-          )}
+          accessibilityLabel="Long press test input"
+          placeholder="Hold a key…"
+          onChangeText={setText}
+          style={{
+            height: 48,
+            marginHorizontal: 12,
+            marginBottom: 8,
+            backgroundColor: '#FFFFFF',
+            borderRadius: 12,
+          }}
         />
       </KeyflowAvoidingView>
     </View>

@@ -1,20 +1,22 @@
 import { ExampleTextInput } from '../components/common/ExampleTextInput';
 import { useCallback, useRef, useState } from 'react';
-import { Platform, ScrollView, Text, View } from 'react-native';
+import { Platform, ScrollView, Text, TextInput, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
-import { KeyflowAvoidingView, KeyflowKeyboard } from 'react-native-keyflow';
-import type {
-  KeyflowKeyboardFrame,
-  KeyflowKeyboardRef,
-} from 'react-native-keyflow';
+import { KeyflowAvoidingView, useKeyflow } from 'react-native-keyflow';
+import type { KeyflowKeyboardFrame } from 'react-native-keyflow';
 import { studioTheme } from '../themes/studio';
 
 export function ProductThemeScreen() {
-  const input = useRef<KeyflowKeyboardRef>(null);
+  const input = useRef<TextInput>(null);
   const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
   const [text, setText] = useState('');
   const header = useHeaderHeight();
+  const bindings = useKeyflow(input, {
+    keyboardAppearance: 'light',
+    keyflowTheme: studioTheme,
+    onKeyboardFrameChange: setFrame,
+  });
   useFocusEffect(useCallback(() => () => void input.current?.blur(), []));
   return (
     <View style={{ flex: 1, backgroundColor: '#F4F0FF' }}>
@@ -69,26 +71,19 @@ export function ProductThemeScreen() {
           </View>
         </ScrollView>
         <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
-          <KeyflowKeyboard
+          <ExampleTextInput
+            {...bindings}
             ref={input}
+            autoFocus
+            placeholder="Continue the story…"
+            accessibilityLabel="Product theme input"
             keyboardAppearance="light"
-            keyboardTheme={studioTheme}
-            onKeyboardFrameChange={setFrame}
-            renderInput={(bindings) => (
-              <ExampleTextInput
-                {...bindings}
-                autoFocus
-                placeholder="Continue the story…"
-                accessibilityLabel="Product theme input"
-                keyboardAppearance="light"
-                onChangeText={setText}
-                style={{
-                  height: 54,
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: 14,
-                }}
-              />
-            )}
+            onChangeText={setText}
+            style={{
+              height: 54,
+              backgroundColor: '#FFFFFF',
+              borderRadius: 14,
+            }}
           />
         </View>
       </KeyflowAvoidingView>
