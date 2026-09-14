@@ -8,14 +8,14 @@ on:
   schedule:
     - cron: '20 7 * * 1'
 
-# PR replacements cover the full branch diff. Each non-PR run must survive
-# later pushes: a shared group can replace pending runs even with cancellation off.
+# Keep matching earlier runs alive so documentation updates can await their result.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}-${{ github.run_id }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   scope:
@@ -124,7 +124,7 @@ jobs:
     steps:
       - name: No android changes
         if: ${{ needs.android.result == 'skipped' }}
-        run: echo "No relevant android changes; build and device tests were not run."
+        run: echo "Android checks are unaffected or reuse verified successful results; see scope summary."
       - name: Require successful shared build
         if: ${{ needs.android.result != 'success' && needs.android.result != 'skipped' }}
         run: exit 1
@@ -181,7 +181,7 @@ jobs:
     steps:
       - name: No ios changes
         if: ${{ needs.ios.result == 'skipped' }}
-        run: echo "No relevant ios changes; build and device tests were not run."
+        run: echo "iOS checks are unaffected or reuse verified successful results; see scope summary."
       - name: Require successful shared build
         if: ${{ needs.ios.result != 'success' && needs.ios.result != 'skipped' }}
         run: exit 1

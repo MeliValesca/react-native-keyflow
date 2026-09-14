@@ -105,9 +105,23 @@ without installing dependencies, building binaries, or launching a simulator.
 
 ### Overlapping pushes
 
-A newer PR run cancels the older run for that PR. Its scope covers the full PR
-diff, so an iOS commit followed by an Android commit runs both platforms in the
-replacement pipeline.
+PR workflows fingerprint the merged file contents (including file modes), excluding
+Markdown and documentation media. The PR base commit and title are also included.
+Within the same PR and workflow, a successful run with identical inputs can be
+reused. If it is still running, the new scope job waits up to 130 minutes for its
+successful completion. The scope summary links to the original evidence.
+
+Missing or expired evidence, API errors, failures, cancellation, and timeout all
+fall back to running tests. Fingerprint artifacts expire after seven days; lookup
+is limited to the most recent 100 PR runs of the workflow. Manual, scheduled, and
+main runs do not reuse results. Changes to code, dependencies, tests, CI, or the PR
+base invalidate reuse. Reuse currently applies to the whole workflow, not separate
+platform results. Required checks retain their names on the latest commit.
+
+Each PR run has its own concurrency group so a documentation update cannot cancel
+the checks it needs to await. Superseded code runs also finish; automatic cancellation
+of those runs is not currently implemented. This avoids restarting builds for
+README/GIF updates once a matching run has published its input fingerprint.
 
 Every `main` push has its own concurrency group in both workflows. Newer pushes
 cannot cancel or replace older running or pending pipelines. They may execute

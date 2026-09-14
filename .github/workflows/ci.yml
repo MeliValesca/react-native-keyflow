@@ -7,14 +7,14 @@ on:
     types: [opened, synchronize, reopened, edited]
   workflow_dispatch:
 
-# PR replacements cover the full branch diff. Each non-PR run must survive
-# later pushes: a shared group can replace pending runs even with cancellation off.
+# Keep matching earlier runs alive so documentation updates can await their result.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}-${{ github.run_id }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   scope:
