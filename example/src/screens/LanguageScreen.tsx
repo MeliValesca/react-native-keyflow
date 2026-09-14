@@ -1,3 +1,4 @@
+import { ExampleTextInput } from '../components/common/ExampleTextInput';
 import { getKeyboardMetrics } from 'react-native-keyflow/testing';
 import { useRef, useState } from 'react';
 import {
@@ -5,16 +6,14 @@ import {
   Pressable,
   ScrollView,
   Text,
+  TextInput,
   View,
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
-import { KeyflowTextInput, KeyflowAvoidingView } from 'react-native-keyflow';
-import type {
-  KeyflowKeyboardFrame,
-  KeyflowTextInputRef,
-} from 'react-native-keyflow';
+import { useKeyflow, KeyflowAvoidingView } from 'react-native-keyflow';
+import type { KeyflowKeyboardFrame } from 'react-native-keyflow';
 import { ComparisonTabs } from '../components/common/ComparisonTabs';
 
 // Android's ScrollView can transfer focus during an orientation resize.
@@ -22,7 +21,7 @@ import { ComparisonTabs } from '../components/common/ComparisonTabs';
 const Content = Platform.OS === 'android' ? View : ScrollView;
 
 export function LanguageScreen() {
-  const input = useRef<KeyflowTextInputRef>(null);
+  const input = useRef<TextInput>(null);
   const [source, setSource] = useState<'example' | 'device'>('example');
   const [layout, setLayout] = useState<'azerty' | 'qwerty'>('azerty');
   const [mode, setMode] = useState<'custom' | 'system'>('custom');
@@ -34,6 +33,17 @@ export function LanguageScreen() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const landscape = width > height;
+  const bindings = useKeyflow(input, {
+    keyboardLanguages:
+      source === 'device'
+        ? undefined
+        : [{ language: 'en' }, { language: 'fr', layout }],
+    keyboardMode: mode,
+    onKeyboardModeChange: setMode,
+    onKeyboardFrameChange: setFrame,
+    onKeyboardLanguageChange: (value) =>
+      setSelection(`${value.language} · ${value.layout.toUpperCase()}`),
+  });
   const contentStyle = {
     padding: landscape ? 8 : 12,
     paddingLeft: Math.max(8, insets.left),
@@ -42,7 +52,7 @@ export function LanguageScreen() {
   };
   const inspect = async () => {
     try {
-      const value = await getKeyboardMetrics(input.current);
+      const value = await getKeyboardMetrics(input);
       setDiagnostic(JSON.stringify(value));
       setSelection(
         `${value.keyboardLanguage} · ${value.keyboardLayout?.toUpperCase()}`,
@@ -110,13 +120,8 @@ export function LanguageScreen() {
                 { value: 'system', label: 'Native' },
               ]}
               onChange={(next) => {
-                void input.current
-                  ?.setKeyboardMode(next)
-                  .then(() => {
-                    setMode(next);
-                    return input.current?.focus();
-                  })
-                  .catch((failure) => setError(String(failure)));
+                setMode(next);
+                setTimeout(() => input.current?.focus(), 0);
               }}
             />
           </View>
@@ -127,24 +132,12 @@ export function LanguageScreen() {
               flex: landscape ? 2 : undefined,
             }}
           >
-            <KeyflowTextInput
+            <ExampleTextInput
+              {...bindings}
               ref={input}
-              inputAccessibilityLabel="Language input"
+              accessibilityLabel="Language input"
               placeholder="Hello / Bonjour…"
               autoCorrect={false}
-              keyboardLanguages={
-                source === 'device'
-                  ? undefined
-                  : [{ language: 'en' }, { language: 'fr', layout }]
-              }
-              keyboardMode={mode}
-              onKeyboardModeChange={setMode}
-              onKeyboardFrameChange={setFrame}
-              onKeyboardLanguageChange={(value) =>
-                setSelection(
-                  `${value.language} · ${value.layout.toUpperCase()}`,
-                )
-              }
               style={{
                 flex: 1,
                 height: 44,

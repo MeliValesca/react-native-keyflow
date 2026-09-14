@@ -2,7 +2,7 @@
 
 **Native keyboards. Your app’s style.**
 
-A customizable, app-owned keyboard for React Native, built with UIKit on iOS and Kotlin on Android. Keep familiar typing interactions while choosing your colors, fonts, key surfaces, and long-press appearance.
+A customizable native keyboard for app-owned React Native text inputs, built with UIKit on iOS and Kotlin on Android. Keep familiar typing interactions while choosing your colors, fonts, key surfaces, and long-press appearance.
 
 **Unpublished preview · iOS + Android · Phones + tablets**
 
@@ -39,20 +39,37 @@ stim ios
 # Or: stim android
 ```
 
-The example uses **Expo SDK 57, React Native 0.86.3, and React 19.2.3**. Keyflow requires Expo Modules and a native development or production build; Expo Go is not supported. On web, render your own fallback instead of `KeyflowTextInput`; see [web fallback](docs/api.md#web-fallback). The example targets iOS 16.4+ and Android API 24+. See [compatibility and local installation](docs/api.md#compatibility-and-local-installation).
+The example uses **Expo SDK 57, React Native 0.86.3, and React 19.2.3**. Keyflow requires Expo Modules and a native development or production build; Expo Go is not supported. On web, render your own fallback instead of calling `useKeyflow`; see [web fallback](docs/api.md#web-fallback). The example targets iOS 16.4+ and Android API 24+. See [compatibility and local installation](docs/api.md#compatibility-and-local-installation).
 
 ### Your first input
 
 Connect the input’s keyboard frame to `KeyflowAvoidingView`. It handles keyboard avoidance through the same integration on both platforms.
 
 ```tsx
-import { useState } from 'react';
-import { Text } from 'react-native';
-import { KeyflowAvoidingView, KeyflowTextInput } from 'react-native-keyflow';
-import type { KeyflowKeyboardFrame } from 'react-native-keyflow';
+import { useRef, useState } from 'react';
+import { TextInput, Text } from 'react-native';
+import { KeyflowAvoidingView, useKeyflow } from 'react-native-keyflow';
+import type {
+  KeyflowKeyboardFrame,
+  KeyflowThemeOverrides,
+} from 'react-native-keyflow';
+
+const keyflowTheme = {
+  keyboard: { background: '#F4F0FF' },
+  keys: { background: '#342B62', color: '#FFFFFF' },
+  specialKeys: { background: '#E05B8D', color: '#FFFFFF' },
+} satisfies KeyflowThemeOverrides;
 
 export function Composer() {
   const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
+  const [text, setText] = useState('');
+  const inputRef = useRef<TextInput>(null);
+  const bindings = useKeyflow(inputRef, {
+    keyflowTheme,
+    keyboardMode: 'custom',
+    hapticsEnabled: true,
+    onKeyboardFrameChange: setFrame,
+  });
 
   return (
     <KeyflowAvoidingView
@@ -60,29 +77,43 @@ export function Composer() {
       style={{ flex: 1, justifyContent: 'flex-end', padding: 16 }}
     >
       <Text>Write the next chapter.</Text>
-      <KeyflowTextInput
+      <TextInput
+        {...bindings}
+        ref={inputRef}
         placeholder="Start typing…"
-        defaultValue=""
-        inputAccessibilityLabel="Message"
-        onKeyboardFrameChange={setFrame}
-        onChangeText={(text) => console.log(text)}
-        style={{ height: 52 }}
+        value={text}
+        accessibilityLabel="Message"
+        onChangeText={setText}
+        style={{
+          height: 52,
+          paddingHorizontal: 12,
+          color: '#192231',
+          backgroundColor: '#FFFFFF',
+          borderWidth: 1,
+          borderColor: '#D1D5DB',
+          borderRadius: 8,
+        }}
       />
     </KeyflowAvoidingView>
   );
 }
 ```
 
-This is a **single-line, native-owned input**. Use `defaultValue` for initial text; a controlled `value` prop is not supported. The input’s `style` controls its outer layout; `keyboardTheme` styles the keyboard. For navigation headers and custom containers, see [keyboard avoidance](docs/api.md#keyboard-avoidance).
+**Your app owns the input.** Pass its ref to `useKeyflow`, spread the returned bindings onto the same single-line React Native `TextInput`, and attach the ref. This also works with your own input component when it forwards the ref and bindings to a native `TextInput`. Set `style`, `value`/`defaultValue`, placeholder, accessibility props, and text callbacks directly on your input. Keep larger keyboard styling in a reusable `keyflowTheme` constant; it styles Keyflow only.
+
+Call `useKeyflow` unconditionally with the component's other hooks. The input itself may render later, such as after a font or other asset loads; Keyflow attaches when that input receives focus. See [the input API](docs/api.md#input-api) for composing callbacks and [keyboard avoidance](docs/api.md#keyboard-avoidance) for navigation headers.
 
 ## Customization
 
 Use small section objects. Shared settings live under `font` and `keyboard`; override individual sections only where needed.
 
 ```tsx
-import type { KeyboardThemeOverrides } from 'react-native-keyflow';
+import { TextInput } from 'react-native';
+import { useRef } from 'react';
+import { useKeyflow } from 'react-native-keyflow';
+import type { KeyflowThemeOverrides } from 'react-native-keyflow';
 
-const theme = {
+export const keyflowTheme = {
   keyboard: {
     background: '#F4F0FF',
     material: { type: 'raised', depth: 4, shadowColor: '#241D46' },
@@ -100,9 +131,12 @@ const theme = {
   deleteKey: { background: '#A8DADC', color: '#241D46' },
   preview: { background: '#342B62', color: '#F4F0FF' },
   selection: { background: '#E05B8D', color: '#FFFFFF' },
-} satisfies KeyboardThemeOverrides;
+} satisfies KeyflowThemeOverrides;
 
-<KeyflowTextInput keyboardTheme={theme} />;
+const inputRef = useRef<TextInput>(null);
+const bindings = useKeyflow(inputRef, { keyflowTheme });
+
+<TextInput {...bindings} ref={inputRef} style={styles.input} />;
 ```
 
 | Section                   | Controls                                                          |
@@ -123,15 +157,16 @@ The API is shared across phone, tablet, portrait and landscape. Native layout de
 ### Transparent panel, transparent keys—or both
 
 ```tsx
-<KeyflowTextInput
-  keyboardTheme={{
-    keyboard: {
-      background: '#16324F',
-      backgroundOpacity: 0.35,
-      keyOpacity: 0.7,
-    },
-  }}
-/>
+const transparentTheme = {
+  keyboard: {
+    background: '#16324F',
+    backgroundOpacity: 0.35,
+    keyOpacity: 0.7,
+  },
+};
+const bindings = useKeyflow(inputRef, {
+  keyflowTheme: transparentTheme,
+});
 ```
 
 Both values range from `0` to `1`. Panel opacity and key-surface opacity are independent; text and icons retain their configured colors. Put your background image outside the avoiding view so it can continue beneath the keyboard. The example includes separate 0–100% sliders.
@@ -141,31 +176,32 @@ Both values range from `0` to `1`. Panel opacity and key-surface opacity are ind
 Load the font before rendering the input. With `expo-font`, for example:
 
 ```tsx
+import { TextInput } from 'react-native';
+import { useRef } from 'react';
 import { useFonts } from 'expo-font';
-import { KeyflowTextInput } from 'react-native-keyflow';
+import { useKeyflow } from 'react-native-keyflow';
 
 export function BrandedInput() {
   const [loaded, error] = useFonts({
     Quicksand: require('./assets/Quicksand_600SemiBold.ttf'),
   });
+  const inputRef = useRef<TextInput>(null);
+  const bindings = useKeyflow(inputRef, {
+    keyflowTheme: {
+      font: { family: 'Quicksand', weight: 'medium' },
+      keys: { color: '#16324F' },
+    },
+  });
   if (error) throw error;
   if (!loaded) return null;
 
-  return (
-    <KeyflowTextInput
-      keyboardTheme={{
-        font: { family: 'Quicksand', weight: 'medium' },
-        keys: { color: '#16324F' },
-      }}
-      style={{ height: 52 }}
-    />
-  );
+  return <TextInput {...bindings} ref={inputRef} style={{ height: 52 }} />;
 }
 ```
 
 Use your own asset path. System aliases (`system-rounded`, `system-serif`, `system-monospace`) are also supported. Missing font names fall back to the system font. See the [custom-font example](example/src/screens/CustomFontScreen.tsx) for loaded weights and validation.
 
-For reusable validated themes, use `createKeyboardTheme(overrides, base)`. Included bases are `lightKeyboardTheme`, `darkKeyboardTheme`, `androidKeyboardTheme`, `androidDarkKeyboardTheme`, and `transparentKeyboardTheme`.
+For reusable validated themes, use `createKeyflowTheme(overrides, base)`. Included bases are `lightKeyflowTheme`, `darkKeyflowTheme`, `androidKeyflowTheme`, `androidDarkKeyflowTheme`, and `transparentKeyflowTheme`.
 
 ## Native-style features
 
@@ -246,13 +282,20 @@ The clips demonstrate the named interactions only. The other behaviors in the ta
 ## Layouts and languages
 
 ```tsx
-<KeyflowTextInput keyboardType="decimal-pad" />;
-
-<KeyflowTextInput
-  keyboardLanguages={[
+const inputRef = useRef<TextInput>(null);
+const bindings = useKeyflow(inputRef, {
+  keyboardType: 'decimal-pad',
+  keyboardLanguages: [
     { language: 'en', layout: 'qwerty' },
     { language: 'fr', layout: 'azerty' },
-  ]}
+  ],
+});
+
+<TextInput
+  {...bindings}
+  ref={inputRef}
+  keyboardType="decimal-pad"
+  style={styles.input}
 />;
 ```
 
@@ -261,7 +304,7 @@ The clips demonstrate the named interactions only. The other behaviors in the ta
 - English and French can be selected through the globe when both are configured.
 - Omit `keyboardLanguages` to discover supported device language preferences. Exact software layout preferences are not always exposed by the OS; explicit configuration chooses the template.
 
-Need the user’s actual keyboard and its full feature set? Use `keyboardMode="system"`. See [mode switching and input props](docs/api.md#input-api) and [language behavior](docs/languages.md).
+Need the user’s actual keyboard and its full feature set? Pass `keyboardMode: 'system'` to the hook. See [mode switching and input props](docs/api.md#input-api) and [language behavior](docs/languages.md).
 
 ## Example app
 
@@ -301,7 +344,7 @@ This comparison describes **Keyflow**, not a restriction on the user’s actual 
 | Extra keyboard tools                 | No keyboard-owned shortcut/undo/redo toolbar or system personalization controls                                          | No clipboard history/pinning or IME personalization controls; the paste button inserts current clipboard text                         |
 | Alternate keyboard modes             | No iPad floating/split keyboard or iPhone one-handed layout                                                              | No floating, split, one-handed or user-resized IME layout; no separate Samsung Keyboard/SwiftKey implementations                      |
 
-Use `keyboardMode="system"` for the installed keyboard and whatever features its settings, device and language configuration make available. Keyflow cannot apply its theme to that keyboard. Native editor selection handles, context menus or OS-provided editing services may still appear; they are not a custom feature implemented by Keyflow.
+Use `keyboardMode: 'system'` for the installed keyboard and whatever features its settings, device and language configuration make available. Keyflow cannot apply its theme to that keyboard. Native editor selection handles, context menus or OS-provided editing services may still appear; they are not a custom feature implemented by Keyflow.
 
 ### Fidelity and accessibility limits
 
@@ -312,9 +355,9 @@ Use `keyboardMode="system"` for the installed keyboard and whatever features its
 
 ### Integration limits
 
-- `KeyflowTextInput` is single-line and native-owned. It has `defaultValue`, not a controlled `value`, and does not expose the complete React Native `TextInput` API—including secure-entry and semantic/AutoFill configuration props.
-- Supported preview peers are Expo SDK 57, React Native 0.86.x (0.86.3+) and React 19.2.3+. Earlier combinations are not claimed as supported. A native build with Expo Modules is required; Expo Go is unsupported. On web, rendering `KeyflowTextInput` throws; provide your own [fallback](docs/api.md#web-fallback).
-- Keyflow is an **in-app keyboard component**, not a system-wide keyboard extension/IME that users can install for other apps.
+- `useKeyflow` attaches to one single-line React Native `TextInput` ref. Multiline and arbitrary native editor implementations are not supported. Input props and controlled values belong to your input; Keyflow does not replace React Native’s editing/event pipeline.
+- Supported preview peers are Expo SDK 57, React Native 0.86.x (0.86.3+) and React 19.2.3+. Earlier combinations are not claimed as supported. A native build with Expo Modules is required; Expo Go is unsupported. On web, calling `useKeyflow` throws; provide your own [fallback](docs/api.md#web-fallback).
+- Keyflow is an **in-app keyboard library**, not a system-wide keyboard extension/IME that users can install for other apps.
 
 See [automated coverage and remaining manual checks](docs/coverage.md) for the precise boundary of the CI guarantees.
 

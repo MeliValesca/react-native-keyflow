@@ -1,38 +1,38 @@
 import {
-  androidDarkKeyboardTheme,
-  androidKeyboardTheme,
-  createKeyboardTheme,
-  darkKeyboardTheme,
-  lightKeyboardTheme,
+  androidDarkKeyflowTheme,
+  androidKeyflowTheme,
+  createKeyflowTheme,
+  darkKeyflowTheme,
+  lightKeyflowTheme,
 } from './theme';
-import type { KeyboardTheme, KeyboardThemeOverrides } from './types';
+import type { KeyflowTheme, KeyflowThemeOverrides } from './types';
 
 /** Platform/layout defaults are applied before consumer overrides. */
 export function resolveInputTheme(
   platform: string,
   dark: boolean,
   keyboardType: string,
-  overrides?: KeyboardThemeOverrides | KeyboardTheme,
+  overrides?: KeyflowThemeOverrides | KeyflowTheme,
   isTablet = false,
 ) {
   const base =
     platform === 'android'
       ? dark
-        ? androidDarkKeyboardTheme
-        : androidKeyboardTheme
+        ? androidDarkKeyflowTheme
+        : androidKeyflowTheme
       : dark
-      ? darkKeyboardTheme
-      : lightKeyboardTheme;
-  // Themes returned by createKeyboardTheme are already resolved. Their
+      ? darkKeyflowTheme
+      : lightKeyflowTheme;
+  // Themes returned by createKeyflowTheme are already resolved. Their
   // top-level material is output data; partial settings still belong under
   // keyboard.material.
   if (
     'material' in (overrides ?? {}) &&
-    typeof (overrides as KeyboardTheme).material === 'object'
+    typeof (overrides as KeyflowTheme).material === 'object'
   )
-    return createKeyboardTheme({}, overrides as KeyboardTheme);
-  return createKeyboardTheme(
-    overrides as KeyboardThemeOverrides | undefined,
+    return createKeyflowTheme({}, overrides as KeyflowTheme);
+  return createKeyflowTheme(
+    overrides as KeyflowThemeOverrides | undefined,
     platform === 'ios' && keyboardType !== 'default' && !isTablet
       ? {
           ...base,

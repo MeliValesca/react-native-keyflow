@@ -11,8 +11,11 @@ import android.icu.text.BreakIterator
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.Gravity
+import android.view.View
+import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.animation.PathInterpolator
+import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.PopupWindow
@@ -21,20 +24,18 @@ import androidx.activity.OnBackPressedCallback
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsAnimationCompat
 import androidx.core.view.WindowInsetsCompat
+import com.facebook.react.views.textinput.ReactEditText
 import expo.modules.kotlin.AppContext
-import expo.modules.kotlin.viewevent.EventDispatcher
 import expo.modules.kotlin.views.ExpoView
 import java.util.Locale
 import org.json.JSONObject
 
 class KeyflowInputView(context: Context, private val expoContext: AppContext) :
   ExpoView(context, expoContext) {
-  val onKeyflowTextChange by EventDispatcher()
-  val onKeyflowSubmit by EventDispatcher()
-  val onKeyflowModeChange by EventDispatcher()
-  val onKeyflowLanguageChange by EventDispatcher()
-  val onKeyflowHeightChange by EventDispatcher()
-  val onKeyflowFrameChange by EventDispatcher()
+  var onKeyflowModeChange: ((Map<String, Any>) -> Unit)? = null
+  var onKeyflowLanguageChange: ((Map<String, Any>) -> Unit)? = null
+  var onKeyflowHeightChange: ((Map<String, Any>) -> Unit)? = null
+  var onKeyflowFrameChange: ((Map<String, Any>) -> Unit)? = null
   private var panelAnimator: ValueAnimator? = null
   private var visiblePanelHeight = 0f
   private var panelTarget = 0f
@@ -91,7 +92,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
       )
     if (frame != lastFrame) {
       lastFrame = frame
-      onKeyflowFrameChange(frame)
+      onKeyflowFrameChange?.invoke(frame)
     }
   }
 
@@ -114,7 +115,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
         keyboard.translationY = 0f
         clearNavigationScrim()
       }
-      onKeyflowHeightChange(mapOf("height" to (target / resources.displayMetrics.density)))
+      onKeyflowHeightChange?.invoke(mapOf("height" to (target / resources.displayMetrics.density)))
     }
     if (
       !animated || (android.os.Build.VERSION.SDK_INT >= 26 && !ValueAnimator.areAnimatorsEnabled())
@@ -140,7 +141,82 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
       }
   }
 
-  private val editor = EditText(context)
+  private var attachedEditor: EditText? = null
+  private val editor: EditText
+    get() = checkNotNull(attachedEditor) { "Keyflow input is not attached" }
+
+  private var savedSoftInputOnFocus = true
+  private val providedTextWatcher =
+    object : TextWatcher {
+      override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+
+      override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+
+      override fun afterTextChanged(s: Editable?) {
+        updateInputContext()
+      }
+    }
+  private val providedFocusListener =
+    ViewTreeObserver.OnGlobalFocusChangeListener { old, next ->
+      val field = attachedEditor
+      if (field != null) {
+        if (next === field) requestKeyboard()
+        else if (old === field) {
+          removeCallbacks(showRequest)
+          hideKeyboard()
+        }
+      }
+    }
+
+  fun attachInput(tag: Int?) {
+    if (tag == null) {
+      detachInput()
+      return
+    }
+    fun findEditor(view: View): EditText? {
+      if (view is EditText) return view
+      if (view is ViewGroup) {
+        for (index in 0 until view.childCount) findEditor(view.getChildAt(index))?.let {
+          return it
+        }
+      }
+      return null
+    }
+    val view = expoContext.findView<View>(tag)
+    val field = view?.let { findEditor(it) }
+    require(
+      field != null && field.inputType and android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE == 0
+    ) {
+      "Keyflow requires a single-line React Native TextInput ref."
+    }
+    val changed = attachedEditor !== field
+    if (changed) {
+      detachInput()
+      attachedEditor = field
+      savedSoftInputOnFocus = field.showSoftInputOnFocus
+      field.addTextChangedListener(providedTextWatcher)
+    }
+    field.showSoftInputOnFocus = mode == "system"
+    updateInputContext()
+    if (changed && field.hasFocus()) requestKeyboard()
+  }
+
+  private fun detachInput() {
+    val field = attachedEditor ?: return
+    removeCallbacks(showRequest)
+    hideKeyboard(animated = false)
+    field.removeTextChangedListener(providedTextWatcher)
+    field.showSoftInputOnFocus = savedSoftInputOnFocus
+    attachedEditor = null
+  }
+
+  fun updateInputContext() {
+    if (attachedEditor == null) return
+    keyboard.updateContext(
+      editor.text.substring(0, editor.selectionStart.coerceIn(0, editor.length()))
+    )
+  }
+
   private val keyboard = KeyflowKeyboardView(context) { action, text -> activate(action, text) }
   private var popup: PopupWindow? = null
   private var navigationScrim: ColorDrawable? = null
@@ -175,30 +251,8 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     previousLightNavigation = null
   }
 
-  private var initialApplied = false
   private var lastSpace = 0L
   private var keyboardType = "default"
-
-  private fun applyInputType() {
-    val flags =
-      when (keyboardType) {
-        "number-pad" -> android.text.InputType.TYPE_CLASS_NUMBER
-        "decimal-pad" ->
-          android.text.InputType.TYPE_CLASS_NUMBER or
-            android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-        "phone-pad" -> android.text.InputType.TYPE_CLASS_PHONE
-        else ->
-          android.text.InputType.TYPE_CLASS_TEXT or
-            android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or
-            (if (mode == "custom") android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
-            else if (autoCorrect) android.text.InputType.TYPE_TEXT_FLAG_AUTO_CORRECT else 0)
-      }
-    editor.setRawInputType(flags)
-    if (mode == "system" && editor.hasFocus())
-      (context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).restartInput(
-        editor
-      )
-  }
 
   fun setKeyboardType(value: String) {
     val type = if (value in listOf("number-pad", "decimal-pad", "phone-pad")) value else "default"
@@ -206,14 +260,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     keyboardType = type
     lastSpace = 0
     keyboard.setKeyboardType(type)
-    applyInputType()
   }
-
-  var autoCorrect = true
-    set(value) {
-      field = value
-      applyInputType()
-    }
 
   private var languagesJSON = ""
   private var languages = listOf(KeyflowLanguage.english)
@@ -252,20 +299,15 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     val changed = language != value
     language = value
     if (changed) {
-      onKeyflowLanguageChange(mapOf("language" to value.language, "layout" to value.layout))
+      onKeyflowLanguageChange?.invoke(mapOf("language" to value.language, "layout" to value.layout))
       lastSpace = 0
     }
     keyboard.setLanguage(value, languages.size > 1)
-    keyboard.updateContext(editor.text.substring(0, editor.selectionStart.coerceAtLeast(0)))
+    updateInputContext()
   }
 
   private var mode = "custom"
   private var back: OnBackPressedCallback? = null
-  var autoFocus = false
-    set(value) {
-      field = value
-      if (value && isAttachedToWindow) post { focus() }
-    }
 
   init {
     keyboard.popupHost = this
@@ -285,75 +327,9 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
         animatePanel(height.toFloat(), animated = false)
       }
     }
-    editor.setSingleLine(true)
-    // Keep the editor in the app when a landscape IME would enter extract mode.
-    editor.imeOptions =
-      android.view.inputmethod.EditorInfo.IME_ACTION_DONE or
-        android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI
-    editor.setRawInputType(
-      android.text.InputType.TYPE_CLASS_TEXT or
-        android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or
-        android.text.InputType.TYPE_TEXT_FLAG_AUTO_CORRECT
-    )
-    editor.showSoftInputOnFocus = false
-    if (android.os.Build.VERSION.SDK_INT >= 33) editor.setAutoHandwritingEnabled(false)
-    editor.setTextColor(Color.rgb(25, 34, 49))
-    editor.setHintTextColor(Color.GRAY)
-    addView(editor, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-    editor.onFocusChangeListener = OnFocusChangeListener { _, focused ->
-      if (focused) requestKeyboard()
-      else {
-        removeCallbacks(showRequest)
-        hideKeyboard()
-      }
-    }
-    editor.setOnClickListener { showKeyboard() }
-    editor.addTextChangedListener(
-      object : TextWatcher {
-        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-
-        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-          onKeyflowTextChange(mapOf("text" to s.toString()))
-        }
-
-        override fun afterTextChanged(s: Editable?) {
-          keyboard.updateContext(editor.text.substring(0, editor.selectionStart.coerceAtLeast(0)))
-        }
-      }
-    )
-    editor.setOnEditorActionListener { _, _, _ ->
-      submit()
-      true
-    }
   }
 
-  override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
-    editor.layout(0, 0, right - left, bottom - top)
-  }
-
-  fun initialValue(value: String) {
-    if (!initialApplied) {
-      editor.setText(value)
-      editor.setSelection(value.length)
-      // setText notifies TextWatcher before the final cursor is installed.
-      // Resolve sentence case from the actual initial insertion point.
-      keyboard.updateContext(value)
-      initialApplied = true
-    }
-  }
-
-  fun placeholder(value: String) {
-    editor.hint = value
-  }
-
-  fun label(value: String) {
-    editor.contentDescription = value
-  }
-
-  fun editable(value: Boolean) {
-    editor.isEnabled = value
-    if (!value) blur()
-  }
+  override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {}
 
   fun haptics(value: Boolean) {
     keyboard.hapticsEnabled = value
@@ -390,15 +366,11 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     hideKeyboard(animated = false)
     mode = value
     systemShowAttempts = 0
-    applyInputType()
     keyboard.reset()
-    keyboard.updateContext(editor.text.substring(0, editor.selectionStart.coerceAtLeast(0)))
+    updateInputContext()
     lastSpace = 0
+    if (attachedEditor == null) return
     editor.showSoftInputOnFocus = value == "system"
-    // Tablet emulators often expose a virtual stylus. Enabling handwriting on
-    // mode handoff makes Gboard open its compact handwriting toolbar instead
-    // of the requested native keyboard, so keep this text editor keyboard-only.
-    if (android.os.Build.VERSION.SDK_INT >= 33) editor.setAutoHandwritingEnabled(false)
     // Refresh the existing editor connection when changing its IME policy.
     // Dismissing the popup can temporarily take window focus away from it.
     (context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).restartInput(
@@ -409,7 +381,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
 
   override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
     super.onWindowFocusChanged(hasWindowFocus)
-    if (hasWindowFocus && editor.hasFocus()) requestKeyboard()
+    if (hasWindowFocus && attachedEditor?.hasFocus() == true) requestKeyboard()
   }
 
   fun getKeyboardMetrics(): Map<String, Any> {
@@ -433,11 +405,13 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
   }
 
   fun focus() {
-    editor.requestFocus()
+    val field = editor
+    if (field is ReactEditText) field.requestFocusFromJS() else field.requestFocus()
     requestKeyboard()
   }
 
   fun blur() {
+    if (attachedEditor == null) return
     removeCallbacks(showRequest)
     removeCallbacks(endHandoff)
     handoffHeight = 0f
@@ -451,6 +425,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
   override fun onAttachedToWindow() {
     super.onAttachedToWindow()
     viewTreeObserver.addOnGlobalLayoutListener(globalLayout)
+    viewTreeObserver.addOnGlobalFocusChangeListener(providedFocusListener)
     ViewCompat.setOnApplyWindowInsetsListener(this) { _, insets ->
       if (!imeAnimating) reportFrame(insets)
       insets
@@ -488,7 +463,6 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
       },
     )
     ViewCompat.requestApplyInsets(this)
-    if (autoFocus) post { focus() }
   }
 
   override fun onDetachedFromWindow() {
@@ -496,14 +470,22 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     removeCallbacks(endHandoff)
     handoffHeight = 0f
     viewTreeObserver.removeOnGlobalLayoutListener(globalLayout)
+    viewTreeObserver.removeOnGlobalFocusChangeListener(providedFocusListener)
+    detachInput()
     ViewCompat.setWindowInsetsAnimationCallback(this, null)
     ViewCompat.setOnApplyWindowInsetsListener(this, null)
     hideKeyboard(animated = false)
     super.onDetachedFromWindow()
   }
 
+  fun cleanup() {
+    detachInput()
+    (parent as? ViewGroup)?.removeView(this)
+  }
+
   private fun showKeyboard() {
-    if (!isAttachedToWindow || !editor.hasFocus() || !editor.isEnabled) return
+    if (attachedEditor == null || !isAttachedToWindow || !editor.hasFocus() || !editor.isEnabled)
+      return
     val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
     if (mode == "system") {
       if (editor.hasWindowFocus()) {
@@ -553,9 +535,11 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
             ?.onBackPressedDispatcher
             ?.addCallback(it)
         }
-    onKeyflowHeightChange(mapOf("height" to keyboard.panelHeight))
+    onKeyflowHeightChange?.invoke(mapOf("height" to keyboard.panelHeight))
     keyboard.postOnAnimation {
-      if (popup != null && editor.hasFocus() && mode == "custom" && panelTarget > 0) {
+      if (
+        popup != null && attachedEditor?.hasFocus() == true && mode == "custom" && panelTarget > 0
+      ) {
         animatePanel(height.toFloat(), animated = !hadIME)
         removeCallbacks(endHandoff)
         handoffHeight = 0f
@@ -571,7 +555,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     back = null
     if (popup != null) animatePanel(0f, animated)
     else {
-      onKeyflowHeightChange(mapOf("height" to 0))
+      onKeyflowHeightChange?.invoke(mapOf("height" to 0))
       reportFrame()
     }
   }
@@ -579,16 +563,26 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
   private fun replace(text: String) {
     val start = minOf(editor.selectionStart, editor.selectionEnd).coerceAtLeast(0)
     val end = maxOf(editor.selectionStart, editor.selectionEnd).coerceAtLeast(start)
+    val oldLength = editor.length()
     editor.text.replace(start, end, text)
-    editor.setSelection(start + text.length)
+    // Consumer filters (e.g. maxLength) may reject or shorten the insertion.
+    val insertedLength = editor.length() - (oldLength - (end - start))
+    editor.setSelection((start + insertedLength).coerceIn(0, editor.length()))
   }
 
   private fun submit() {
-    onKeyflowSubmit(mapOf("text" to editor.text.toString()))
-    blur()
+    // Keep React Native's submitBehavior and onSubmitEditing event pipeline.
+    editor.onEditorAction(EditorInfo.IME_ACTION_DONE)
   }
 
   private fun activate(action: String, text: String) {
+    if (
+      attachedEditor == null ||
+        !editor.hasFocus() ||
+        !editor.isEnabled ||
+        editor.keyListener == null
+    )
+      return
     when (action) {
       "text" -> {
         val now = android.os.SystemClock.uptimeMillis()
@@ -608,11 +602,11 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
           replace(text)
           lastSpace = if (keyboardType == "default" && text == " ") now else 0
         }
-        keyboard.updateContext(editor.text.substring(0, editor.selectionStart.coerceAtLeast(0)))
+        updateInputContext()
       }
       "tab" -> {
         replace(text)
-        keyboard.updateContext(editor.text.substring(0, editor.selectionStart.coerceAtLeast(0)))
+        updateInputContext()
       }
       "delete" -> {
         val start = minOf(editor.selectionStart, editor.selectionEnd).coerceAtLeast(0)

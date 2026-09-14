@@ -2,7 +2,7 @@
 
 The phone reference configurations are **iPhone 17 / iOS 26.5, English, 402 × 874 points**, and **Android 16 with Gboard 15.1.08.726012951-preload-arm64-v8a, English (US), 411 × 914 dp**. The tablet references are a docked iPad keyboard and docked Gboard on an Android 16 Pixel Tablet hardware profile. Android has no single universal native keyboard: these comparisons target Gboard, not every installed IME.
 
-The QWERTY playground passes no `keyboardTheme`, so it exercises the library defaults. The iOS default retains the native typing position and bottom clearance while omitting emoji and dictation controls. Android omits its emoji key and expands the space key into the released space. Both use native safe-area/navigation insets.
+The QWERTY playground passes no `keyflowTheme`, so it exercises the library defaults. The iOS default retains the native typing position and bottom clearance while omitting emoji and dictation controls. Android omits its emoji key and expands the space key into the released space. Both use native safe-area/navigation insets.
 
 ## Independent checks
 

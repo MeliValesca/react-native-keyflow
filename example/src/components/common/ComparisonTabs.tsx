@@ -8,7 +8,12 @@ export function ComparisonTabs<T extends string>({
   onChange,
 }: {
   value: T;
-  options: readonly { value: T; label: string; accessibilityLabel?: string }[];
+  options: readonly {
+    value: T;
+    label: string;
+    accessibilityLabel?: string;
+    testID?: string;
+  }[];
   onChange(value: T): void;
 }) {
   const [width, setWidth] = useState(0);
@@ -56,6 +61,7 @@ export function ComparisonTabs<T extends string>({
       {options.map((option) => (
         <Pressable
           key={option.value}
+          testID={option.testID}
           accessibilityRole="tab"
           accessibilityLabel={option.accessibilityLabel ?? option.label}
           accessibilityState={{ selected: option.value === value }}

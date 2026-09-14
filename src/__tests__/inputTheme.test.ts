@@ -1,8 +1,8 @@
 import { resolveInputTheme } from '../inputTheme';
 import {
-  createKeyboardTheme,
-  lightKeyboardTheme,
-  darkKeyboardTheme,
+  createKeyflowTheme,
+  lightKeyflowTheme,
+  darkKeyflowTheme,
 } from '../theme';
 
 test.each(['number-pad', 'decimal-pad', 'phone-pad'])(
@@ -13,13 +13,11 @@ test.each(['number-pad', 'decimal-pad', 'phone-pad'])(
       expect(pad.deleteKeyBackground).toBe('#00000000');
       expect(pad.specialKeyBackground).toBe('#00000000');
       expect(pad.keyBackground).toBe(
-        (dark ? darkKeyboardTheme : lightKeyboardTheme).keyBackground,
+        (dark ? darkKeyflowTheme : lightKeyflowTheme).keyBackground,
       );
       expect(
         resolveInputTheme('ios', dark, 'default').deleteKeyBackground,
-      ).toBe(
-        (dark ? darkKeyboardTheme : lightKeyboardTheme).deleteKeyBackground,
-      );
+      ).toBe((dark ? darkKeyflowTheme : lightKeyflowTheme).deleteKeyBackground);
     }
   },
 );
@@ -42,7 +40,7 @@ test.each(['number-pad', 'decimal-pad', 'phone-pad'])(
   (type) => {
     for (const dark of [false, true]) {
       const theme = resolveInputTheme('ios', dark, type, undefined, true);
-      const base = dark ? darkKeyboardTheme : lightKeyboardTheme;
+      const base = dark ? darkKeyflowTheme : lightKeyflowTheme;
       expect(theme.specialKeyBackground).toBe(base.specialKeyBackground);
       expect(theme.deleteKeyBackground).toBe(base.deleteKeyBackground);
       expect(theme.sections?.specialKeys?.background).toBe(
@@ -56,7 +54,7 @@ test.each(['number-pad', 'decimal-pad', 'phone-pad'])(
 );
 
 test('accepts a resolved theme while partial material settings stay nested', () => {
-  const resolved = createKeyboardTheme({
+  const resolved = createKeyflowTheme({
     keyboard: {
       material: { type: 'raised', depth: 3, shadowColor: '#123456' },
     },
@@ -64,7 +62,7 @@ test('accepts a resolved theme while partial material settings stay nested', () 
   expect(resolveInputTheme('ios', false, 'default', resolved)).toEqual(
     resolved,
   );
-  expect(
-    resolveInputTheme('ios', false, 'default', lightKeyboardTheme),
-  ).toEqual(createKeyboardTheme({}, lightKeyboardTheme));
+  expect(resolveInputTheme('ios', false, 'default', lightKeyflowTheme)).toEqual(
+    createKeyflowTheme({}, lightKeyflowTheme),
+  );
 });

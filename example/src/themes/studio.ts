@@ -1,7 +1,7 @@
-import { createKeyboardTheme } from 'react-native-keyflow';
+import { createKeyflowTheme } from 'react-native-keyflow';
 
 /** Original example styling, composed entirely through Keyflow's public theme API. */
-export const studioTheme = createKeyboardTheme({
+export const studioTheme = createKeyflowTheme({
   keyboard: {
     material: { type: 'raised', depth: 4, shadowColor: '#241D46' },
   },

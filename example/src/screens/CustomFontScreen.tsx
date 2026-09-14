@@ -1,3 +1,4 @@
+import { ExampleTextInput } from '../components/common/ExampleTextInput';
 import { getKeyboardMetrics } from 'react-native-keyflow/testing';
 import { useCallback, useRef, useState } from 'react';
 import {
@@ -6,16 +7,14 @@ import {
   Pressable,
   ScrollView,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { KeyflowAvoidingView, KeyflowTextInput } from 'react-native-keyflow';
-import type {
-  KeyflowKeyboardFrame,
-  KeyflowTextInputRef,
-} from 'react-native-keyflow';
+import { KeyflowAvoidingView, useKeyflow } from 'react-native-keyflow';
+import type { KeyflowKeyboardFrame } from 'react-native-keyflow';
 import { ComparisonTabs } from '../components/common/ComparisonTabs';
 import { fontChoices, fontDemo as theme } from '../constants/fontDemo';
 import { useQuicksand } from '../hooks';
@@ -25,7 +24,7 @@ export function CustomFontScreen() {
   const [choice, setChoice] =
     useState<(typeof fontChoices)[number]['value']>('semibold');
   const profile = fontChoices.find((font) => font.value === choice)!;
-  const input = useRef<KeyflowTextInputRef>(null);
+  const input = useRef<TextInput>(null);
   const scroll = useRef<ScrollView>(null);
   const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
   const [text, setText] = useState('');
@@ -33,6 +32,11 @@ export function CustomFontScreen() {
   const [result, setResult] = useState('');
   const headerHeight = useHeaderHeight();
   const insets = useSafeAreaInsets();
+  const bindings = useKeyflow(input, {
+    keyboardAppearance: 'light',
+    keyflowTheme: { font: { family: profile.family } },
+    onKeyboardFrameChange: setFrame,
+  });
   const horizontal = {
     paddingLeft: Math.max(theme.spacing, insets.left + 12),
     paddingRight: Math.max(theme.spacing, insets.right + 12),
@@ -51,7 +55,7 @@ export function CustomFontScreen() {
     try {
       await input.current?.focus();
       await new Promise<void>((resolve) => setTimeout(resolve, 650));
-      const metrics = await getKeyboardMetrics(input.current);
+      const metrics = await getKeyboardMetrics(input);
       if (
         !metrics.focused ||
         metrics.keyCount < 31 ||
@@ -224,18 +228,15 @@ export function CustomFontScreen() {
         )}
       </ScrollView>
       <View style={{ ...horizontal, paddingBottom: 12 }}>
-        <KeyflowTextInput
+        <ExampleTextInput
+          {...bindings}
           ref={input}
           autoFocus
           placeholder="Try your app’s font…"
-          inputAccessibilityLabel="Custom font input"
+          accessibilityLabel="Custom font input"
           keyboardAppearance="light"
-          keyboardTheme={{ font: { family: profile.family } }}
           onChangeText={setText}
-          onKeyboardFrameChange={setFrame}
-          onSubmitEditing={() => {
-            void input.current?.blur();
-          }}
+          onSubmitEditing={() => input.current?.blur()}
           style={{
             height: theme.inputHeight,
             backgroundColor: theme.paper,

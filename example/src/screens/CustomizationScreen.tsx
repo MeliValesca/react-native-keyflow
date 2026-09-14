@@ -1,3 +1,4 @@
+import { ExampleTextInput } from '../components/common/ExampleTextInput';
 import { useCustomizationTests } from './useCustomizationTests';
 import { useFonts } from 'expo-font';
 import { useHeaderHeight } from '@react-navigation/elements';
@@ -12,12 +13,8 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  KeyflowAvoidingView,
-  KeyflowTextInput,
-  createKeyboardTheme,
-} from 'react-native-keyflow';
-import type { KeyboardThemeOverrides } from 'react-native-keyflow';
+import { KeyflowAvoidingView, createKeyflowTheme } from 'react-native-keyflow';
+import type { KeyflowThemeOverrides } from 'react-native-keyflow';
 import {
   customizationCases,
   customizationFonts,
@@ -40,7 +37,7 @@ const focusStyles = {
     preview: { background: '#173E42', color: '#E1F7F1' },
     selection: { background: '#A8E6CF', color: '#123B32' },
   },
-} satisfies Record<string, KeyboardThemeOverrides>;
+} satisfies Record<string, KeyflowThemeOverrides>;
 
 export function CustomizationScreen() {
   const [loaded, error] = useFonts({
@@ -52,11 +49,11 @@ export function CustomizationScreen() {
   const header = useHeaderHeight();
   const {
     input,
+    bindings,
     theme,
     type,
     setType,
     frame,
-    setFrame,
     running,
     status,
     report,
@@ -120,12 +117,11 @@ export function CustomizationScreen() {
             )}
           </View>
           <View style={{ flexDirection: 'row', gap: 4 }}>
-            <KeyflowTextInput
+            <ExampleTextInput
+              {...bindings}
               ref={input}
               keyboardType={type}
-              keyboardTheme={theme}
-              onKeyboardFrameChange={setFrame}
-              inputAccessibilityLabel="Font customization input"
+              accessibilityLabel="Font customization input"
               placeholder="Try your keyboard…"
               style={{
                 flex: 1,
@@ -229,7 +225,7 @@ export function CustomizationScreen() {
                         const { preview, selection, ...sections } =
                           theme.sectionOverrides ?? {};
                         change(
-                          createKeyboardTheme(focusStyles[name], {
+                          createKeyflowTheme(focusStyles[name], {
                             ...theme,
                             sectionOverrides: sections,
                           }),
@@ -243,14 +239,14 @@ export function CustomizationScreen() {
           <ScrollView horizontal contentContainerStyle={{ gap: 8 }}>
             {customizationFonts.map((f) =>
               option(f.label, theme.fontFamily === f.family, () =>
-                change(createKeyboardTheme({ fontFamily: f.family }, theme)),
+                change(createKeyflowTheme({ fontFamily: f.family }, theme)),
               ),
             )}
           </ScrollView>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {[12, 22, 32].map((size) =>
               option(`${size} pt`, theme.fontSize === size, () =>
-                change(createKeyboardTheme({ fontSize: size }, theme)),
+                change(createKeyflowTheme({ fontSize: size }, theme)),
               ),
             )}
           </View>
@@ -258,7 +254,7 @@ export function CustomizationScreen() {
             {(['flat', 'raised'] as const).map((m) =>
               option(m, theme.material.type === m, () =>
                 change(
-                  createKeyboardTheme(
+                  createKeyflowTheme(
                     { fontFamily: theme.fontFamily, fontSize: theme.fontSize },
                     customizationMaterials[m],
                   ),

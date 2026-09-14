@@ -1,40 +1,79 @@
 package com.keyflow
 
+import android.view.View
+import android.view.ViewGroup
+import expo.modules.kotlin.functions.Queues
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
 class KeyflowModule : Module() {
+  private val controllers = mutableMapOf<String, KeyflowInputView>()
+
+  private fun controller(id: String): KeyflowInputView {
+    controllers[id]?.let {
+      return it
+    }
+    val context = checkNotNull(appContext.reactContext) { "React context is unavailable" }
+    val controller = KeyflowInputView(context, appContext)
+    controller.alpha = 0f
+    controller.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+    controller.onKeyflowModeChange = { sendEvent("onKeyflowModeChange", it + ("id" to id)) }
+    controller.onKeyflowLanguageChange = { sendEvent("onKeyflowLanguageChange", it + ("id" to id)) }
+    controller.onKeyflowHeightChange = { sendEvent("onKeyflowHeightChange", it + ("id" to id)) }
+    controller.onKeyflowFrameChange = { sendEvent("onKeyflowFrameChange", it + ("id" to id)) }
+    val activity = checkNotNull(appContext.currentActivity) { "Activity is unavailable" }
+    activity.addContentView(controller, ViewGroup.LayoutParams(1, 1))
+    controllers[id] = controller
+    return controller
+  }
+
   override fun definition() = ModuleDefinition {
     Name("Keyflow")
-    View(KeyflowInputView::class) {
-      Events(
-        "onKeyflowTextChange",
-        "onKeyflowSubmit",
-        "onKeyflowModeChange",
-        "onKeyflowHeightChange",
-        "onKeyflowFrameChange",
-        "onKeyflowLanguageChange",
-      )
-      Prop("defaultValue") { view: KeyflowInputView, value: String -> view.initialValue(value) }
-      Prop("placeholder") { view: KeyflowInputView, value: String -> view.placeholder(value) }
-      Prop("inputAccessibilityLabel") { view: KeyflowInputView, value: String -> view.label(value) }
-      Prop("autoFocus") { view: KeyflowInputView, value: Boolean -> view.autoFocus = value }
-      Prop("autoCorrect") { view: KeyflowInputView, value: Boolean -> view.autoCorrect = value }
-      Prop("editable") { view: KeyflowInputView, value: Boolean -> view.editable(value) }
-      Prop("hapticsEnabled") { view: KeyflowInputView, value: Boolean -> view.haptics(value) }
-      Prop("showSecondaryKeyLabels", true) { view: KeyflowInputView, value: Boolean ->
-        view.showSecondaryKeyLabels(value)
+    Events(
+      "onKeyflowModeChange",
+      "onKeyflowHeightChange",
+      "onKeyflowFrameChange",
+      "onKeyflowLanguageChange",
+    )
+    AsyncFunction("attachInput") { id: String, tag: Int -> controller(id).attachInput(tag) }
+      .runOnQueue(Queues.MAIN)
+    AsyncFunction("configure") {
+        id: String,
+        mode: String,
+        type: String,
+        appearance: String,
+        theme: String,
+        languages: String,
+        haptics: Boolean,
+        secondaryLabels: Boolean ->
+        controller(id).apply {
+          setMode(mode)
+          setKeyboardType(type)
+          theme(theme)
+          setLanguages(languages)
+          haptics(haptics)
+          showSecondaryKeyLabels(secondaryLabels)
+        }
+        Unit
       }
-      Prop("languagesJSON") { view: KeyflowInputView, value: String -> view.setLanguages(value) }
-      Prop("keyboardType") { view: KeyflowInputView, value: String -> view.setKeyboardType(value) }
-      Prop("keyboardMode") { view: KeyflowInputView, value: String -> view.setMode(value) }
-      Prop("themeJSON") { view: KeyflowInputView, value: String -> view.theme(value) }
-      AsyncFunction("getKeyboardMetrics") { view: KeyflowInputView -> view.getKeyboardMetrics() }
-      AsyncFunction("focus") { view: KeyflowInputView -> view.focus() }
-      AsyncFunction("setKeyboardMode") { view: KeyflowInputView, mode: String ->
-        view.setMode(mode)
+      .runOnQueue(Queues.MAIN)
+    AsyncFunction("updateInputContext") { id: String ->
+        controllers[id]?.updateInputContext()
+        Unit
       }
-      AsyncFunction("blur") { view: KeyflowInputView -> view.blur() }
+      .runOnQueue(Queues.MAIN)
+    AsyncFunction("getKeyboardMetrics") { id: String ->
+        controllers[id]?.getKeyboardMetrics() ?: emptyMap<String, Any>()
+      }
+      .runOnQueue(Queues.MAIN)
+    AsyncFunction("destroy") { id: String ->
+        controllers.remove(id)?.cleanup()
+        Unit
+      }
+      .runOnQueue(Queues.MAIN)
+    OnDestroy {
+      controllers.values.forEach { it.cleanup() }
+      controllers.clear()
     }
   }
 }

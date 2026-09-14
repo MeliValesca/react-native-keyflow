@@ -1,28 +1,28 @@
 export {
-  androidKeyboardTheme,
-  androidDarkKeyboardTheme,
-  transparentKeyboardTheme,
-  createKeyboardTheme,
-  keyboardThemeLimits,
-  darkKeyboardTheme,
-  lightKeyboardTheme,
+  androidKeyflowTheme,
+  androidDarkKeyflowTheme,
+  transparentKeyflowTheme,
+  createKeyflowTheme,
+  keyflowThemeLimits,
+  darkKeyflowTheme,
+  lightKeyflowTheme,
 } from './theme';
 export type {
   KeyboardColor,
   KeyboardSectionStyle,
   KeyboardSectionName,
-  KeyboardTheme,
-  KeyboardThemeOverrides,
+  KeyflowTheme,
+  KeyflowThemeOverrides,
   KeyboardMaterial,
   KeyboardMaterialOverride,
 } from './types';
 export type { KeyflowLanguage } from './languages';
-export { KeyflowTextInput } from './KeyflowTextInput';
+export { useKeyflow } from './useKeyflow';
 export type {
   KeyflowKeyboardType,
-  KeyflowTextInputProps,
-  KeyflowTextInputRef,
-} from './KeyflowTextInput';
+  KeyflowOptions,
+  KeyflowBindings,
+} from './useKeyflow';
 
 export { KeyflowAvoidingView } from './KeyflowAvoidingView';
 export type { KeyflowAvoidingViewProps } from './KeyflowAvoidingView';

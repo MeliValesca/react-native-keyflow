@@ -1,28 +1,150 @@
 import ExpoModulesCore
 import UIKit
 
-private final class KeyflowEditor: UITextField {
-  var usesCustomKeyboard = true
-  var customInputSurface: UIView?
-  var customKeyboard: UIView?
-  // UIKit can query either property while changing the input set. Resolve both
-  // from one mode flag so it never combines the system IME with our accessory.
-  override var inputView: UIView? {
-    get { usesCustomKeyboard ? customInputSurface : nil }
-    set { super.inputView = newValue }
-  }
-  override var inputAccessoryView: UIView? {
-    get { usesCustomKeyboard ? customKeyboard : nil }
-    set { super.inputAccessoryView = newValue }
-  }
-}
+final class KeyflowInputView: ExpoView {
+  var onKeyflowModeChange: (([String: Any]) -> Void)?
+  var onKeyflowFrameChange: (([String: Any]) -> Void)?
+  private var lastKeyboardFrame: CGRect?
+  var onKeyflowLanguageChange: (([String: Any]) -> Void)?
+  private weak var attachedEditor: UITextField?
+  private var usesCustomKeyboard = true
+  private var customInputSurface: UIView?
+  private var customKeyboard: UIView?
+  private var savedInputView: UIView?
+  private var savedAccessoryView: UIView?
+  private var savedAutocorrection = UITextAutocorrectionType.default
+  private var savedSpellChecking = UITextSpellCheckingType.default
+  private var savedLeadingBarButtonGroups: [UIBarButtonItemGroup] = []
+  private var savedTrailingBarButtonGroups: [UIBarButtonItemGroup] = []
 
-final class KeyflowInputView: ExpoView, UITextFieldDelegate {
-  let onKeyflowTextChange = EventDispatcher()
-  let onKeyflowSubmit = EventDispatcher()
-  let onKeyflowModeChange = EventDispatcher()
-  let onKeyflowLanguageChange = EventDispatcher()
-  private let textField = KeyflowEditor()
+  private func synchronizeInputAssistant() {
+    guard let field = attachedEditor else { return }
+    field.inputAssistantItem.leadingBarButtonGroups =
+      usesCustomKeyboard ? [] : savedLeadingBarButtonGroups
+    field.inputAssistantItem.trailingBarButtonGroups =
+      usesCustomKeyboard ? [] : savedTrailingBarButtonGroups
+  }
+
+  private func synchronizeInputSurface() {
+    guard let textField = attachedEditor else { return }
+    let surface = usesCustomKeyboard ? customInputSurface : nil
+    let accessory = usesCustomKeyboard ? customKeyboard : savedAccessoryView
+    guard textField.inputView !== surface || textField.inputAccessoryView !== accessory else {
+      return
+    }
+    textField.inputView = surface
+    textField.inputAccessoryView = accessory
+    if textField.isFirstResponder { requestInputReload() }
+  }
+
+  func attachInput(_ tag: Int?) throws {
+    guard let tag else {
+      detachInput()
+      return
+    }
+    func findEditor(_ view: UIView) -> UITextField? {
+      if let field = view as? UITextField { return field }
+      return view.subviews.lazy.compactMap { findEditor($0) }.first
+    }
+    guard let view = appContext?.findView(withTag: tag, ofType: UIView.self),
+      let field = findEditor(view)
+    else {
+      throw NSError(
+        domain: "Keyflow", code: 1,
+        userInfo: [
+          NSLocalizedDescriptionKey:
+            "Keyflow requires a single-line React Native TextInput ref."
+        ])
+    }
+    if attachedEditor !== field {
+      detachInput()
+      attachedEditor = field
+      savedInputView = field.inputView
+      savedAccessoryView = field.inputAccessoryView
+      savedAutocorrection = field.autocorrectionType
+      savedSpellChecking = field.spellCheckingType
+      savedLeadingBarButtonGroups = field.inputAssistantItem.leadingBarButtonGroups
+      savedTrailingBarButtonGroups = field.inputAssistantItem.trailingBarButtonGroups
+      field.addTarget(self, action: #selector(textChanged), for: .editingChanged)
+      field.addTarget(self, action: #selector(providedInputBeganEditing), for: .editingDidBegin)
+      field.addTarget(self, action: #selector(providedInputEndedEditing), for: .editingDidEnd)
+    }
+    synchronizeInputAssistant()
+    field.autocorrectionType = usesCustomKeyboard ? .no : savedAutocorrection
+    field.spellCheckingType = usesCustomKeyboard ? .no : savedSpellChecking
+    prepareKeyboardForPresentation()
+    synchronizeInputSurface()
+    updateInputContext()
+  }
+
+  private func detachInput() {
+    guard let field = attachedEditor else { return }
+    keyboard.cancelInteractions()
+    field.removeTarget(self, action: #selector(textChanged), for: .editingChanged)
+    field.removeTarget(self, action: #selector(providedInputBeganEditing), for: .editingDidBegin)
+    field.removeTarget(self, action: #selector(providedInputEndedEditing), for: .editingDidEnd)
+    field.inputView = savedInputView
+    field.inputAccessoryView = savedAccessoryView
+    field.autocorrectionType = savedAutocorrection
+    field.spellCheckingType = savedSpellChecking
+    field.inputAssistantItem.leadingBarButtonGroups = savedLeadingBarButtonGroups
+    field.inputAssistantItem.trailingBarButtonGroups = savedTrailingBarButtonGroups
+    if field.isFirstResponder { field.reloadInputViews() }
+    attachedEditor = nil
+    savedInputView = nil
+    savedAccessoryView = nil
+  }
+
+  @objc private func providedInputBeganEditing() {
+    prepareKeyboardForPresentation()
+    synchronizeInputSurface()
+    updateInputContext()
+    reportCustomFrame()
+  }
+
+  @objc private func reportCustomFrame() {
+    guard usesCustomKeyboard, attachedEditor?.isFirstResponder == true,
+      let window = attachedEditor?.window, keyboard.window != nil
+    else { return }
+    let frame = keyboard.convert(keyboard.bounds, to: window)
+    guard frame.height > 0, frame != lastKeyboardFrame else { return }
+    lastKeyboardFrame = frame
+    onKeyflowFrameChange?([
+      "screenY": frame.minY, "height": frame.height, "visible": true, "source": "custom",
+    ])
+  }
+
+  @objc private func keyboardFrameChanged(_ notification: Notification) {
+    if usesCustomKeyboard {
+      reportCustomFrame()
+      return
+    }
+    guard attachedEditor?.isFirstResponder == true,
+      let frame = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?
+        .cgRectValue,
+      let window = attachedEditor?.window
+    else { return }
+    onKeyflowFrameChange?([
+      "screenY": frame.minY, "height": frame.height,
+      "visible": frame.minY < window.bounds.maxY, "source": "system",
+    ])
+  }
+
+  private func clearKeyboardFrame() {
+    lastKeyboardFrame = nil
+    onKeyflowFrameChange?([
+      "screenY": attachedEditor?.window?.bounds.height ?? 0, "height": 0, "visible": false,
+      "source": usesCustomKeyboard ? "custom" : "system",
+    ])
+  }
+
+  @objc private func providedInputEndedEditing() {
+    clearKeyboardFrame()
+    keyboard.cancelInteractions()
+    lastSpaceTime = 0
+  }
+
+  func updateInputContext() { keyboard.updateContext(beforeCursor()) }
   private let keyboard = KeyflowKeyboardView()
   // Keep a nonzero transparent input surface. A zero-height input view makes
   // UIKit report keyboardDidHide on subsequent accessory presentations.
@@ -51,21 +173,9 @@ final class KeyflowInputView: ExpoView, UITextFieldDelegate {
     language = value
     keyboard.setLanguage(value, canSwitch: languages.count > 1)
     guard changed else { return }
-    onKeyflowLanguageChange(["language": value.language, "layout": value.layout])
+    onKeyflowLanguageChange?(["language": value.language, "layout": value.layout])
     lastSpaceTime = 0
     keyboard.updateContext(beforeCursor())
-  }
-  private var appliedInitialValue = false
-  var initialValue = ""
-  var autoFocus = false
-  private var didAutoFocus = false
-  private var autoFocusScheduled = false
-  var autoCorrect = true {
-    didSet {
-      if !textField.usesCustomKeyboard {
-        textField.autocorrectionType = autoCorrect ? .default : .no
-      }
-    }
   }
   // Shared API parity. iOS does not draw Android-style secondary legends.
   var showSecondaryKeyLabels = true
@@ -82,25 +192,28 @@ final class KeyflowInputView: ExpoView, UITextFieldDelegate {
     NotificationCenter.default.addObserver(
       self, selector: #selector(refreshLanguages),
       name: UIApplication.willEnterForegroundNotification, object: nil)
-    textField.delegate = self
-    textField.font = .systemFont(ofSize: 18)
-    textField.borderStyle = .roundedRect
-    textField.autocorrectionType = .no
-    textField.spellCheckingType = .no
     emptyInput.backgroundColor = .clear
     emptyInput.heightAnchor.constraint(equalToConstant: 1).isActive = true
-    textField.customInputSurface = keyboard
-    textField.customKeyboard = nil
-    textField.inputAssistantItem.leadingBarButtonGroups = []
-    textField.inputAssistantItem.trailingBarButtonGroups = []
-    textField.accessibilityIdentifier = "keyflow-input"
-    textField.addTarget(self, action: #selector(textChanged), for: .editingChanged)
-    addSubview(textField)
+    customInputSurface = keyboard
+    customKeyboard = nil
+    synchronizeInputSurface()
     keyboard.onHeightChange = { [weak self] in
-      guard let self, self.textField.isFirstResponder else { return }
+      guard let self, self.attachedEditor?.isFirstResponder == true else { return }
       self.requestInputReload()
     }
     keyboard.onAction = { [weak self] action in self?.handle(action) }
+    keyboard.onFrameChange = { [weak self] in
+      DispatchQueue.main.async { [weak self] in self?.reportCustomFrame() }
+    }
+    NotificationCenter.default.addObserver(
+      self, selector: #selector(keyboardFrameChanged(_:)),
+      name: UIResponder.keyboardDidShowNotification, object: nil)
+    NotificationCenter.default.addObserver(
+      self, selector: #selector(keyboardFrameChanged(_:)),
+      name: UIResponder.keyboardDidChangeFrameNotification, object: nil)
+    NotificationCenter.default.addObserver(
+      self, selector: #selector(keyboardFrameChanged(_:)),
+      name: UIResponder.keyboardWillChangeFrameNotification, object: nil)
   }
 
   deinit { NotificationCenter.default.removeObserver(self) }
@@ -111,12 +224,13 @@ final class KeyflowInputView: ExpoView, UITextFieldDelegate {
     // Only repair an accessory that ends up undocked after a same-size reversal;
     // an unconditional completion reload starts a second keyboard animation.
     DispatchQueue.main.async { [weak self] in
-      guard let self, self.textField.isFirstResponder,
-        self.textField.usesCustomKeyboard, self.textField.customKeyboard != nil
+      guard let self, self.attachedEditor?.isFirstResponder == true,
+        self.usesCustomKeyboard, self.customKeyboard != nil
       else { return }
       let refresh: () -> Void = { [weak self] in
-        guard let self, let window = self.window, self.textField.isFirstResponder,
-          self.textField.usesCustomKeyboard, self.textField.customKeyboard != nil,
+        guard let self, let window = self.attachedEditor?.window,
+          self.attachedEditor?.isFirstResponder == true,
+          self.usesCustomKeyboard, self.customKeyboard != nil,
           self.keyboard.window != nil
         else { return }
         let frame = self.keyboard.convert(self.keyboard.bounds, to: window)
@@ -144,33 +258,34 @@ final class KeyflowInputView: ExpoView, UITextFieldDelegate {
 
   override func layoutSubviews() {
     super.layoutSubviews()
-    if let window { keyboard.updateViewport(window.bounds.size, insets: window.safeAreaInsets) }
-    textField.frame = bounds
+    if let window = attachedEditor?.window {
+      keyboard.updateViewport(window.bounds.size, insets: window.safeAreaInsets)
+    }
   }
 
   override func didMoveToWindow() {
     super.didMoveToWindow()
     if window == nil {
-      textField.resignFirstResponder()
-    } else {
-      if let window { keyboard.updateViewport(window.bounds.size, insets: window.safeAreaInsets) }
-      focusIfNeeded()
+      attachedEditor?.resignFirstResponder()
+      detachInput()
+    } else if let window {
+      keyboard.updateViewport(window.bounds.size, insets: window.safeAreaInsets)
     }
   }
 
+  func cleanup() {
+    detachInput()
+    removeFromSuperview()
+  }
+
   func applyProps() {
-    if !appliedInitialValue {
-      appliedInitialValue = true
-      textField.text = initialValue
-    }
     if needsInputReload {
       needsInputReload = false
-      if textField.isFirstResponder {
+      if let textField = attachedEditor, textField.isFirstResponder {
         inputReloadCount += 1
         textField.reloadInputViews()
       }
     }
-    focusIfNeeded()
   }
 
   private func requestInputReload() {
@@ -184,60 +299,11 @@ final class KeyflowInputView: ExpoView, UITextFieldDelegate {
     }
   }
 
-  private func focusIfNeeded() {
-    guard autoFocus, appliedInitialValue, !didAutoFocus, !autoFocusScheduled, window != nil else {
-      return
-    }
-    autoFocusScheduled = true
-    // Coalesce props before focus. Do not compete with a navigation snapshot.
-    DispatchQueue.main.async { [weak self] in
-      guard let self else { return }
-      let present: () -> Void = { [weak self] in
-        guard let self else { return }
-        self.autoFocusScheduled = false
-        guard self.autoFocus, !self.didAutoFocus, self.window != nil else { return }
-        self.prepareKeyboardForPresentation()
-        self.didAutoFocus = self.textField.becomeFirstResponder()
-      }
-      var responder: UIResponder? = self
-      while let current = responder {
-        if let controller = current as? UIViewController,
-          let coordinator = controller.transitionCoordinator,
-          coordinator.animate(alongsideTransition: nil, completion: { _ in present() })
-        {
-          return
-        }
-        responder = current.next
-      }
-      present()
-    }
-  }
-
   func setAppearance(_ value: String) {
-    let appearance: UIKeyboardAppearance = value == "dark" ? .dark : .light
     keyboard.overrideUserInterfaceStyle = value == "dark" ? .dark : .light
-    guard textField.keyboardAppearance != appearance else { return }
-    textField.keyboardAppearance = appearance
-    requestInputReload()
   }
 
-  func setPlaceholder(_ value: String) { textField.placeholder = value }
-  func setInputLabel(_ value: String) { textField.accessibilityLabel = value }
-  func setEnabled(_ value: Bool) {
-    textField.isEnabled = value
-    if !value { textField.resignFirstResponder() }
-    alpha = value ? 1 : 0.5
-  }
   func setKeyboardType(_ value: String) {
-    let type: UIKeyboardType
-    switch value {
-    case "number-pad": type = .numberPad
-    case "decimal-pad": type = .decimalPad
-    case "phone-pad": type = .phonePad
-    default: type = .default
-    }
-    guard textField.keyboardType != type else { return }
-    textField.keyboardType = type
     keyboard.setKeyboardType(value)
     lastSpaceTime = 0
     requestInputReload()
@@ -246,10 +312,11 @@ final class KeyflowInputView: ExpoView, UITextFieldDelegate {
   func setHaptics(_ value: Bool) { keyboard.hapticsEnabled = value }
   func getKeyboardMetrics() -> [String: Any] {
     var result = keyboard.metrics()
-    result["keyboardMode"] = textField.inputView == nil ? "system" : "custom"
+    guard let textField = attachedEditor else { return result }
+    result["keyboardMode"] = usesCustomKeyboard ? "custom" : "system"
     result["focused"] = textField.isFirstResponder
     result["inputReloadCount"] = inputReloadCount
-    if let window {
+    if let window = attachedEditor?.window {
       result["editorBottom"] = textField.convert(textField.bounds, to: window).maxY
       result["screenY"] = keyboard.convert(keyboard.bounds, to: window).minY
     }
@@ -266,27 +333,26 @@ final class KeyflowInputView: ExpoView, UITextFieldDelegate {
   }
   private func prepareKeyboardForPresentation() {
     refreshLanguages()
-    guard textField.usesCustomKeyboard else { return }
+    guard usesCustomKeyboard else { return }
+    if let window = attachedEditor?.window {
+      keyboard.updateViewport(window.bounds.size, insets: window.safeAreaInsets)
+    }
     updateInputSurface()
     UIView.performWithoutAnimation {
-      keyboard.frame.size.width = window?.bounds.width ?? bounds.width
+      keyboard.frame.size.width = attachedEditor?.window?.bounds.width ?? bounds.width
       keyboard.setNeedsLayout()
       keyboard.layoutIfNeeded()
       keyboard.subviews.forEach { $0.layoutIfNeeded() }
     }
   }
-  func textFieldShouldBeginEditing(_ textField: UITextField) -> Bool {
-    prepareKeyboardForPresentation()
-    return true
-  }
   func focus() {
     prepareKeyboardForPresentation()
-    textField.becomeFirstResponder()
+    attachedEditor?.becomeFirstResponder()
   }
   func blur() {
     keyboard.cancelInteractions()
     lastSpaceTime = 0
-    textField.resignFirstResponder()
+    attachedEditor?.resignFirstResponder()
   }
 
   func setTheme(_ json: String) {
@@ -316,34 +382,42 @@ final class KeyflowInputView: ExpoView, UITextFieldDelegate {
     ].contains {
       UIColor(keyflowHex: $0).cgColor.alpha < 1
     }
-    let accessory = translucent || (textField.isFirstResponder && textField.customKeyboard != nil)
+    let accessory =
+      translucent || (attachedEditor?.isFirstResponder == true && customKeyboard != nil)
     let surface: UIView = accessory ? emptyInput : keyboard
-    guard textField.customInputSurface !== surface else { return }
-    textField.customInputSurface = surface
-    textField.customKeyboard = accessory ? keyboard : nil
+    guard customInputSurface !== surface else {
+      synchronizeInputSurface()
+      return
+    }
+    customInputSurface = surface
+    customKeyboard = accessory ? keyboard : nil
+    synchronizeInputSurface()
     keyboard.setInputSurfaceHeight(accessory ? 1 : 0)
-    if textField.isFirstResponder { requestInputReload() }
+    if attachedEditor?.isFirstResponder == true { requestInputReload() }
   }
 
   func setKeyboardMode(_ value: String) {
     let wantsCustom = value == "custom"
-    guard (textField.inputView != nil) != wantsCustom else { return }
-    let selection = textField.selectedTextRange
+    guard usesCustomKeyboard != wantsCustom else { return }
     keyboard.reset()
     lastSpaceTime = 0
     // The remote keyboard can reuse the outgoing accessory's height while it
     // installs the system IME. Remove that contribution before requesting it.
     keyboard.setPresentationActive(wantsCustom)
-    textField.usesCustomKeyboard = wantsCustom
-    textField.autocorrectionType = wantsCustom || !autoCorrect ? .no : .default
-    textField.spellCheckingType = wantsCustom ? .no : .default
+    usesCustomKeyboard = wantsCustom
+    lastKeyboardFrame = nil
+    synchronizeInputAssistant()
+    synchronizeInputSurface()
+    attachedEditor?.autocorrectionType = wantsCustom ? .no : savedAutocorrection
+    attachedEditor?.spellCheckingType = wantsCustom ? .no : savedSpellChecking
     requestInputReload()
-    textField.selectedTextRange = selection
     keyboard.updateContext(beforeCursor())
   }
 
   private func handle(_ action: KeyflowAction) {
-    guard textField.isEnabled else { return }
+    guard let textField = attachedEditor, textField.isEnabled, textField.isFirstResponder else {
+      return
+    }
     switch action {
     case .text(let value):
       let now = CACurrentMediaTime()
@@ -376,8 +450,10 @@ final class KeyflowInputView: ExpoView, UITextFieldDelegate {
     case .delete:
       textField.deleteBackward()
     case .submit:
-      onKeyflowSubmit(["text": textField.text ?? ""])
-      textField.resignFirstResponder()
+      // Keep React Native's submitBehavior and onSubmitEditing event pipeline.
+      if textField.delegate?.textFieldShouldReturn?(textField) ?? true {
+        textField.resignFirstResponder()
+      }
     case .dismiss:
       textField.resignFirstResponder()
     case .nextLanguage:
@@ -385,37 +461,17 @@ final class KeyflowInputView: ExpoView, UITextFieldDelegate {
       selectLanguage(languages[(index + 1) % languages.count])
     case .system:
       setKeyboardMode("system")
-      onKeyflowModeChange(["mode": "system"])
+      onKeyflowModeChange?(["mode": "system"])
     default: break
     }
   }
 
   private func beforeCursor() -> String {
-    guard let range = textField.selectedTextRange,
+    guard let textField = attachedEditor, let range = textField.selectedTextRange,
       let prefix = textField.textRange(from: textField.beginningOfDocument, to: range.start)
     else { return "" }
     return textField.text(in: prefix) ?? ""
   }
 
-  @objc private func textChanged() {
-    keyboard.updateContext(beforeCursor())
-    let selection = textField.selectedTextRange
-    let start =
-      selection.map { textField.offset(from: textField.beginningOfDocument, to: $0.start) } ?? 0
-    let end =
-      selection.map { textField.offset(from: textField.beginningOfDocument, to: $0.end) } ?? start
-    onKeyflowTextChange([
-      "text": textField.text ?? "", "selectionStart": start, "selectionEnd": end,
-    ])
-  }
-
-  func textFieldDidChangeSelection(_ textField: UITextField) {
-    keyboard.updateContext(beforeCursor())
-  }
-
-  func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-    onKeyflowSubmit(["text": textField.text ?? ""])
-    textField.resignFirstResponder()
-    return true
-  }
+  @objc private func textChanged() { updateInputContext() }
 }

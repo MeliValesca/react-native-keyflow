@@ -1,4 +1,4 @@
-import type { KeyboardTheme } from './types';
+import type { KeyflowTheme } from './types';
 
 const surfaceColors = new Set([
   'background',
@@ -15,7 +15,7 @@ const surfaceColors = new Set([
 
 /** Apply surface alpha once at the native boundary. The reusable theme keeps
  * its original colors, so repeated renders and partial updates cannot compound it. */
-export function serializeKeyboardTheme(theme: KeyboardTheme): string {
+export function serializeKeyflowTheme(theme: KeyflowTheme): string {
   const nativeTheme = {
     ...theme,
     material: theme.material.type,

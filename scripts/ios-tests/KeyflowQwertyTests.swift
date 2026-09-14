@@ -48,7 +48,12 @@ final class KeyflowQwertyTests: XCTestCase {
     XCTAssertTrue(app.buttons["Reset Empty"].waitForExistence(timeout: 10))
   }
   func mode(_ native: Bool) {
-    let element = app.descendants(matching: .any).matching(identifier: native ? "Apple native" : "Keyflow").allElementsBoundByIndex.first { $0.frame.minY > 100 && $0.frame.maxY < 190 }!
+    let element = app.descendants(matching: .any)
+      .matching(identifier: native ? "interaction-mode-system" : "interaction-mode-custom").firstMatch
+    let ready = NSPredicate(format: "exists == true AND hittable == true")
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: ready, object: element)], timeout: 10),
+      .completed, "Keyboard mode tab must be visible and hittable")
     element.tap()
     Thread.sleep(forTimeInterval: 0.8)
   }
@@ -167,7 +172,7 @@ final class KeyflowQwertyTests: XCTestCase {
       capture(native ? "apple-submit" : "keyflow-submit")
     }
   }
-  func testAllLettersMatchApple() {
+  func testAllLettersMatchApple() throws {
     for native in [true, false] {
       mode(native); reset("Empty")
       for letter in "qwertyuiopasdfghjklzxcvbnm" {
@@ -175,6 +180,14 @@ final class KeyflowQwertyTests: XCTestCase {
         key([value, value.uppercased()]).tap()
       }
       XCTAssertEqual(text, "Qwertyuiopasdfghjklzxcvbnm")
+      if !native {
+        XCTAssertFalse(app.buttons["assistantPaste:forEvent:"].exists, "UIKit must not add its editing toolbar above Keyflow")
+        app.buttons["Inspect keyboard state"].tap()
+        let state = try readInteractionState()
+        let inputBottom = try XCTUnwrap(state["editorBottom"] as? Double)
+        let keyboardTop = try XCTUnwrap(state["screenY"] as? Double)
+        XCTAssertLessThanOrEqual(inputBottom, keyboardTop + 1, "The autofocus input must remain above the attached keyboard")
+      }
       capture(native ? "apple-alphabet" : "keyflow-alphabet")
     }
   }
@@ -531,8 +544,8 @@ final class KeyflowQwertyTests: XCTestCase {
   }
   func testCustomizationMatrixPasses() throws {
     openLab("Customize fonts & test layouts")
-    let run = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Test customization boundaries'")).firstMatch
-    XCTAssertTrue(run.waitForExistence(timeout: 10)); run.tap()
+    let run = app.descendants(matching: .any).matching(identifier: "customization-run").firstMatch
+    XCTAssertTrue(run.waitForExistence(timeout: 30)); run.tap()
     let finished = NSPredicate(format: "label CONTAINS '\"result\":'")
     let outcome = XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: finished, object: run)], timeout: 90)
     capture("customization-matrix-result")

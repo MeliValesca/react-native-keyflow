@@ -1,15 +1,15 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
-import { Platform } from 'react-native';
+import { Platform, TextInput } from 'react-native';
 import {
   getKeyboardMetrics,
   type KeyflowKeyboardMetrics,
 } from 'react-native-keyflow/testing';
 import type {
-  KeyboardTheme,
+  KeyflowTheme,
   KeyflowKeyboardFrame,
   KeyflowKeyboardType,
-  KeyflowTextInputRef,
 } from 'react-native-keyflow';
+import { useKeyflow } from 'react-native-keyflow';
 import { launchTest, testPlatform } from '../testing/launch';
 import {
   customizationBase,
@@ -20,10 +20,10 @@ const pause = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export function useCustomizationTests(loaded: boolean, landscape: boolean) {
-  const input = useRef<KeyflowTextInputRef>(null),
+  const input = useRef<TextInput>(null),
     alive = useRef(true),
     launched = useRef(false);
-  const [theme, setTheme] = useState<KeyboardTheme>(customizationBase);
+  const [theme, setTheme] = useState<KeyflowTheme>(customizationBase);
   const [type, setType] = useState<KeyflowKeyboardType>('default');
   const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
   const [requested, setRequested] = useState(false);
@@ -34,6 +34,11 @@ export function useCustomizationTests(loaded: boolean, landscape: boolean) {
   const [report, setReport] = useState<object | null>(null),
     [diagnostic, setDiagnostic] = useState<object | null>(null);
   const [visual, setVisual] = useState(-1);
+  const bindings = useKeyflow(input, {
+    keyboardType: type,
+    keyflowTheme: theme,
+    onKeyboardFrameChange: setFrame,
+  });
   useEffect(() => {
     alive.current = true;
     const mountedInput = input.current;
@@ -42,7 +47,7 @@ export function useCustomizationTests(loaded: boolean, landscape: boolean) {
       void mountedInput?.blur();
     };
   }, []);
-  const change = (next: KeyboardTheme) => {
+  const change = (next: KeyflowTheme) => {
     setTheme(next);
     void input.current?.focus();
   };
@@ -87,7 +92,7 @@ export function useCustomizationTests(loaded: boolean, landscape: boolean) {
   };
   const inspect = async () => {
     try {
-      const metrics = await getKeyboardMetrics(input.current);
+      const metrics = await getKeyboardMetrics(input);
       validate(metrics);
       setDiagnostic({
         ...metrics,
@@ -121,7 +126,7 @@ export function useCustomizationTests(loaded: boolean, landscape: boolean) {
     try {
       await input.current?.focus();
       await pause(500);
-      const baseline = await getKeyboardMetrics(input.current);
+      const baseline = await getKeyboardMetrics(input);
       validate(baseline);
       for (const test of customizationCases) {
         current = test.name;
@@ -129,7 +134,7 @@ export function useCustomizationTests(loaded: boolean, landscape: boolean) {
         try {
           setTheme(test.theme);
           await pause(180);
-          const metrics = await getKeyboardMetrics(input.current);
+          const metrics = await getKeyboardMetrics(input);
           validate(metrics, baseline);
           if (
             Platform.OS === 'ios' &&
@@ -214,6 +219,7 @@ export function useCustomizationTests(loaded: boolean, landscape: boolean) {
   }, [loaded]);
   return {
     input,
+    bindings,
     theme,
     type,
     setType,

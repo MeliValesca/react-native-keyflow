@@ -1,3 +1,4 @@
+import { ExampleTextInput } from '../components/common/ExampleTextInput';
 import { studioTheme } from '../themes/studio';
 import { ComparisonControls } from '../components/ComparisonControls';
 import { Submission } from '../components/Submission';
@@ -10,17 +11,15 @@ import {
   ScrollView,
   Switch,
   Text,
+  TextInput,
   View,
   useWindowDimensions,
 } from 'react-native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { KeyflowTextInput, KeyflowAvoidingView } from 'react-native-keyflow';
-import type {
-  KeyflowKeyboardFrame,
-  KeyflowTextInputRef,
-} from 'react-native-keyflow';
+import { useKeyflow, KeyflowAvoidingView } from 'react-native-keyflow';
+import type { KeyflowKeyboardFrame } from 'react-native-keyflow';
 import type { Routes } from '../App';
 export const KeyboardScreen = observer(function KeyboardScreenContent({
   route,
@@ -38,14 +37,14 @@ export const KeyboardScreen = observer(function KeyboardScreenContent({
         animated: false,
       });
   };
-  const input = useRef<KeyflowTextInputRef>(null);
+  const input = useRef<TextInput>(null);
   const [mode, setMode] = useState<'custom' | 'system'>('custom');
   const switchRequest = useRef(0);
   const switchMode = async (next: 'custom' | 'system') => {
     const request = ++switchRequest.current;
     setMode(next);
-    await input.current?.setKeyboardMode(next);
-    if (request === switchRequest.current) await input.current?.focus();
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    if (request === switchRequest.current) input.current?.focus();
   };
   const { dark, haptics, setDark, setHaptics } = settings;
 
@@ -55,6 +54,18 @@ export const KeyboardScreen = observer(function KeyboardScreenContent({
   const headerHeight = useHeaderHeight();
   const [text, setText] = useState('');
   const [submitted, setSubmitted] = useState<string | null>(null);
+  const game = preset === 'studio';
+  const bindings = useKeyflow(input, {
+    keyboardMode: mode,
+    keyboardAppearance: dark ? 'dark' : 'light',
+    keyflowTheme: game ? studioTheme : undefined,
+    hapticsEnabled: haptics,
+    onKeyboardModeChange: setMode,
+    onKeyboardFrameChange: (next) => {
+      setFrame(next);
+      if (Platform.OS === 'android' && next.visible) revealInput();
+    },
+  });
   useFocusEffect(
     useCallback(
       () => () => {
@@ -71,7 +82,6 @@ export const KeyboardScreen = observer(function KeyboardScreenContent({
       }),
     [navigation],
   );
-  const game = preset === 'studio';
   const background = game ? '#132B4B' : '#F7F8FA';
   const foreground = game ? '#FFFFFF' : '#192231';
   return (
@@ -150,23 +160,14 @@ export const KeyboardScreen = observer(function KeyboardScreenContent({
               inputY.current = event.nativeEvent.layout.y;
             }}
           >
-            <KeyflowTextInput
+            <ExampleTextInput
+              {...bindings}
               ref={input}
               placeholder="Write something…"
-              inputAccessibilityLabel="Try Keyflow"
-              keyboardMode={mode}
+              accessibilityLabel="Try Keyflow"
               keyboardAppearance={dark ? 'dark' : 'light'}
-              keyboardTheme={game ? studioTheme : undefined}
-              hapticsEnabled={haptics}
               onChangeText={setText}
-              onSubmitEditing={setSubmitted}
-              onKeyboardModeChange={setMode}
-              onKeyboardFrameChange={(next) => {
-                setFrame(next);
-                if (Platform.OS === 'android' && next.visible) {
-                  revealInput();
-                }
-              }}
+              onSubmitEditing={(event) => setSubmitted(event.nativeEvent.text)}
               style={{
                 height: 54,
                 backgroundColor: '#FFFFFF',

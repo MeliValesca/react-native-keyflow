@@ -13,7 +13,12 @@ This checks layout and animation delivery. It does not assert pixel-identical ti
 ## Library integration
 
 ```tsx
+import { TextInput } from 'react-native';
 const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
+const inputRef = useRef<TextInput>(null);
+const bindings = useKeyflow(inputRef, {
+  onKeyboardFrameChange: setFrame,
+});
 
 <KeyflowAvoidingView
   style={{ flex: 1 }}
@@ -21,14 +26,14 @@ const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
   keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
 >
   <ScrollView keyboardShouldPersistTaps="handled">
-    <KeyflowTextInput onKeyboardFrameChange={setFrame} />
+    <TextInput {...bindings} ref={inputRef} style={styles.input} />
   </ScrollView>
 </KeyflowAvoidingView>;
 ```
 
-Import the component and frame type from `react-native-keyflow`. Wire the active input's frame to its surrounding avoiding view. Avoid applying a second keyboard-height spacer or `automaticallyAdjustKeyboardInsets` to the same content. Scrolling the focused field into view is still the screen's responsibility; the showcase demonstrates this.
+Import the hook, avoiding view, and frame type from `react-native-keyflow`. Wire the active input's frame to its surrounding avoiding view. Avoid applying a second keyboard-height spacer or `automaticallyAdjustKeyboardInsets` to the same content. Scrolling the focused field into view is still the screen's responsibility; the showcase demonstrates this.
 
-Here, **frame** means the area occupied by the keyboard. For example, `{ visible: true, screenY: 600, height: 290, source: 'custom' }` says the visible keyboard starts 600 logical pixels from the top of the screen and is 290 high. This is data, not a UI component. `onKeyboardFrameChange` reports changes as it opens, moves, resizes, and closes. You may consume these events in your own layout; the Keyflow wrapper provides the overlap calculation for you.
+Here, **frame** means the area occupied by the keyboard. For example, `{ visible: true, screenY: 600, height: 290, source: 'custom' }` says the visible keyboard starts 600 logical pixels from the top of the screen and is 290 high. This is data, not a UI component. `onKeyboardFrameChange` reports changes as it opens, moves, resizes, and closes. You may consume these events in your own layout; `KeyflowAvoidingView` provides the overlap calculation for you.
 
 The **Your app. Your type.** Quicksand example uses `KeyflowAvoidingView` on both iOS and Android. Its device check verifies input clearance after reopening on both platforms. This is the shared avoidance integration; a plain React Native `KeyboardAvoidingView` does not support the Android custom panel by itself.
 

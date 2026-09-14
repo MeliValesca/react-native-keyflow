@@ -1,3 +1,4 @@
+import { ExampleTextInput } from '../components/common/ExampleTextInput';
 import { getKeyboardMetrics } from 'react-native-keyflow/testing';
 import { useCallback, useRef, useState } from 'react';
 import {
@@ -7,6 +8,7 @@ import {
   Pressable,
   ScrollView,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -14,24 +16,21 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   KeyflowAvoidingView,
-  KeyflowTextInput,
-  createKeyboardTheme,
-  transparentKeyboardTheme,
+  useKeyflow,
+  createKeyflowTheme,
+  transparentKeyflowTheme,
 } from 'react-native-keyflow';
-import type {
-  KeyflowKeyboardFrame,
-  KeyflowTextInputRef,
-} from 'react-native-keyflow';
+import type { KeyflowKeyboardFrame } from 'react-native-keyflow';
 import { settledKeyboard } from '../testing/settledKeyboard';
 import { OpacitySlider } from '../components/common/OpacitySlider';
 
 const wallpaper = require('../../assets/backdrops/coast.jpg');
 export function TransparencyScreen() {
-  const input = useRef<KeyflowTextInputRef>(null);
+  const input = useRef<TextInput>(null);
   const [backdrop, setBackdrop] = useState(0);
   const [backgroundOpacity, setBackgroundOpacity] = useState(0.35);
   const [keyOpacity, setKeyOpacity] = useState(
-    transparentKeyboardTheme.keyOpacity,
+    transparentKeyflowTheme.keyOpacity,
   );
   const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
   const latestFrame = useRef<KeyflowKeyboardFrame | null>(null);
@@ -41,6 +40,24 @@ export function TransparencyScreen() {
   const insets = useSafeAreaInsets();
   const leftInset = Math.max(16, insets.left + 12);
   const rightInset = Math.max(16, insets.right + 12);
+  const keyflowTheme = createKeyflowTheme(
+    {
+      keyboard: { backgroundOpacity, keyOpacity },
+      font: { weight: 'bold' },
+      keyForeground: '#102D46',
+      specialKeyForeground: '#102D46',
+      actionKeyForeground: '#102D46',
+    },
+    transparentKeyflowTheme,
+  );
+  const bindings = useKeyflow(input, {
+    keyboardAppearance: 'light',
+    keyflowTheme,
+    onKeyboardFrameChange: (next) => {
+      latestFrame.current = next;
+      setFrame(next);
+    },
+  });
   useFocusEffect(
     useCallback(
       () => () => {
@@ -58,7 +75,7 @@ export function TransparencyScreen() {
           Platform.OS === 'ios'
             ? Keyboard.isVisible()
             : latestFrame.current?.visible === true,
-        metrics: await getKeyboardMetrics(input.current),
+        metrics: await getKeyboardMetrics(input),
       }));
       if (metrics.violations.length)
         throw new Error(metrics.violations.join(', '));
@@ -218,26 +235,13 @@ export function TransparencyScreen() {
             </Text>
           )}
         </ScrollView>
-        <KeyflowTextInput
+        <ExampleTextInput
+          {...bindings}
           ref={input}
           autoFocus
           placeholder="What made today memorable?"
-          inputAccessibilityLabel="Transparency comparison input"
+          accessibilityLabel="Transparency comparison input"
           keyboardAppearance="light"
-          keyboardTheme={createKeyboardTheme(
-            {
-              keyboard: { backgroundOpacity, keyOpacity },
-              font: { weight: 'bold' },
-              keyForeground: '#102D46',
-              specialKeyForeground: '#102D46',
-              actionKeyForeground: '#102D46',
-            },
-            transparentKeyboardTheme,
-          )}
-          onKeyboardFrameChange={(next) => {
-            latestFrame.current = next;
-            setFrame(next);
-          }}
           style={{
             height: 54,
             marginLeft: leftInset,
