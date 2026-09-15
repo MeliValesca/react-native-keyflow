@@ -155,6 +155,7 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
     const regressions =
       group === 'iosRendering'
         ? [
+            'testPanelCoversBottomCornersWithoutExtraOpacity',
             'testMultilineCursorMovesAcrossVisualLinesAndEmoji',
             'testTrackpadEmitsBothCursorAxes',
             'testAccentPresentationRespectsHapticsSetting',

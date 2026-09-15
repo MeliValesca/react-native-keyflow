@@ -84,6 +84,7 @@ final class KeyflowKeyboardView: UIView {
   private var bottomInset: CGFloat = 73
   private var inputSurfaceHeight: CGFloat = 0
   private let panelBackground = UIView()
+  private let panelMask = CAShapeLayer()
   private let panelBottom = UIView()
   private var preferredHeight: CGFloat = panelHeight
   private var presentationActive = true
@@ -146,12 +147,7 @@ final class KeyflowKeyboardView: UIView {
     panelBackground.isUserInteractionEnabled = false
     panelBackground.isOpaque = false
     panelBottom.isOpaque = false
-    panelBackground.layer.cornerRadius = 28
-    panelBackground.layer.cornerCurve = .continuous
-    panelBackground.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
-    panelBackground.clipsToBounds = true
-    panelBottom.layer.cornerCurve = .continuous
-    panelBottom.layer.maskedCorners = [.layerMinXMaxYCorner, .layerMaxXMaxYCorner]
+    panelBackground.layer.mask = panelMask
     panelBackground.addSubview(panelBottom)
     translatesAutoresizingMaskIntoConstraints = false
     heightConstraint = heightAnchor.constraint(equalToConstant: Self.panelHeight)
@@ -243,11 +239,17 @@ final class KeyflowKeyboardView: UIView {
   override func layoutSubviews() {
     super.layoutSubviews()
     // Clip only the background siblings, never the keys or callouts.
-    // Continuous UIKit corners match the system panel's portrait silhouette.
+    // Round only the panel's top corners. The bottom surface reaches the
+    // screen edges; the device supplies its own physical corner clipping.
     UIView.performWithoutAnimation {
       panelBackground.frame = bounds
       panelBottom.frame = panelBackground.bounds
-      panelBottom.layer.cornerRadius = bottomInset > 8 ? 60 : 0
+      panelMask.frame = panelBackground.bounds
+      panelMask.path =
+        UIBezierPath(
+          roundedRect: panelBackground.bounds, byRoundingCorners: [.topLeft, .topRight],
+          cornerRadii: CGSize(width: 28, height: 28)
+        ).cgPath
     }
     KeyflowKeyboardLayout(
       isTablet: isTablet, isPad: isPad, landscape: landscape,

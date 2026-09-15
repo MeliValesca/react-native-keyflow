@@ -35,6 +35,39 @@ final class KeyflowRenderingTests: XCTestCase {
   func testPhonePadRaisedLargeSquareFits() { assertFits("phone-pad", "raised", 32.0, 0.0) }
   func testPhonePadRaisedLargeRoundedFits() { assertFits("phone-pad", "raised", 32.0, 24.0) }
 
+  func testPanelCoversBottomCornersWithoutExtraOpacity() throws {
+    for color in ["#163B50", "#163B5080"] {
+      let keyboard = KeyflowKeyboardView()
+      var theme = KeyflowTheme()
+      theme.background = color
+      keyboard.theme = theme
+      keyboard.updateViewport(CGSize(width: 390, height: 844), insets: UIEdgeInsets(top: 0, left: 0, bottom: 34, right: 0))
+      keyboard.frame = CGRect(x: 0, y: 0, width: 390, height: keyboard.intrinsicContentSize.height)
+      keyboard.layoutIfNeeded()
+      let format = UIGraphicsImageRendererFormat()
+      format.scale = 1
+      format.preferredRange = .standard
+      let image = UIGraphicsImageRenderer(bounds: keyboard.bounds, format: format).image { context in
+        keyboard.layer.render(in: context.cgContext)
+      }
+      let cgImage = try XCTUnwrap(image.cgImage)
+      let bytes = try XCTUnwrap(cgImage.dataProvider?.data) as Data
+      let y = cgImage.height - 2
+      func pixel(_ x: Int) -> [UInt8] {
+        let offset = y * cgImage.bytesPerRow + x * cgImage.bitsPerPixel / 8
+        return Array(bytes[offset..<(offset + cgImage.bitsPerPixel / 8)])
+      }
+      let middle = pixel(cgImage.width / 2)
+      XCTAssertNotEqual(middle, Array(repeating: 0, count: middle.count))
+      XCTAssertEqual(pixel(1), middle, "Left bottom corner must have the same panel fill and opacity")
+      XCTAssertEqual(pixel(cgImage.width - 2), middle, "Right bottom corner must have the same panel fill and opacity")
+      let attachment = XCTAttachment(image: image)
+      attachment.name = "bottom-panel-\(color)"
+      attachment.lifetime = .keepAlways
+      add(attachment)
+    }
+  }
+
   func testMultilineCursorMovesAcrossVisualLinesAndEmoji() throws {
     let view = UITextView(frame: CGRect(x: 0, y: 0, width: 150, height: 220))
     view.font = UIFont.monospacedSystemFont(ofSize: 18, weight: .regular)
