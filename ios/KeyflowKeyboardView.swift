@@ -128,7 +128,10 @@ final class KeyflowKeyboardView: UIView {
   private var temporaryNumberTouch: ObjectIdentifier?
   private var deleteOwner: ObjectIdentifier?
   private var deleteTimer: Timer?
-  private let haptic = UIImpactFeedbackGenerator(style: .light)
+  var hapticFeedback: () -> Void = {
+    let generator = UIImpactFeedbackGenerator(style: .light)
+    return { generator.impactOccurred() }
+  }()
   var onAction: ((KeyflowAction) -> Void)?
   var hapticsEnabled = false
   var theme = KeyflowTheme() { didSet { if oldValue != theme { applyTheme() } } }
@@ -385,7 +388,7 @@ final class KeyflowKeyboardView: UIView {
   }
 
   private func activate(_ key: KeyflowKey) {
-    if hapticsEnabled { haptic.impactOccurred() }
+    if hapticsEnabled { hapticFeedback() }
     switch key.action {
     case .shift:
       let now = CACurrentMediaTime()
@@ -465,7 +468,7 @@ final class KeyflowKeyboardView: UIView {
           if value == " " {
             cursorLastX = heldOrigin.x
             setCursorMode(true)
-            if hapticsEnabled { haptic.impactOccurred() }
+            if hapticsEnabled { hapticFeedback() }
           } else {
             showAccents(for: key, value: value)
           }
@@ -534,6 +537,7 @@ final class KeyflowKeyboardView: UIView {
           selectedAccent?.isPressed = false
           selectedAccent = nextAccent
           selectedAccent?.isPressed = accentKeys.count > 1
+          if nextAccent != nil && hapticsEnabled { hapticFeedback() }
           accentSelectionIndicator.isHidden = nextAccent == nil || accentKeys.count == 1
         }
         continue
@@ -633,6 +637,7 @@ final class KeyflowKeyboardView: UIView {
 
   private func showAccents(for key: KeyflowKey, value: String) {
     guard let lower = Self.accents[value] else { return }
+    if hapticsEnabled { hapticFeedback() }
     let alternatives = shifted ? Self.uppercaseAccents[value] ?? lower.uppercased() : lower
     let base = shifted ? value.uppercased() : value
     let values =

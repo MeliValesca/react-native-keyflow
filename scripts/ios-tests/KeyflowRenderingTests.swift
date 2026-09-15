@@ -35,6 +35,21 @@ final class KeyflowRenderingTests: XCTestCase {
   func testPhonePadRaisedLargeSquareFits() { assertFits("phone-pad", "raised", 32.0, 0.0) }
   func testPhonePadRaisedLargeRoundedFits() { assertFits("phone-pad", "raised", 32.0, 24.0) }
 
+  func testAccentPresentationRespectsHapticsSetting() throws {
+    for enabled in [false, true] {
+      var pulses = 0
+      try withAccentPopup(hapticsEnabled: enabled, feedback: { pulses += 1 }) { keyboard, touch, choices, _ in
+        XCTAssertEqual(pulses, enabled ? 1 : 0, "Opening accents must emit exactly one enabled haptic")
+        touch.point = try XCTUnwrap(choices.first { !$0.isPressed }).center
+        keyboard.touchesMoved([touch], with: nil)
+        XCTAssertEqual(pulses, enabled ? 2 : 0, "Selecting a different accent must pulse")
+        keyboard.touchesMoved([touch], with: nil)
+        XCTAssertEqual(pulses, enabled ? 2 : 0, "Moving within the same accent must not pulse again")
+      }
+      XCTAssertEqual(pulses, enabled ? 2 : 0, "Cancellation must not emit a haptic")
+    }
+  }
+
   func testWideAccentUsesOnlyPopupSelectionHighlight() throws {
     try withAccentPopup(value: "a") { keyboard, touch, choices, indicator in
       let wide = try XCTUnwrap(choices.first { $0.caption.lowercased() == "æ" })
@@ -399,8 +414,10 @@ final class KeyflowRenderingTests: XCTestCase {
     }
   }
 
-  private func withAccentPopup(value: String = "e", _ check: (KeyflowKeyboardView, AccentTouch, [KeyflowKey], UIView) throws -> Void) throws {
+  private func withAccentPopup(value: String = "e", hapticsEnabled: Bool = false, feedback: (() -> Void)? = nil, _ check: (KeyflowKeyboardView, AccentTouch, [KeyflowKey], UIView) throws -> Void) throws {
     let keyboard = KeyflowKeyboardView()
+    keyboard.hapticsEnabled = hapticsEnabled
+    if let feedback { keyboard.hapticFeedback = feedback }
     let screen = UIScreen.main.bounds.size
     keyboard.updateViewport(screen, insets: .zero)
     keyboard.frame = CGRect(x: 0, y: 0, width: screen.width, height: keyboard.intrinsicContentSize.height)
