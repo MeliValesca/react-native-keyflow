@@ -7,6 +7,7 @@ final class KeyflowQwertyTests: XCTestCase {
   override func setUpWithError() throws {
     // Tablet-only cases must not relaunch the app on iPhone just to skip later.
     try XCTSkipIf(UIDevice.current.userInterfaceIdiom != .pad && name.contains(" testTablet"), "iPad-only test")
+    try XCTSkipIf(UIDevice.current.userInterfaceIdiom == .pad && name.contains(" testPhone"), "iPhone-only test")
     continueAfterFailure = false
     if let url = ProcessInfo.processInfo.environment["KEYFLOW_METRO_URL"] {
       app.launchArguments = ["--initialUrl", url]
@@ -179,29 +180,35 @@ final class KeyflowQwertyTests: XCTestCase {
     let state = try readInteractionState()
     XCTAssertEqual(state["keyboardMode"] as? String, "system")
   }
-  // Keep each catalogue in a separate test with a fresh app launch. A held key
-  // can leave iPadOS reporting the app as animated for XCTest's 60-second idle
-  // window; relaunching between cases avoids multiplying that delay.
-  func testAccentCatalogueAFits() throws { try assertAccentCatalogue("a", uppercase: false) }
-  func testAccentCatalogueEFits() throws { try assertAccentCatalogue("e", uppercase: false) }
-  func testAccentCatalogueIFits() throws { try assertAccentCatalogue("i", uppercase: false) }
-  func testAccentCatalogueOFits() throws { try assertAccentCatalogue("o", uppercase: false) }
-  func testAccentCatalogueUFits() throws { try assertAccentCatalogue("u", uppercase: false) }
-  func testAccentCatalogueCFits() throws { try assertAccentCatalogue("c", uppercase: false) }
-  func testAccentCatalogueNFits() throws { try assertAccentCatalogue("n", uppercase: false) }
-  func testAccentCatalogueSFits() throws { try assertAccentCatalogue("s", uppercase: false) }
-  func testAccentCatalogueYFits() throws { try assertAccentCatalogue("y", uppercase: false) }
-  func testAccentCatalogueZFits() throws { try assertAccentCatalogue("z", uppercase: false) }
-  func testAccentCatalogueLFits() throws { try assertAccentCatalogue("l", uppercase: false) }
-  func testAccentCatalogueDFits() throws { try assertAccentCatalogue("d", uppercase: false) }
-  func testAccentCatalogueRFits() throws { try assertAccentCatalogue("r", uppercase: false) }
-  func testAccentCatalogueTFits() throws { try assertAccentCatalogue("t", uppercase: false) }
-  func testAccentCatalogueGFits() throws { try assertAccentCatalogue("g", uppercase: false) }
-  func testAccentCatalogueHFits() throws { try assertAccentCatalogue("h", uppercase: false) }
-  func testAccentCatalogueKFits() throws { try assertAccentCatalogue("k", uppercase: false) }
-  func testAccentCatalogueWFits() throws { try assertAccentCatalogue("w", uppercase: false) }
-  func testAccentCatalogueUppercaseIFits() throws { try assertAccentCatalogue("i", uppercase: true) }
-  func testAccentCatalogueUppercaseSFits() throws { try assertAccentCatalogue("s", uppercase: true) }
+  // iPhone can share one launch safely. On iPad, a held key can leave the app
+  // animated for XCTest's 60-second idle window, so each case gets a relaunch.
+  func testPhoneAccentCataloguesFit() throws {
+    for base in ["a", "e", "i", "o", "u", "c", "n", "s", "y", "z", "l", "d", "r", "t", "g", "h", "k", "w"] {
+      try assertAccentCatalogue(base, uppercase: false)
+    }
+    try assertAccentCatalogue("i", uppercase: true)
+    try assertAccentCatalogue("s", uppercase: true)
+  }
+  func testTabletAccentCatalogueAFits() throws { try assertAccentCatalogue("a", uppercase: false) }
+  func testTabletAccentCatalogueEFits() throws { try assertAccentCatalogue("e", uppercase: false) }
+  func testTabletAccentCatalogueIFits() throws { try assertAccentCatalogue("i", uppercase: false) }
+  func testTabletAccentCatalogueOFits() throws { try assertAccentCatalogue("o", uppercase: false) }
+  func testTabletAccentCatalogueUFits() throws { try assertAccentCatalogue("u", uppercase: false) }
+  func testTabletAccentCatalogueCFits() throws { try assertAccentCatalogue("c", uppercase: false) }
+  func testTabletAccentCatalogueNFits() throws { try assertAccentCatalogue("n", uppercase: false) }
+  func testTabletAccentCatalogueSFits() throws { try assertAccentCatalogue("s", uppercase: false) }
+  func testTabletAccentCatalogueYFits() throws { try assertAccentCatalogue("y", uppercase: false) }
+  func testTabletAccentCatalogueZFits() throws { try assertAccentCatalogue("z", uppercase: false) }
+  func testTabletAccentCatalogueLFits() throws { try assertAccentCatalogue("l", uppercase: false) }
+  func testTabletAccentCatalogueDFits() throws { try assertAccentCatalogue("d", uppercase: false) }
+  func testTabletAccentCatalogueRFits() throws { try assertAccentCatalogue("r", uppercase: false) }
+  func testTabletAccentCatalogueTFits() throws { try assertAccentCatalogue("t", uppercase: false) }
+  func testTabletAccentCatalogueGFits() throws { try assertAccentCatalogue("g", uppercase: false) }
+  func testTabletAccentCatalogueHFits() throws { try assertAccentCatalogue("h", uppercase: false) }
+  func testTabletAccentCatalogueKFits() throws { try assertAccentCatalogue("k", uppercase: false) }
+  func testTabletAccentCatalogueWFits() throws { try assertAccentCatalogue("w", uppercase: false) }
+  func testTabletAccentCatalogueUppercaseIFits() throws { try assertAccentCatalogue("i", uppercase: true) }
+  func testTabletAccentCatalogueUppercaseSFits() throws { try assertAccentCatalogue("s", uppercase: true) }
   private func assertAccentCatalogue(_ base: String, uppercase: Bool) throws {
     let reference = UIDevice.current.userInterfaceIdiom == .pad ? "apple-tablet-letter-reference" : "apple-letter-reference"
     let url = Bundle(for: Self.self).url(forResource: reference, withExtension: "json")!
@@ -366,12 +373,13 @@ final class KeyflowQwertyTests: XCTestCase {
     XCTAssertEqual(returns.count, 2, "iPad \(layout) page must have left and right return keys")
     capture("ipad-\(layout.replacingOccurrences(of: " ", with: "-"))-two-return-keys")
   }
-  func testDollarHoldMatchesApple() throws { try assertPunctuationHold("$") }
-  func testHyphenHoldMatchesApple() throws { try assertPunctuationHold("-") }
-  func testApostropheHoldMatchesApple() throws { try assertPunctuationHold("'") }
-  func testQuoteHoldMatchesApple() throws { try assertPunctuationHold("\"") }
-  func testQuestionHoldMatchesApple() throws { try assertPunctuationHold("?") }
-  func testExclamationHoldMatchesApple() throws { try assertPunctuationHold("!") }
+  func testPhonePunctuationHoldsMatchApple() throws {
+    for symbol in ["$", "-", "'", "\"", "?", "!"] { try assertPunctuationHold(symbol) }
+  }
+  func testTabletDollarHoldMatchesApple() throws { try assertPunctuationHold("$") }
+  func testTabletHyphenHoldMatchesApple() throws { try assertPunctuationHold("-") }
+  func testTabletApostropheHoldMatchesApple() throws { try assertPunctuationHold("'") }
+  func testTabletQuoteHoldMatchesApple() throws { try assertPunctuationHold("\"") }
   private func assertPunctuationHold(_ symbol: String) throws {
     let tablet = max(app.frame.width, app.frame.height) >= 1000
     if tablet && ["?", "!"].contains(symbol) { throw XCTSkip("Phone punctuation layout") }
@@ -444,9 +452,14 @@ final class KeyflowQwertyTests: XCTestCase {
       capture(native ? "apple-shift-drag" : "keyflow-shift-drag")
     }
   }
-  func testLeftEdgeLetterPreviewContour() { assertLetterPreview("Q", duration: 0.8) }
-  func testCenterLetterPreviewContour() { assertLetterPreview("E", duration: 0.3) }
-  func testRightEdgeLetterPreviewContour() { assertLetterPreview("P", duration: 0.8) }
+  func testPhoneLetterPreviewContoursMatchApple() {
+    for (letter, duration) in [("Q", 0.8), ("E", 0.3), ("P", 0.8)] {
+      assertLetterPreview(letter, duration: duration)
+    }
+  }
+  func testTabletLeftEdgeLetterPreviewContour() { assertLetterPreview("Q", duration: 0.8) }
+  func testTabletCenterLetterPreviewContour() { assertLetterPreview("E", duration: 0.3) }
+  func testTabletRightEdgeLetterPreviewContour() { assertLetterPreview("P", duration: 0.8) }
   private func assertLetterPreview(_ letter: String, duration: TimeInterval) {
     for native in [true, false] {
       mode(native); reset("Empty")

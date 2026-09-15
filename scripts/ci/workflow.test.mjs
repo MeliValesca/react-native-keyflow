@@ -125,14 +125,15 @@ test('device coverage has no optional mode or hidden filters', () => {
   }
 });
 
-test('iPad-sensitive held-key cases remain isolated and XCTest is bounded', () => {
+test('iPad held-key cases stay isolated while phone cases share launches', () => {
   const source = readFileSync(
     'scripts/ios-tests/KeyflowQwertyTests.swift',
     'utf8',
   );
   assert.doesNotMatch(source, /func testAccentCataloguesFit\(/);
-  assert.match(source, /func testAccentCatalogueAFits\(/);
-  assert.match(source, /func testAccentCatalogueUppercaseSFits\(/);
+  assert.match(source, /func testPhoneAccentCataloguesFit\(/);
+  assert.match(source, /func testTabletAccentCatalogueAFits\(/);
+  assert.match(source, /func testTabletAccentCatalogueUppercaseSFits\(/);
 
   const runner = readFileSync('scripts/run-ios-qwerty-tests.mjs', 'utf8');
   assert.match(runner, /'-test-timeouts-enabled',\s*'YES'/);
