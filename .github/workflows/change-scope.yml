@@ -17,7 +17,7 @@ permissions:
 jobs:
   scope:
     runs-on: ubuntu-latest
-    timeout-minutes: 140
+    timeout-minutes: 15
     outputs:
       library: ${{ steps.detect.outputs.library }}
       ios: ${{ steps.detect.outputs.ios }}
@@ -38,7 +38,7 @@ jobs:
           path: /tmp/keyflow-ci-inputs.txt
           retention-days: 7
           overwrite: true
-      - name: Reuse or await matching successful workflow
+      - name: Reuse matching completed successful workflow
         id: reuse
         env:
           GH_TOKEN: ${{ github.token }}

@@ -26,26 +26,12 @@ export function eligible(run, current, pr) {
     run.repository?.id === current.repository.id &&
     run.workflow_id === current.workflow_id &&
     run.pull_requests?.some((item) => item.number === pr) &&
-    (run.status !== 'completed' || run.conclusion === 'success')
+    run.status === 'completed' &&
+    run.conclusion === 'success'
   );
 }
 
-export async function waitForSuccess(
-  read,
-  sleep,
-  now = Date.now,
-  limit = 130 * 60_000,
-) {
-  const deadline = now() + limit;
-  while (now() < deadline) {
-    const run = await read();
-    if (run.status === 'completed') return run.conclusion === 'success';
-    await sleep(30_000);
-  }
-  return false;
-}
-
-export async function reusableRun(api, runId, pr, key, wait = waitForSuccess) {
+export async function reusableRun(api, runId, pr, key) {
   const current = api(`actions/runs/${runId}`);
   const runs = api(
     `actions/workflows/${current.workflow_id}/runs?event=pull_request&per_page=100`,
@@ -61,11 +47,9 @@ export async function reusableRun(api, runId, pr, key, wait = waitForSuccess) {
     )
       continue;
     console.log(`Matching test inputs: ${run.html_url}`);
-    const success = await wait(
-      () => api(`actions/runs/${run.id}`),
-      (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-    );
-    if (!success) break;
+    const verified = api(`actions/runs/${run.id}`);
+    if (verified.status !== 'completed' || verified.conclusion !== 'success')
+      continue;
     return run;
   }
   return null;

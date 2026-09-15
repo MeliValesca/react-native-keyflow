@@ -7,10 +7,10 @@ on:
     types: [opened, synchronize, reopened, edited]
   workflow_dispatch:
 
-# Keep matching earlier runs alive so documentation updates can await their result.
+# Run only the latest revision of each PR or branch.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.run_id }}
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read

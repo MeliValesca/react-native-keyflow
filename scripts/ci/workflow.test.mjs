@@ -241,13 +241,13 @@ test('scope passes event-specific base and head for PRs and main pushes', () => 
 });
 
 for (const file of ['ci.yml', 'native.yml']) {
-  test(`${file}: newer runs cannot cancel matching checks being reused`, () => {
+  test(`${file}: newer PR/branch revisions cancel superseded runs`, () => {
     const workflow = parse(readFileSync(`.github/workflows/${file}`, 'utf8'));
     assert.equal(
       workflow.concurrency.group,
-      '${{ github.workflow }}-${{ github.run_id }}',
+      '${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}',
     );
-    assert.equal(workflow.concurrency['cancel-in-progress'], false);
+    assert.equal(workflow.concurrency['cancel-in-progress'], true);
     assert.equal(workflow.permissions.actions, 'read');
   });
 }
