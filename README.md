@@ -12,6 +12,8 @@ Keyflow recreates keyboard UI; it does not reskin Apple’s keyboard or Gboard. 
 
 ## A keyboard that belongs in your app
 
+Use Keyflow with your own single-line or multiline React Native `TextInput`. Paragraphs, wrapped text, native Return behavior, and continuous movement on both trackpad axes are supported.
+
 <table>
 <tr><th>Raised surfaces</th><th>Independent transparency</th><th>Your own font</th></tr>
 <tr>
@@ -101,7 +103,7 @@ export function Composer() {
 
 **Your app owns the input.** Pass its ref to `useKeyflow`, spread the returned bindings onto the same React Native `TextInput`, and attach the ref. This also works with your own input component when it forwards the ref and bindings to a native `TextInput`. Set `style`, `value`/`defaultValue`, placeholder, accessibility props, and text callbacks directly on your input. Keep larger keyboard styling in a reusable `keyflowTheme` constant; it styles Keyflow only.
 
-For larger editors, set `multiline` on your input and choose its height or `numberOfLines` yourself:
+**Multiline inputs are supported on iOS and Android.** For larger editors, set `multiline` on your input and choose its height or `numberOfLines` yourself:
 
 ```tsx
 <TextInput
@@ -225,9 +227,10 @@ These behaviors are implemented in **Keyflow’s custom keyboard**. They are ins
 | Behavior                   | iOS / iPadOS                                                                                          | Android                                                                                                 |
 | -------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | Typing and editing         | Letters, numbers, symbols, space, return, selected-text replacement and deletion                      | Same core editing operations                                                                            |
+| Multiline inputs           | Paragraphs, wrapped lines and native `submitBehavior`                                                 | Same multiline support and native Return behavior                                                       |
 | Capitalization             | Sentence capitalization, one-shot Shift, Caps Lock and double-space punctuation                       | Sentence capitalization, one-shot Shift, Caps Lock and double-space punctuation                         |
 | Press and hold             | Key previews, accent choices, drag-to-choice with instant highlight switching, held-delete repetition | Key previews, accent/number shortcuts, moving accent highlight, cancellation and held-delete repetition |
-| Cursor movement            | Hold space, then move horizontally                                                                    | Slide horizontally on space                                                                             |
+| Cursor movement            | Hold space, then drag continuously left/right or up/down                                              | Slide continuously on space in both axes                                                                |
 | Layouts                    | iPhone/iPad profiles, portrait/landscape, number/decimal/phone pads                                   | Phone/tablet profiles, portrait/landscape, number/decimal/phone pads                                    |
 | Tablet controls            | Functional Tab, Caps Lock, Shift, Delete, Return and dismissal; alternate-character flicks            | Functional Tab, Caps Lock, Shift, Delete, Return and page switching                                     |
 | Presentation               | UIKit keyboard presentation/dismissal and keyboard avoidance                                          | App-owned panel presentation/dismissal, Android Back and frame-driven avoidance                         |
@@ -290,7 +293,7 @@ Watch the MP4s: [iPad accent selection](docs/media/ios-accents.mp4) · [Android 
 
 Watch the MP4s: [iPad trackpad](docs/media/ios-trackpad.mp4) · [Android trackpad](docs/media/android-trackpad.mp4).
 
-The Android accent and trackpad GIFs use 50 fps; the iOS versions use 25 fps; the transition previews use 10 fps. The MP4s retain the recordings’ timing. These are examples of Keyflow’s current behavior, not native-parity or physical-device performance benchmarks.
+The Android accent and trackpad GIFs use 50 fps; the iOS versions use 25 fps; the transition previews use 10 fps. The MP4s retain the recordings’ timing. These recordings illustrate the named interactions, not native-parity or physical-device performance benchmarks. The trackpad clips predate continuous two-axis multiline movement; try “Multiline notes” in the example app for the updated behavior.
 
 The clips demonstrate the named interactions only. The other behaviors in the table are covered by the relevant [native and app test suites](docs/coverage.md), with device-review limits documented there.
 
@@ -351,14 +354,14 @@ See [test commands](docs/testing.md), [coverage and limits](docs/coverage.md), a
 
 This comparison describes **Keyflow**, not a restriction on the user’s actual keyboard. Android references are sampled Gboard layouts; there is no single keyboard implementation shared by every Android device.
 
-| Missing capability                   | iOS / iPadOS                                                                                                             | Android                                                                                                                               |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Suggestions and automatic correction | No QuickType prediction/completion, automatic word replacement, learned dictionary or system text-replacement engine     | No Gboard/IME prediction/completion, automatic word replacement or personalized suggestion engine                                     |
-| Emoji, voice and rich media          | No emoji picker, frequently used emoji, dictation, stickers or Memoji                                                    | No emoji picker, frequently used emoji, voice input, stickers or GIF browser                                                          |
-| Gesture typing and advanced editing  | No QuickPath word entry or full native trackpad-selection gesture set; space movement is horizontal cursor movement      | No glide/swipe word entry, swipe-to-delete-word gesture or complete IME editing toolbar; space movement is horizontal cursor movement |
-| Language engines                     | No non-Latin composition/candidate engines or full system language-switch menu; custom templates are English/French only | No non-Latin composition/candidate engines or full installed-IME language/settings menu; custom templates are English/French only     |
-| Extra keyboard tools                 | No keyboard-owned shortcut/undo/redo toolbar or system personalization controls                                          | No clipboard history/pinning or IME personalization controls; the paste button inserts current clipboard text                         |
-| Alternate keyboard modes             | No iPad floating/split keyboard or iPhone one-handed layout                                                              | No floating, split, one-handed or user-resized IME layout; no separate Samsung Keyboard/SwiftKey implementations                      |
+| Missing capability                   | iOS / iPadOS                                                                                                                  | Android                                                                                                                                         |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Suggestions and automatic correction | No QuickType prediction/completion, automatic word replacement, learned dictionary or system text-replacement engine          | No Gboard/IME prediction/completion, automatic word replacement or personalized suggestion engine                                               |
+| Emoji, voice and rich media          | No emoji picker, frequently used emoji, dictation, stickers or Memoji                                                         | No emoji picker, frequently used emoji, voice input, stickers or GIF browser                                                                    |
+| Gesture typing and advanced editing  | No QuickPath word entry or full native trackpad-selection gesture set; continuous trackpad cursor movement supports both axes | No glide/swipe word entry, swipe-to-delete-word gesture or complete IME editing toolbar; continuous trackpad cursor movement supports both axes |
+| Language engines                     | No non-Latin composition/candidate engines or full system language-switch menu; custom templates are English/French only      | No non-Latin composition/candidate engines or full installed-IME language/settings menu; custom templates are English/French only               |
+| Extra keyboard tools                 | No keyboard-owned shortcut/undo/redo toolbar or system personalization controls                                               | No clipboard history/pinning or IME personalization controls; the paste button inserts current clipboard text                                   |
+| Alternate keyboard modes             | No iPad floating/split keyboard or iPhone one-handed layout                                                                   | No floating, split, one-handed or user-resized IME layout; no separate Samsung Keyboard/SwiftKey implementations                                |
 
 Use `keyboardMode: 'system'` for the installed keyboard and whatever features its settings, device and language configuration make available. Keyflow cannot apply its theme to that keyboard. Native editor selection handles, context menus or OS-provided editing services may still appear; they are not a custom feature implemented by Keyflow.
 
