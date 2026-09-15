@@ -206,6 +206,7 @@ export function InteractionScreen() {
         <ExampleTextInput
           {...bindings}
           key={revision}
+          testID={`interaction-input-${revision}`}
           ref={input}
           value={text}
           keyboardAppearance="light"
