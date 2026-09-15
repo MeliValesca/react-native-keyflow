@@ -136,7 +136,7 @@ class AppHarnessTests(unittest.TestCase):
         self.assertEqual(ExampleSuite.startup_state([lab, system]), 'system_anr')
         for name in ('Process system', 'Quickstep', 'Pixel Launcher'):
             for suffix in (" isn't responding", ' isn’t responding'):
-                self.assertEqual(ExampleSuite.startup_state([lab, ET.Element('node', text=name + suffix)]), 'system_anr')
+                self.assertEqual(ExampleSuite.startup_state([lab, ET.Element('node', text=name + suffix)]), 'system_anr' if name == 'Process system' else 'launcher_anr')
         self.assertEqual(ExampleSuite.startup_state([lab, app]), 'app_anr')
         self.assertEqual(ExampleSuite.startup_state([lab, menu, reload]), 'dev_menu')
         self.assertEqual(ExampleSuite.startup_state([lab]), 'ready')
@@ -159,10 +159,10 @@ class AppHarnessTests(unittest.TestCase):
             suite.prepare()
         self.assertEqual(len(actions), 2, 'Application failures must not be dismissed')
 
-    def test_launcher_startup_dialog_uses_one_wait_before_tests(self):
+    def test_launcher_startup_dialog_is_closed_once_before_tests(self):
         for name in ('Quickstep', 'Pixel Launcher'):
             suite = ExampleSuite.__new__(ExampleSuite)
-            overlay = [ET.Element('node', text=name + " isn't responding"), ET.Element('node', text='Wait', bounds='[10,20][30,40]')]
+            overlay = [ET.Element('node', text=name + " isn't responding"), ET.Element('node', text='Close app', bounds='[10,20][30,40]'), ET.Element('node', text='Wait', bounds='[40,20][60,40]')]
             snapshots = iter([overlay, overlay, [ET.Element('node', text='Keyboard lab')]])
             suite.nodes = lambda: next(snapshots)
             actions, captures = [], []
@@ -170,7 +170,7 @@ class AppHarnessTests(unittest.TestCase):
             suite.startup_capture = lambda value: captures.append(value)
             suite.prepare()
             self.assertEqual(actions, [('shell', 'input', 'tap', 20, 30)])
-            self.assertEqual(captures, ['startup-system-ui-anr', 'startup-ready'])
+            self.assertEqual(captures, ['startup-launcher-anr', 'startup-ready'])
 
     def test_rotation_respects_portrait_and_landscape_natural_displays(self):
         for width, height, expected in [(1080, 2400, False), (2560, 1800, True)]:

@@ -123,7 +123,10 @@ class ExampleSuite:
         labels = {value for node in nodes for value in (node.get('text', ''), node.get('content-desc', ''))}
         anr = next((label for label in labels if label.endswith("isn't responding") or label.endswith('isn’t responding')), None)
         if anr:
-            system_names = ('System UI', 'Process system', 'Quickstep', 'Pixel Launcher')
+            launcher_dialogs = {name + suffix for name in ('Quickstep', 'Pixel Launcher') for suffix in (" isn't responding", ' isn’t responding')}
+            if anr in launcher_dialogs:
+                return 'launcher_anr'
+            system_names = ('System UI', 'Process system')
             system_dialogs = {name + suffix for name in system_names for suffix in (" isn't responding", ' isn’t responding')}
             return 'system_anr' if anr in system_dialogs else 'app_anr'
         if 'Open React Native dev menu' in labels and 'Reload' in labels:
@@ -142,6 +145,7 @@ class ExampleSuite:
         # application ANRs fail, and no test gesture is ever replayed.
         deadline = time.monotonic() + 45
         recovered_system = False
+        recovered_launcher = False
         dismissed_menu = False
         navigated_home = False
         while time.monotonic() < deadline:
@@ -149,7 +153,13 @@ class ExampleSuite:
             state = self.startup_state(nodes)
             if state == 'app_anr':
                 raise AssertionError('Application ANR during startup')
-            if state == 'system_anr' and not recovered_system:
+            if state == 'launcher_anr' and not recovered_launcher:
+                self.startup_capture('startup-launcher-anr')
+                close = next((node for node in nodes if node.get('text') == 'Close app'), None)
+                assert close is not None, 'Launcher ANR has no Close app action'
+                self.adb('shell', 'input', 'tap', *self.center(close))
+                recovered_launcher = True
+            elif state == 'system_anr' and not recovered_system:
                 self.startup_capture('startup-system-ui-anr')
                 wait = next((node for node in nodes if node.get('text') == 'Wait'), None)
                 assert wait is not None, 'System UI ANR has no Wait action'

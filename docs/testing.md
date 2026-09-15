@@ -15,7 +15,7 @@ Device scripts require a running example and the appropriate device/session argu
 
 ## Android React Native app suite
 
-Start and launch the current example with Stim from `example/`. Use the normal docked software keyboard for native comparisons; dismiss input tutorials and turn off handwriting-only or floating modes on local AVDs. CI uses a clean emulator image. The app runner records and closes Expo’s first-launch developer menu before testing. It can select Wait once for a startup System UI ANR, then requires the lab to appear; application ANRs remain failures. Layout expectations use the reported natural screen orientation, including landscape tablets. Then, from the repository root, use the owned device serial reported by Stim:
+Start and launch the current example with Stim from `example/`. Use the normal docked software keyboard for native comparisons; dismiss input tutorials and turn off handwriting-only or floating modes on local AVDs. CI uses a clean emulator image. The app runner records and closes Expo’s first-launch developer menu before testing. It can select Wait once for a startup System UI ANR or close a known Quickstep/Pixel Launcher ANR once, then requires the lab to appear within the same bounded setup deadline; application ANRs remain failures. Layout expectations use the reported natural screen orientation, including landscape tablets. Then, from the repository root, use the owned device serial reported by Stim:
 
 ```sh
 KEYFLOW_ANDROID_SERIAL=emulator-XXXX corepack yarn test:device:android:app
