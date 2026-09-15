@@ -7,14 +7,13 @@ import {
   Pressable,
   ScrollView,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyflowAvoidingView, useKeyflow } from 'react-native-keyflow';
-import type { KeyflowKeyboardFrame } from 'react-native-keyflow';
+
 import { ComparisonTabs } from '../components/common/ComparisonTabs';
 import { fontChoices, fontDemo as theme } from '../constants/fontDemo';
 import { useQuicksand } from '../hooks';
@@ -24,18 +23,15 @@ export function CustomFontScreen() {
   const [choice, setChoice] =
     useState<(typeof fontChoices)[number]['value']>('semibold');
   const profile = fontChoices.find((font) => font.value === choice)!;
-  const input = useRef<TextInput>(null);
   const scroll = useRef<ScrollView>(null);
-  const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
   const [text, setText] = useState('');
   const [checking, setChecking] = useState(false);
   const [result, setResult] = useState('');
   const headerHeight = useHeaderHeight();
   const insets = useSafeAreaInsets();
-  const bindings = useKeyflow(input, {
+  const { inputRef: input, keyflowInputProps: bindings } = useKeyflow({
     keyboardAppearance: 'light',
     keyflowTheme: { font: { family: profile.family } },
-    onKeyboardFrameChange: setFrame,
   });
   const horizontal = {
     paddingLeft: Math.max(theme.spacing, insets.left + 12),
@@ -46,7 +42,7 @@ export function CustomFontScreen() {
       () => () => {
         void input.current?.blur();
       },
-      [],
+      [input],
     ),
   );
 
@@ -230,7 +226,6 @@ export function CustomFontScreen() {
       <View style={{ ...horizontal, paddingBottom: 12 }}>
         <ExampleTextInput
           {...bindings}
-          ref={input}
           autoFocus
           placeholder="Try your app’s font…"
           accessibilityLabel="Custom font input"
@@ -257,7 +252,6 @@ export function CustomFontScreen() {
     >
       <KeyflowAvoidingView
         style={{ flex: 1 }}
-        keyboardFrame={frame}
         keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
       >
         {content}

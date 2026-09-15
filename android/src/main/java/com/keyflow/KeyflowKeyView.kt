@@ -34,7 +34,9 @@ internal class KeyflowKeyView(
   var circular = false
   var themeSection: String? = null
   var iconSize = if (action in listOf("delete", "submit")) 26f else 24f
-  var onSlide: ((Int) -> Unit)? = null
+  var onSlide: ((Float, Float) -> Unit)? = null
+  var onSlideStart: (() -> Unit)? = null
+  var onSlideEnd: (() -> Unit)? = null
   var onHold: (() -> Boolean)? = null
   var onAccessibleHold: (() -> Boolean)? = null
   var onHoldMove: ((Float, Float) -> Unit)? = null
@@ -55,6 +57,7 @@ internal class KeyflowKeyView(
   private var previewPopup: android.widget.PopupWindow? = null
   private val dismissPreview = Runnable { hidePreview() }
   private var touchX = 0f
+  private var touchY = 0f
   private var sliding = false
   private val icon
     get() =
@@ -527,25 +530,32 @@ internal class KeyflowKeyView(
       when (event.actionMasked) {
         MotionEvent.ACTION_DOWN -> {
           touchX = event.x
+          touchY = event.y
+          onSlideStart?.invoke()
           sliding = false
         }
         MotionEvent.ACTION_MOVE -> {
-          val delta = event.x - touchX
-          val steps = (delta / (12 * density)).toInt()
-          if (steps != 0) {
+          val dx = event.x - touchX
+          val dy = event.y - touchY
+          val slop = ViewConfiguration.get(context).scaledTouchSlop
+          if (sliding || kotlin.math.hypot(dx, dy) > slop) {
             sliding = true
-            touchX += steps * 12 * density
-            onSlide?.invoke(steps)
+            onSlide?.invoke(dx, dy)
             isPressed = true
           }
         }
         MotionEvent.ACTION_UP ->
           if (sliding) {
+            onSlide?.invoke(event.x - touchX, event.y - touchY)
+            onSlideEnd?.invoke()
             sliding = false
             isPressed = false
             return true
           }
-        MotionEvent.ACTION_CANCEL -> sliding = false
+        MotionEvent.ACTION_CANCEL -> {
+          onSlideEnd?.invoke()
+          sliding = false
+        }
       }
       if (sliding) return true
     }

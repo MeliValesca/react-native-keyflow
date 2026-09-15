@@ -1,4 +1,7 @@
-import { getKeyboardMetrics } from 'react-native-keyflow/testing';
+import {
+  getKeyboardMetrics,
+  getSystemKeyboardFrame,
+} from 'react-native-keyflow/testing';
 import { launchTest, testPlatform, testMaterial } from '../testing/launch';
 import { studioTheme } from '../themes/studio';
 import {
@@ -29,20 +32,21 @@ export function useTransitionTests() {
   const presentations = useRef<{ duration: number; easing: string }[]>([]);
   const dismissals = useRef<{ duration: number; easing: string }[]>([]);
   const frames = useRef<KeyflowKeyboardFrame[]>([]);
+  const baselineError = useRef<unknown>(null);
   const [status, setStatus] = useState(
     'Ready: checks show, hide, switching, and layout restoration.',
   );
   const [running, setRunning] = useState(false);
   const alive = useRef(true);
-  const input = useRef<TextInput>(null);
   const baseline = useRef<TextInput>(null);
+  const baselineFocused = useRef(false);
   const composer = useRef<View>(null);
   const record = (next: KeyflowKeyboardFrame) => {
     latestFrame.current = next;
     frames.current.push(next);
     setFrame(next);
   };
-  const bindings = useKeyflow(input, {
+  const { inputRef: input, keyflowInputProps: bindings } = useKeyflow({
     enabled: engine !== 'baseline',
     keyboardMode: engine === 'baseline' ? 'custom' : engine,
     keyflowTheme: raised ? studioTheme : undefined,
@@ -57,9 +61,39 @@ export function useTransitionTests() {
       void mountedInput?.blur();
       mountedBaseline?.blur();
     };
-  }, []);
+  }, [input]);
   useEffect(() => {
-    if (Platform.OS === 'android' && engine !== 'baseline') return;
+    if (Platform.OS === 'android') {
+      if (engine !== 'baseline') return;
+      // RN can emit a negative height before the IME insets arrive and never
+      // correct it. Observe the OS directly, without attaching Keyflow here.
+      let cancelled = false;
+      let pending = false;
+      let previous = '';
+      baselineError.current = null;
+      const poll = async () => {
+        if (pending || cancelled) return;
+        pending = true;
+        try {
+          const next = await getSystemKeyboardFrame();
+          if (cancelled) return;
+          const signature = JSON.stringify(next);
+          if (signature !== previous || !frames.current.length) {
+            previous = signature;
+            record(next);
+          }
+        } catch (error) {
+          if (!cancelled) baselineError.current = error;
+        } finally {
+          pending = false;
+        }
+      };
+      const interval = setInterval(() => void poll(), 50);
+      return () => {
+        cancelled = true;
+        clearInterval(interval);
+      };
+    }
     const willShow = Keyboard.addListener('keyboardWillShow', (event) => {
       presentations.current.push({
         duration: event.duration,
@@ -73,24 +107,9 @@ export function useTransitionTests() {
       });
     });
     const show = Keyboard.addListener('keyboardDidShow', (e) => {
-      // ReactRootView can announce visibility before IME insets arrive, then
-      // subtract the navigation bar from zero. That is not a visible baseline.
-      // Keep Keyflow's own frame stream unfiltered for the motion assertions.
-      if (
-        Platform.OS === 'android' &&
-        engine === 'baseline' &&
-        e.endCoordinates.height <= 0
-      ) {
-        console.info(
-          'KEYFLOW_BASELINE_PENDING_FRAME',
-          JSON.stringify(e.endCoordinates),
-        );
-        return;
-      }
       record({
         ...e.endCoordinates,
-        windowOffsetY:
-          Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0,
+        windowOffsetY: 0,
         visible: true,
         source: 'system',
       });
@@ -100,8 +119,7 @@ export function useTransitionTests() {
         ...e.endCoordinates,
         height: 0,
         visible: false,
-        windowOffsetY:
-          Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0,
+        windowOffsetY: 0,
         source: 'system',
       }),
     );
@@ -141,6 +159,9 @@ export function useTransitionTests() {
     let stableSince = Date.now();
     let previous = '';
     while (Date.now() < deadline) {
+      if (target === 'baseline' && baselineError.current) {
+        throw baselineError.current;
+      }
       const value = currentFrame();
       const signature = `${value?.visible}:${value?.screenY}`;
       if (signature !== previous || !value?.visible || value.height <= 0)
@@ -164,6 +185,7 @@ export function useTransitionTests() {
     throw new Error(
       `${target}: keyboard did not become visible and settle: ${JSON.stringify({
         frames: frames.current,
+        baselineFocused: baselineFocused.current,
         native:
           target === 'baseline' ? undefined : await getKeyboardMetrics(input),
       })}`,
@@ -172,6 +194,7 @@ export function useTransitionTests() {
   const run = async () => {
     if (running) return;
     setRunning(true);
+    setStatus('Running: preparing transition checks.');
     const results: object[] = [];
     const capture = Date.now();
     const markFrames = (target: Engine, event: 'start' | 'end') => {
@@ -192,6 +215,12 @@ export function useTransitionTests() {
         setFrame(null);
         latestFrame.current = null;
         await wait(700);
+        if (target === 'baseline') {
+          const deadline = Date.now() + 7000;
+          while (!baseline.current && Date.now() < deadline) await wait(50);
+          if (!baseline.current)
+            throw new Error('Baseline editor did not mount');
+        }
         // Android can transfer focus to the newly mounted first editor.
         // Establish a genuinely hidden baseline before recording a transition.
         baseline.current?.blur();
@@ -211,8 +240,16 @@ export function useTransitionTests() {
           frames.current = [];
           presentations.current = [];
           dismissals.current = [];
-          if (target === 'baseline') baseline.current?.focus();
-          else await input.current?.focus();
+          if (target === 'baseline') {
+            baseline.current?.focus();
+            const deadline = Date.now() + 7000;
+            while (!baselineFocused.current && Date.now() < deadline)
+              await wait(50);
+            if (!baselineFocused.current)
+              throw new Error(
+                'Baseline editor did not acknowledge native focus',
+              );
+          } else await input.current?.focus();
           await waitForKeyboard(target);
           const visible = currentFrame();
           const shownBottom = await bottom();
@@ -494,6 +531,7 @@ export function useTransitionTests() {
     status,
     composer,
     baseline,
+    baselineFocused,
     input,
     bindings,
     record,

@@ -84,6 +84,7 @@ final class KeyflowKeyboardView: UIView {
   private var bottomInset: CGFloat = 73
   private var inputSurfaceHeight: CGFloat = 0
   private let panelBackground = UIView()
+  private let panelMask = CAShapeLayer()
   private let panelBottom = UIView()
   private var preferredHeight: CGFloat = panelHeight
   private var presentationActive = true
@@ -103,7 +104,8 @@ final class KeyflowKeyboardView: UIView {
   private var heldTouch: ObjectIdentifier?
   private var heldOrigin: CGPoint = .zero
   private var cursorMode = false
-  private var cursorLastX: CGFloat = 0
+  private var cursorOriginX: CGFloat = 0
+  private var cursorOriginY: CGFloat = 0
   private var accentKeys: [KeyflowKey] = []
   private var selectedAccent: KeyflowKey?
   private let accentCallout = KeyflowCallout()
@@ -128,7 +130,10 @@ final class KeyflowKeyboardView: UIView {
   private var temporaryNumberTouch: ObjectIdentifier?
   private var deleteOwner: ObjectIdentifier?
   private var deleteTimer: Timer?
-  private let haptic = UIImpactFeedbackGenerator(style: .light)
+  var hapticFeedback: () -> Void = {
+    let generator = UIImpactFeedbackGenerator(style: .light)
+    return { generator.impactOccurred() }
+  }()
   var onAction: ((KeyflowAction) -> Void)?
   var hapticsEnabled = false
   var theme = KeyflowTheme() { didSet { if oldValue != theme { applyTheme() } } }
@@ -142,12 +147,11 @@ final class KeyflowKeyboardView: UIView {
     panelBackground.isUserInteractionEnabled = false
     panelBackground.isOpaque = false
     panelBottom.isOpaque = false
-    panelBackground.layer.cornerRadius = 28
-    panelBackground.layer.cornerCurve = .continuous
-    panelBackground.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
-    panelBackground.clipsToBounds = true
-    panelBottom.layer.cornerCurve = .continuous
-    panelBottom.layer.maskedCorners = [.layerMinXMaxYCorner, .layerMaxXMaxYCorner]
+    // Unlike a UIView-backed layer, the standalone mask has default Core
+    // Animation actions. Layout must not start bounds/position/path animations
+    // that keep an accessory presentation (and XCTest quiescence) active.
+    panelMask.actions = ["bounds": NSNull(), "position": NSNull(), "path": NSNull()]
+    panelBackground.layer.mask = panelMask
     panelBackground.addSubview(panelBottom)
     translatesAutoresizingMaskIntoConstraints = false
     heightConstraint = heightAnchor.constraint(equalToConstant: Self.panelHeight)
@@ -239,11 +243,17 @@ final class KeyflowKeyboardView: UIView {
   override func layoutSubviews() {
     super.layoutSubviews()
     // Clip only the background siblings, never the keys or callouts.
-    // Continuous UIKit corners match the system panel's portrait silhouette.
+    // Round only the panel's top corners. The bottom surface reaches the
+    // screen edges; the device supplies its own physical corner clipping.
     UIView.performWithoutAnimation {
       panelBackground.frame = bounds
       panelBottom.frame = panelBackground.bounds
-      panelBottom.layer.cornerRadius = bottomInset > 8 ? 60 : 0
+      panelMask.frame = panelBackground.bounds
+      panelMask.path =
+        UIBezierPath(
+          roundedRect: panelBackground.bounds, byRoundingCorners: [.topLeft, .topRight],
+          cornerRadii: CGSize(width: 28, height: 28)
+        ).cgPath
     }
     KeyflowKeyboardLayout(
       isTablet: isTablet, isPad: isPad, landscape: landscape,
@@ -385,7 +395,7 @@ final class KeyflowKeyboardView: UIView {
   }
 
   private func activate(_ key: KeyflowKey) {
-    if hapticsEnabled { haptic.impactOccurred() }
+    if hapticsEnabled { hapticFeedback() }
     switch key.action {
     case .shift:
       let now = CACurrentMediaTime()
@@ -463,9 +473,11 @@ final class KeyflowKeyboardView: UIView {
           guard let self, let key, touchesByID[id] === key else { return }
           key.isPressed = false
           if value == " " {
-            cursorLastX = heldOrigin.x
+            cursorOriginX = heldOrigin.x
+            cursorOriginY = heldOrigin.y
+            onAction?(.beginCursorMovement)
             setCursorMode(true)
-            if hapticsEnabled { haptic.impactOccurred() }
+            if hapticsEnabled { hapticFeedback() }
           } else {
             showAccents(for: key, value: value)
           }
@@ -498,11 +510,7 @@ final class KeyflowKeyboardView: UIView {
         continue
       }
       if cursorMode && id == heldTouch {
-        let steps = Int((point.x - cursorLastX) / 8)
-        if steps != 0 {
-          onAction?(.moveCursor(steps))
-          cursorLastX += CGFloat(steps) * 8
-        }
+        onAction?(.moveCursor(CGPoint(x: point.x - cursorOriginX, y: point.y - cursorOriginY)))
         continue
       }
       if !accentKeys.isEmpty && id == heldTouch {
@@ -534,6 +542,7 @@ final class KeyflowKeyboardView: UIView {
           selectedAccent?.isPressed = false
           selectedAccent = nextAccent
           selectedAccent?.isPressed = accentKeys.count > 1
+          if nextAccent != nil && hapticsEnabled { hapticFeedback() }
           accentSelectionIndicator.isHidden = nextAccent == nil || accentKeys.count == 1
         }
         continue
@@ -575,6 +584,8 @@ final class KeyflowKeyboardView: UIView {
       }
       holdWork?.cancel()
       if cursorMode && id == heldTouch {
+        let point = touch.location(in: self)
+        onAction?(.moveCursor(CGPoint(x: point.x - cursorOriginX, y: point.y - cursorOriginY)))
         cancelTouches()
         continue
       }
@@ -633,6 +644,7 @@ final class KeyflowKeyboardView: UIView {
 
   private func showAccents(for key: KeyflowKey, value: String) {
     guard let lower = Self.accents[value] else { return }
+    if hapticsEnabled { hapticFeedback() }
     let alternatives = shifted ? Self.uppercaseAccents[value] ?? lower.uppercased() : lower
     let base = shifted ? value.uppercased() : value
     let values =
@@ -739,6 +751,7 @@ final class KeyflowKeyboardView: UIView {
   }
 
   private func cancelTouches() {
+    if cursorMode { onAction?(.endCursorMovement) }
     holdWork?.cancel()
     holdWork = nil
     heldTouch = nil

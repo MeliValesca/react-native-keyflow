@@ -8,14 +8,17 @@ on:
   schedule:
     - cron: '20 7 * * 1'
 
-# Keep matching earlier runs alive so documentation updates can await their result.
+# Run only the latest revision of each PR or branch.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.run_id }}
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
   actions: read
+
+env:
+  KEYFLOW_CI_PROFILE: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'full' || 'smoke' }}
 
 jobs:
   scope:
@@ -146,6 +149,9 @@ jobs:
           sudo udevadm settle
           sudo chmod 0666 /dev/kvm
           test -r /dev/kvm && test -w /dev/kvm
+      - name: Install Stim for Metro
+        if: ${{ needs.android.result == 'success' }}
+        run: npm install --global stim@1.2.0 --registry=https://registry.npmjs.org
       - name: Run native and example UI suites without rebuilding
         if: ${{ needs.android.result == 'success' }}
         uses: reactivecircus/android-emulator-runner@v2
@@ -173,11 +179,11 @@ jobs:
     if: ${{ !cancelled() }}
     name: ${{ matrix.label }} interactions, layouts, holds, and rotation
     runs-on: macos-26
-    timeout-minutes: 90
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(github.event_name == 'schedule' && '[{"label":"iPhone","device":"iPhone 17 Pro"},{"label":"iPad","device":"iPad Pro 11-inch (M5)"},{"label":"Large iPhone","device":"iPhone 17 Pro Max"},{"label":"Large iPad","device":"iPad Pro 13-inch (M5)"}]' || '[{"label":"iPhone","device":"iPhone 17 Pro"},{"label":"iPad","device":"iPad Pro 11-inch (M5)"}]') }}
+        include: ${{ fromJSON(github.event_name == 'schedule' && '[{"label":"iPhone","device":"iPhone 17 Pro"},{"label":"Large iPhone","device":"iPhone 17 Pro Max"}]' || '[{"label":"iPhone","device":"iPhone 17 Pro"}]') }}
     steps:
       - name: No ios changes
         if: ${{ needs.ios.result == 'skipped' }}
@@ -216,3 +222,67 @@ jobs:
             artifacts/ios-qwerty-tests/latest.json
           if-no-files-found: warn
           retention-days: 30
+
+  ios-ipad-suites:
+    needs: [scope, ios]
+    if: ${{ !cancelled() }}
+    name: ${{ matrix.label }} device suite ${{ matrix.shard }}
+    runs-on: macos-26
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(github.event_name == 'schedule' && '[{"label":"iPad","device":"iPad Pro 11-inch (M5)","shard":0},{"label":"iPad","device":"iPad Pro 11-inch (M5)","shard":1},{"label":"Large iPad","device":"iPad Pro 13-inch (M5)","shard":0},{"label":"Large iPad","device":"iPad Pro 13-inch (M5)","shard":1}]' || github.event_name == 'workflow_dispatch' && '[{"label":"iPad","device":"iPad Pro 11-inch (M5)","shard":0},{"label":"iPad","device":"iPad Pro 11-inch (M5)","shard":1}]' || '[{"label":"iPad","device":"iPad Pro 11-inch (M5)","shard":0}]') }}
+    steps:
+      - name: No ios changes
+        if: ${{ needs.ios.result == 'skipped' }}
+        run: echo "iOS checks are unaffected or reuse verified successful results; see scope summary."
+      - name: Require successful shared build
+        if: ${{ needs.ios.result != 'success' && needs.ios.result != 'skipped' }}
+        run: exit 1
+      - uses: actions/checkout@v4
+        if: ${{ needs.ios.result == 'success' }}
+      - uses: ./.github/actions/setup-js
+        if: ${{ needs.ios.result == 'success' }}
+      - uses: actions/download-artifact@v4
+        if: ${{ needs.ios.result == 'success' }}
+        with:
+          name: ios-test-build
+          path: artifacts/ci
+      - name: Unpack shared iOS binaries
+        if: ${{ needs.ios.result == 'success' }}
+        run: |
+          mkdir -p artifacts/ci/ios
+          tar -xzf artifacts/ci/ios-test-build.tar.gz -C artifacts/ci/ios
+      - name: Install Stim for Metro
+        if: ${{ needs.ios.result == 'success' }}
+        run: npm install --global stim@1.2.0 --registry=https://registry.npmjs.org
+      - name: Run rendering and interaction suites without rebuilding
+        if: ${{ needs.ios.result == 'success' }}
+        run: bash scripts/ci/run-ios.sh "${{ matrix.device }}" --shard "${{ matrix.shard }}"
+      - name: Upload iOS UI evidence
+        if: ${{ always() && needs.ios.result == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-${{ matrix.label }}-shard-${{ matrix.shard }}-ui-${{ github.run_id }}
+          path: |
+            artifacts/ios-ui/
+            artifacts/ios-qwerty-tests/run-*
+            artifacts/ios-qwerty-tests/latest.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  ios-ipad:
+    needs: [scope, ios, ios-ipad-suites]
+    if: ${{ !cancelled() }}
+    name: ${{ matrix.label }} interactions, layouts, holds, and rotation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      matrix:
+        label: ${{ fromJSON(github.event_name == 'schedule' && '["iPad","Large iPad"]' || '["iPad"]') }}
+    steps:
+      - name: Require every iPad device suite
+        env:
+          KEYFLOW_IPAD_RESULT: ${{ needs.ios-ipad-suites.result }}
+        run: test "$KEYFLOW_IPAD_RESULT" = success

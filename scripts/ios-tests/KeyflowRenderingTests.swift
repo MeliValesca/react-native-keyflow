@@ -35,6 +35,184 @@ final class KeyflowRenderingTests: XCTestCase {
   func testPhonePadRaisedLargeSquareFits() { assertFits("phone-pad", "raised", 32.0, 0.0) }
   func testPhonePadRaisedLargeRoundedFits() { assertFits("phone-pad", "raised", 32.0, 24.0) }
 
+  func testPanelMaskLayoutDoesNotStartImplicitAnimations() throws {
+    let keyboard = KeyflowKeyboardView()
+    let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+    let window = scene.map { UIWindow(windowScene: $0) } ?? UIWindow(frame: UIScreen.main.bounds)
+    let controller = UIViewController()
+    window.rootViewController = controller
+    window.makeKeyAndVisible()
+    defer { window.isHidden = true }
+    controller.view.addSubview(keyboard)
+    keyboard.frame = CGRect(x: 0, y: 100, width: 390, height: keyboard.intrinsicContentSize.height)
+    keyboard.layoutIfNeeded()
+    let mask = try XCTUnwrap(keyboard.subviews.compactMap { $0.layer.mask }.first)
+    CATransaction.flush()
+    // UIKit lays the accessory out during an animated keyboard presentation.
+    // Static clipping geometry must not add another animation on every layout.
+    CATransaction.begin()
+    CATransaction.setAnimationDuration(10)
+    keyboard.frame.size.width += 1
+    keyboard.setNeedsLayout()
+    keyboard.layoutIfNeeded()
+    CATransaction.commit()
+    CATransaction.flush()
+    XCTAssertEqual(mask.animationKeys() ?? [], [], "Static mask animations can keep XCTest waiting for the app to idle")
+  }
+
+  func testPanelCoversBottomCornersWithoutExtraOpacity() throws {
+    for color in ["#163B50", "#163B5080"] {
+      let keyboard = KeyflowKeyboardView()
+      var theme = KeyflowTheme()
+      theme.background = color
+      keyboard.theme = theme
+      keyboard.updateViewport(CGSize(width: 390, height: 844), insets: UIEdgeInsets(top: 0, left: 0, bottom: 34, right: 0))
+      keyboard.frame = CGRect(x: 0, y: 0, width: 390, height: keyboard.intrinsicContentSize.height)
+      keyboard.layoutIfNeeded()
+      let format = UIGraphicsImageRendererFormat()
+      format.scale = 1
+      format.preferredRange = .standard
+      let image = UIGraphicsImageRenderer(bounds: keyboard.bounds, format: format).image { context in
+        keyboard.layer.render(in: context.cgContext)
+      }
+      let cgImage = try XCTUnwrap(image.cgImage)
+      let bytes = try XCTUnwrap(cgImage.dataProvider?.data) as Data
+      let y = cgImage.height - 2
+      func pixel(_ x: Int) -> [UInt8] {
+        let offset = y * cgImage.bytesPerRow + x * cgImage.bitsPerPixel / 8
+        return Array(bytes[offset..<(offset + cgImage.bitsPerPixel / 8)])
+      }
+      let middle = pixel(cgImage.width / 2)
+      XCTAssertNotEqual(middle, Array(repeating: 0, count: middle.count))
+      XCTAssertEqual(pixel(1), middle, "Left bottom corner must have the same panel fill and opacity")
+      XCTAssertEqual(pixel(cgImage.width - 2), middle, "Right bottom corner must have the same panel fill and opacity")
+      let attachment = XCTAttachment(image: image)
+      attachment.name = "bottom-panel-\(color)"
+      attachment.lifetime = .keepAlways
+      add(attachment)
+    }
+  }
+
+  func testTrackpadCaretFloatsBetweenCharactersAndRestoresOnRelease() throws {
+    let view = UITextView(frame: CGRect(x: 0, y: 0, width: 240, height: 180))
+    view.font = UIFont.monospacedSystemFont(ofSize: 20, weight: .regular)
+    view.text = "abcdef\nsecond line"
+    view.tintColor = .systemBlue
+    view.selectedRange = NSRange(location: 2, length: 0)
+    view.layoutIfNeeded()
+    let initial = view.caretRect(for: try XCTUnwrap(view.selectedTextRange).start)
+    let navigator = KeyflowCursorNavigator()
+    navigator.begin(view)
+    navigator.move(view, translation: CGPoint(x: 0.25, y: 3.5))
+    XCTAssertEqual(view.selectedRange.location, 2)
+    XCTAssertEqual(navigator.floatingCaret.frame.midX, initial.midX + 0.25, accuracy: 0.01)
+    XCTAssertEqual(navigator.floatingCaret.frame.midY, initial.midY + 3.5, accuracy: 0.01)
+    XCTAssertEqual(view.tintColor, .clear)
+    navigator.move(view, translation: CGPoint(x: 180, y: 90))
+    XCTAssertGreaterThan(navigator.floatingCaret.frame.midX, view.caretRect(for: try XCTUnwrap(view.selectedTextRange).start).midX)
+    let image = UIGraphicsImageRenderer(bounds: view.bounds).image { view.layer.render(in: $0.cgContext) }
+    let attachment = XCTAttachment(image: image)
+    attachment.name = "floating-caret-in-blank-space"
+    attachment.lifetime = .keepAlways
+    add(attachment)
+    navigator.reset()
+    XCTAssertNil(navigator.floatingCaret.superview)
+    XCTAssertEqual(view.tintColor, .systemBlue)
+    XCTAssertEqual(view.selectedRange.location, view.text.count)
+  }
+
+  func testMultilineCursorMovesAcrossVisualLinesAndEmoji() throws {
+    let view = UITextView(frame: CGRect(x: 0, y: 0, width: 150, height: 220))
+    view.font = UIFont.monospacedSystemFont(ofSize: 18, weight: .regular)
+    view.text = "abcdefghi\nx\nabcdefghi\nlong text that wraps onto more than one visual line 👨‍👩‍👧‍👦"
+    view.layoutIfNeeded()
+    view.selectedRange = NSRange(location: 5, length: 0)
+    let cursor = KeyflowCursorNavigator()
+    let initial = view.caretRect(for: try XCTUnwrap(view.selectedTextRange).start)
+    cursor.begin(view)
+    cursor.move(view, translation: CGPoint(x: 0, y: initial.height))
+    XCTAssertEqual(view.selectedRange.location, 11, "Short lines must clamp to their end")
+    cursor.move(view, translation: CGPoint(x: 0, y: initial.height * 2))
+    XCTAssertEqual(view.selectedRange.location, 17, "The unsnapped horizontal target must survive a short line")
+    cursor.move(view, translation: .zero)
+    XCTAssertEqual(view.selectedRange.location, 5, "Reversing the drag must return to the original column")
+    view.selectedRange = NSRange(location: (view.text as NSString).length, length: 0)
+    cursor.begin(view)
+    let string = view.text as NSString
+    let emoji = string.rangeOfComposedCharacterSequence(at: string.length - 1)
+    for dx: CGFloat in [-1, -5, -10, -20] {
+      cursor.move(view, translation: CGPoint(x: dx, y: 0))
+      let offset = view.selectedRange.location
+      XCTAssertTrue(offset <= emoji.location || offset == string.length, "Native hit testing must not split composed emoji")
+    }
+    let caret = view.caretRect(for: view.endOfDocument)
+    cursor.move(view, translation: CGPoint(x: 0, y: -caret.height))
+    let moved = view.caretRect(for: try XCTUnwrap(view.selectedTextRange).start)
+    XCTAssertLessThan(moved.midY, caret.midY, "Wrapped text must use rendered line geometry")
+  }
+
+  func testTrackpadEmitsBothCursorAxes() throws {
+    try withTrackpad { keyboard, touch, _ in
+      var moves: [KeyflowAction] = []
+      keyboard.onAction = { moves.append($0) }
+      touch.point.x += 0.25
+      touch.point.y += 0.5
+      keyboard.touchesMoved([touch], with: nil)
+      XCTAssertEqual(moves, [.moveCursor(CGPoint(x: 0.25, y: 0.5))], "Even fractional drag coordinates must reach native hit testing")
+      touch.point.x += 16
+      touch.point.y += 48
+      keyboard.touchesMoved([touch], with: nil)
+      XCTAssertEqual(moves.last, .moveCursor(CGPoint(x: 16.25, y: 48.5)))
+    }
+  }
+
+  func testAccentPresentationRespectsHapticsSetting() throws {
+    for enabled in [false, true] {
+      var pulses = 0
+      try withAccentPopup(hapticsEnabled: enabled, feedback: { pulses += 1 }) { keyboard, touch, choices, _ in
+        XCTAssertEqual(pulses, enabled ? 1 : 0, "Opening accents must emit exactly one enabled haptic")
+        touch.point = try XCTUnwrap(choices.first { !$0.isPressed }).center
+        keyboard.touchesMoved([touch], with: nil)
+        XCTAssertEqual(pulses, enabled ? 2 : 0, "Selecting a different accent must pulse")
+        keyboard.touchesMoved([touch], with: nil)
+        XCTAssertEqual(pulses, enabled ? 2 : 0, "Moving within the same accent must not pulse again")
+      }
+      XCTAssertEqual(pulses, enabled ? 2 : 0, "Cancellation must not emit a haptic")
+    }
+  }
+
+  func testWideAccentUsesOnlyPopupSelectionHighlight() throws {
+    try withAccentPopup(value: "a") { keyboard, touch, choices, indicator in
+      let wide = try XCTUnwrap(choices.first { $0.caption.lowercased() == "æ" })
+      let originalSize = indicator.bounds.size
+      for material in ["flat", "raised"] {
+        var theme = keyboard.theme
+        theme.material = material
+        theme.background = "#163B50"
+        theme.keyBackground = "#163B50"
+        theme.selectedKeyBackground = "#327F8D"
+        keyboard.theme = theme
+        touch.point = CGPoint(x: wide.frame.midX, y: wide.frame.midY)
+        keyboard.touchesMoved([touch], with: nil)
+        XCTAssertTrue(wide.isPressed)
+        XCTAssertEqual(wide.face.backgroundColor, UIColor.clear, "The indicator must be the only accent fill")
+        XCTAssertEqual(wide.face.layer.shadowOpacity, 0)
+        XCTAssertEqual(wide.face.transform, .identity)
+        XCTAssertEqual(indicator.bounds.size, originalSize, "Wide letters must not deform the highlight")
+        XCTAssertEqual(indicator.center, wide.center)
+      }
+      keyboard.layoutIfNeeded()
+      let image = UIGraphicsImageRenderer(size: CGSize(width: keyboard.bounds.width, height: keyboard.bounds.height + 160)).image { context in
+        context.cgContext.translateBy(x: 0, y: 160)
+        keyboard.layer.render(in: context.cgContext)
+      }
+      let attachment = XCTAttachment(image: image)
+      attachment.name = "wide-accent-single-highlight"
+      attachment.lifetime = .keepAlways
+      add(attachment)
+    }
+  }
+
   func testAccentHighlightStaysCenteredWithinChoice() throws {
     try withAccentPopup { keyboard, touch, choices, indicator in
       let choice = choices[1]
@@ -282,7 +460,7 @@ final class KeyflowRenderingTests: XCTestCase {
       keyboard.onAction = { moves.append($0) }
       touch.point.x += 24
       keyboard.touchesMoved([touch], with: nil)
-      XCTAssertEqual(moves, [.moveCursor(3)], "Fading must not block cursor movement")
+      XCTAssertEqual(moves, [.moveCursor(CGPoint(x: 24, y: 0))], "Fading must not block cursor movement")
     }
   }
 
@@ -367,8 +545,10 @@ final class KeyflowRenderingTests: XCTestCase {
     }
   }
 
-  private func withAccentPopup(value: String = "e", _ check: (KeyflowKeyboardView, AccentTouch, [KeyflowKey], UIView) throws -> Void) throws {
+  private func withAccentPopup(value: String = "e", hapticsEnabled: Bool = false, feedback: (() -> Void)? = nil, _ check: (KeyflowKeyboardView, AccentTouch, [KeyflowKey], UIView) throws -> Void) throws {
     let keyboard = KeyflowKeyboardView()
+    keyboard.hapticsEnabled = hapticsEnabled
+    if let feedback { keyboard.hapticFeedback = feedback }
     let screen = UIScreen.main.bounds.size
     keyboard.updateViewport(screen, insets: .zero)
     keyboard.frame = CGRect(x: 0, y: 0, width: screen.width, height: keyboard.intrinsicContentSize.height)

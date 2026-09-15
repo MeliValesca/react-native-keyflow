@@ -14,6 +14,46 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class KeyflowRenderingTest {
   @Test
+  fun reactOwnedSoftInputFlagSurvivesModeChangesAndDetach() {
+    ActivityScenario.launch(KeyflowTestActivity::class.java).use { scenario ->
+      scenario.onActivity { activity ->
+        val editor = android.widget.EditText(activity)
+        val policy = KeyflowSoftInputPolicy()
+        for (system in listOf(false, true)) {
+          // React updates the prop when disabling Keyflow or mounting a baseline.
+          editor.showSoftInputOnFocus = false
+          policy.remember(editor, managedByReact = true)
+          policy.apply(editor, system)
+          assertEquals(
+            "Native mode changes must preserve React props",
+            false,
+            editor.showSoftInputOnFocus,
+          )
+          editor.showSoftInputOnFocus = true
+          policy.restore(editor)
+          assertTrue("Cleanup must preserve React's IME policy", editor.showSoftInputOnFocus)
+        }
+      }
+    }
+  }
+
+  @Test
+  fun nativeEditorSoftInputFlagRestoresItsOriginalValue() {
+    ActivityScenario.launch(KeyflowTestActivity::class.java).use { scenario ->
+      scenario.onActivity { activity ->
+        val editor = android.widget.EditText(activity)
+        val policy = KeyflowSoftInputPolicy()
+        editor.showSoftInputOnFocus = true
+        policy.remember(editor, managedByReact = false)
+        policy.apply(editor, false)
+        assertEquals(false, editor.showSoftInputOnFocus)
+        policy.restore(editor)
+        assertTrue(editor.showSoftInputOnFocus)
+      }
+    }
+  }
+
+  @Test
   fun numberPageTypesEveryDigit() = withKeyboard { activity, keys ->
     fun key(label: String) = keys().first { it.label == label }
     key("?123").performClick()

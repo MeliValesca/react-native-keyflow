@@ -1,14 +1,10 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
-import { Platform, TextInput } from 'react-native';
+import { Platform } from 'react-native';
 import {
   getKeyboardMetrics,
   type KeyflowKeyboardMetrics,
 } from 'react-native-keyflow/testing';
-import type {
-  KeyflowTheme,
-  KeyflowKeyboardFrame,
-  KeyflowKeyboardType,
-} from 'react-native-keyflow';
+import type { KeyflowTheme, KeyflowKeyboardType } from 'react-native-keyflow';
 import { useKeyflow } from 'react-native-keyflow';
 import { launchTest, testPlatform } from '../testing/launch';
 import {
@@ -20,12 +16,10 @@ const pause = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export function useCustomizationTests(loaded: boolean, landscape: boolean) {
-  const input = useRef<TextInput>(null),
-    alive = useRef(true),
+  const alive = useRef(true),
     launched = useRef(false);
   const [theme, setTheme] = useState<KeyflowTheme>(customizationBase);
   const [type, setType] = useState<KeyflowKeyboardType>('default');
-  const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
   const [requested, setRequested] = useState(false);
   const [running, setRunning] = useState(false);
   const [status, setStatus] = useState(
@@ -34,10 +28,9 @@ export function useCustomizationTests(loaded: boolean, landscape: boolean) {
   const [report, setReport] = useState<object | null>(null),
     [diagnostic, setDiagnostic] = useState<object | null>(null);
   const [visual, setVisual] = useState(-1);
-  const bindings = useKeyflow(input, {
+  const { inputRef: input, keyflowInputProps: bindings } = useKeyflow({
     keyboardType: type,
     keyflowTheme: theme,
-    onKeyboardFrameChange: setFrame,
   });
   useEffect(() => {
     alive.current = true;
@@ -46,7 +39,7 @@ export function useCustomizationTests(loaded: boolean, landscape: boolean) {
       alive.current = false;
       void mountedInput?.blur();
     };
-  }, []);
+  }, [input]);
   const change = (next: KeyflowTheme) => {
     setTheme(next);
     void input.current?.focus();
@@ -223,8 +216,6 @@ export function useCustomizationTests(loaded: boolean, landscape: boolean) {
     theme,
     type,
     setType,
-    frame,
-    setFrame,
     running,
     status,
     report,

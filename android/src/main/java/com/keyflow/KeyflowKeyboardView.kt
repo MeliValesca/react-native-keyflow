@@ -199,14 +199,29 @@ internal class KeyflowKeyboardView(
           else -> onAction(action, value)
         }
       }
-    if (action == "space") key.onSlide = { onAction("cursor", it.toString()) }
+    if (action == "space") key.onSlideStart = { onAction("cursorStart", "") }
+    if (action == "space") key.onSlideEnd = { onAction("cursorEnd", "") }
+    if (action == "space")
+      key.onSlide = { horizontal, vertical -> onAction("cursor", "$horizontal,$vertical") }
     if (action == "letter") {
       key.hasAlternatives = accentPopup.hasAlternatives(label)
-      key.onHold = { accentPopup.show(key, shifted, page == "letters") }
-      key.onAccessibleHold = {
-        accentPopup.show(key, shifted, page == "letters", accessible = true)
+      key.onHold = {
+        accentPopup.show(key, shifted, page == "letters").also { shown ->
+          if (shown && hapticsEnabled) performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+        }
       }
-      key.onHoldMove = { x, y -> accentPopup.move(x, y) }
+      key.onAccessibleHold = {
+        accentPopup.show(key, shifted, page == "letters", accessible = true).also { shown ->
+          if (shown && hapticsEnabled) performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+        }
+      }
+      key.onHoldMove = { x, y ->
+        val previous = accentPopup.selection
+        accentPopup.move(x, y)
+        if (hapticsEnabled && accentPopup.selection != null && accentPopup.selection != previous) {
+          performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+        }
+      }
       key.onHoldEnd = { commit ->
         val choice = accentPopup.selection
         accentPopup.dismiss()
@@ -218,7 +233,10 @@ internal class KeyflowKeyboardView(
     }
     if (isPad && keyboardType == "phone-pad" && label == "0") {
       key.hasAlternatives = true
-      key.onHold = { true }
+      key.onHold = {
+        if (hapticsEnabled) performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+        true
+      }
       key.onAccessibleHold = {
         onAction("text", "+")
         true

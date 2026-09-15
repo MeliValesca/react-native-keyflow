@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { parse } from 'yaml';
+import { interactionShards } from './ios-interaction-shards.mjs';
 const workflow = parse(readFileSync('.github/workflows/native.yml', 'utf8'));
 const jobs = workflow.jobs;
 
@@ -55,6 +56,39 @@ test('each device consumes the artifact from its required single platform produc
   }
 });
 
+test('iPad shards partition every interaction case and share one required gate', () => {
+  const source = readFileSync(
+    'scripts/ios-tests/KeyflowQwertyTests.swift',
+    'utf8',
+  );
+  const shards = interactionShards(source);
+  const all = [...source.matchAll(/func (test\w+)\(/g)].map(
+    (match) => match[1],
+  );
+  assert.equal(new Set(shards.flat()).size, all.length);
+  assert.deepEqual(shards.flat().sort(), all.sort());
+  assert.ok(Math.abs(shards[0].length - shards[1].length) <= 1);
+  assert.throws(() => interactionShards(''), /Missing/);
+  assert.throws(
+    () => interactionShards('func testA() {} func testA() {}'),
+    /duplicate/,
+  );
+  assert.ok(jobs['ios-ipad'].needs.includes('ios-ipad-suites'));
+  assert.ok(jobs['ios-ipad-suites'].needs.includes('ios'));
+  assert.ok(
+    jobs['ios-ipad-suites'].steps.some(
+      (step) =>
+        step.uses?.startsWith('actions/download-artifact') &&
+        step.with.name === 'ios-test-build',
+    ),
+  );
+  assert.equal(jobs['ios-ipad-suites'].strategy['fail-fast'], false);
+  assert.ok(jobs['ios-ipad'].steps[0].run.includes('= success'));
+  assert.ok(
+    jobs['ios-ipad-suites'].steps.some((step) => step.run?.includes('--shard')),
+  );
+});
+
 test('all protected build and device check names remain present', () => {
   const names = [jobs.android.name, jobs.ios.name];
   for (const platform of ['android', 'ios']) {
@@ -67,6 +101,7 @@ test('all protected build and device check names remain present', () => {
       ),
     );
   }
+  names.push(jobs['ios-ipad'].name.replace('${{ matrix.label }}', 'iPad'));
   assert.deepEqual(
     names.sort(),
     [
@@ -110,9 +145,56 @@ test('prebuilt runners cannot fall back to compiling missing artifacts', () => {
   );
 });
 
-test('device coverage has no optional mode or hidden filters', () => {
+test('Android phone and tablet run both native and real React Native app suites', () => {
+  const runner = readFileSync(
+    'scripts/android-tests/run-prebuilt-ci.sh',
+    'utf8',
+  );
+  assert.match(runner, /install -r "\$keyflow_build\/example\.apk"/);
+  assert.match(runner, /stim start --json/);
+  assert.match(runner, /startup\.py "\$keyflow_port" android/);
+  assert.match(runner, /scripts\/android-tests\/instrumentation\.py/);
+  assert.match(runner, /scripts\/android-tests\/app\.py/);
+  assert.match(runner, /set -euo pipefail/);
+  assert.ok(
+    runner.indexOf('python3 scripts/android-tests/app.py') <
+      runner.indexOf('python3 scripts/android-tests/instrumentation.py'),
+    'Previously failing app groups must run before native instrumentation',
+  );
+  assert.doesNotMatch(runner, /scripts\/android-tests\/app\.py[^\n]*\|\|/);
+  assert.ok(
+    jobs['android-interactions'].steps.some((step) =>
+      step.run?.includes('stim@1.2.0'),
+    ),
+  );
+});
+
+test('PRs require core device coverage while scheduled and manual runs retain full comparisons', () => {
   assert.equal(workflow.on.workflow_dispatch, null);
-  assert.equal(workflow.env?.KEYFLOW_TEST_SUITE, undefined);
+  assert.match(
+    workflow.env.KEYFLOW_CI_PROFILE,
+    /schedule.*workflow_dispatch.*'full'.*'smoke'/,
+  );
+  const ios = readFileSync('scripts/ci/run-ios.sh', 'utf8');
+  assert.match(ios, /KEYFLOW_CI_PROFILE:-full/);
+  assert.match(ios, /set -- testKeyflowCoreInteractions/);
+  assert.ok(
+    ios.indexOf('node scripts/run-ios-qwerty-tests.mjs') <
+      ios.indexOf('xcodebuild test-without-building'),
+  );
+  const matrices = [
+    ...jobs['ios-ipad-suites'].strategy.matrix.include.matchAll(/'(\[.*?\])'/g),
+  ];
+  assert.equal(
+    JSON.parse(matrices.at(-1)[1]).length,
+    1,
+    'PR iPad core suite needs only one runner',
+  );
+  assert.equal(
+    JSON.parse(matrices.at(-2)[1]).length,
+    2,
+    'Full manual iPad inventory stays sharded',
+  );
   for (const file of [
     'scripts/ci/run-ios.sh',
     'scripts/run-ios-qwerty-tests.mjs',
@@ -123,6 +205,22 @@ test('device coverage has no optional mode or hidden filters', () => {
       /KEYFLOW_TEST_SUITE|selectedTests|extended_tests/,
     );
   }
+});
+
+test('iPad held-key cases stay isolated while phone cases share launches', () => {
+  const source = readFileSync(
+    'scripts/ios-tests/KeyflowQwertyTests.swift',
+    'utf8',
+  );
+  assert.doesNotMatch(source, /func testAccentCataloguesFit\(/);
+  assert.match(source, /func testPhoneAccentCataloguesFit\(/);
+  assert.match(source, /func testTabletAccentCatalogueAFits\(/);
+  assert.match(source, /func testTabletAccentCatalogueUppercaseSFits\(/);
+
+  const runner = readFileSync('scripts/run-ios-qwerty-tests.mjs', 'utf8');
+  assert.match(runner, /'-test-timeouts-enabled',\s*'YES'/);
+  assert.match(runner, /'-maximum-test-execution-time-allowance',\s*'240'/);
+  assert.equal(jobs['ios-interactions']['timeout-minutes'], 45);
 });
 
 test('device sources contain the proven inventory plus glyph and Shift regressions', () => {
@@ -139,6 +237,13 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
     const regressions =
       group === 'iosRendering'
         ? [
+            'testPanelCoversBottomCornersWithoutExtraOpacity',
+            'testPanelMaskLayoutDoesNotStartImplicitAnimations',
+            'testTrackpadCaretFloatsBetweenCharactersAndRestoresOnRelease',
+            'testMultilineCursorMovesAcrossVisualLinesAndEmoji',
+            'testTrackpadEmitsBothCursorAxes',
+            'testAccentPresentationRespectsHapticsSetting',
+            'testWideAccentUsesOnlyPopupSelectionHighlight',
             'testPhoneDoubleShiftLocksCaseAndShowsLockGlyph',
             'testSpacePressChangesDefaultFillAndRestoresOnRelease',
             'testSpacePressRestoresCustomFillOnCancellation',
@@ -155,7 +260,11 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
             'testTabletCapsLockClearsManualShift',
             'testTabletShiftTurnsCapsLockOff',
           ]
-        : [];
+        : [
+            'testMultilineEditorSupportsReturnAndVerticalTrackpad',
+            'testRemountedInputUsesTheSelectedKeyboardBeforeTyping',
+            'testKeyflowCoreInteractions',
+          ];
     assert.deepEqual(
       actual.sort(),
       [...baseline[group], ...regressions].sort(),
@@ -171,6 +280,7 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
       );
     });
   const regressions = [
+    'multilineCursorPreservesColumnAndMovesOnBothAxes',
     'phoneDoubleShiftLocksCaseAndShowsDistinctGlyph',
     'leftShiftFillsArrowsUntilOneLetterIsTyped',
     'rightShiftFillsArrowsUntilOneLetterIsTyped',
@@ -189,7 +299,12 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
   ].map((name) => `com.keyflow.KeyflowPressFeedbackTest#${name}`);
   assert.deepEqual(
     actual.sort(),
-    [...baseline.androidInstrumentation, ...regressions].sort(),
+    [
+      ...baseline.androidInstrumentation,
+      ...regressions,
+      'com.keyflow.KeyflowRenderingTest#reactOwnedSoftInputFlagSurvivesModeChangesAndDetach',
+      'com.keyflow.KeyflowRenderingTest#nativeEditorSoftInputFlagRestoresItsOriginalValue',
+    ].sort(),
   );
 });
 
@@ -218,13 +333,13 @@ test('scope passes event-specific base and head for PRs and main pushes', () => 
 });
 
 for (const file of ['ci.yml', 'native.yml']) {
-  test(`${file}: newer runs cannot cancel matching checks being reused`, () => {
+  test(`${file}: newer PR/branch revisions cancel superseded runs`, () => {
     const workflow = parse(readFileSync(`.github/workflows/${file}`, 'utf8'));
     assert.equal(
       workflow.concurrency.group,
-      '${{ github.workflow }}-${{ github.run_id }}',
+      '${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}',
     );
-    assert.equal(workflow.concurrency['cancel-in-progress'], false);
+    assert.equal(workflow.concurrency['cancel-in-progress'], true);
     assert.equal(workflow.permissions.actions, 'read');
   });
 }

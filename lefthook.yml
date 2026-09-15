@@ -1,5 +1,8 @@
 pre-commit:
   commands:
+    swift-format:
+      glob: 'ios/*.swift'
+      run: if command -v xcrun >/dev/null 2>&1; then xcrun swift-format lint --strict {staged_files}; fi
     lint:
       run: corepack yarn lint
     types:

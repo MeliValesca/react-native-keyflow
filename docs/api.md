@@ -28,13 +28,11 @@ The custom keyboard supports iOS and Android only. Calling the hook on an unsupp
 
 ```tsx
 import { Platform, TextInput } from 'react-native';
-import { useRef } from 'react';
 import { useKeyflow } from 'react-native-keyflow';
 
 function NativeKeyflowInput() {
-  const inputRef = useRef<TextInput>(null);
-  const bindings = useKeyflow(inputRef);
-  return <TextInput {...bindings} ref={inputRef} placeholder="Start typing…" />;
+  const { keyflowInputProps } = useKeyflow();
+  return <TextInput {...keyflowInputProps} placeholder="Start typing…" />;
 }
 
 export function CrossPlatformInput() {
@@ -51,21 +49,19 @@ The fallback uses the browser’s normal input behavior; Keyflow’s keyboard th
 
 ```tsx
 import { TextInput } from 'react-native';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useKeyflow } from 'react-native-keyflow';
 
 export function Input() {
-  const inputRef = useRef<TextInput>(null);
   const [mode, setMode] = useState<'custom' | 'system'>('custom');
-  const bindings = useKeyflow(inputRef, {
+  const { keyflowInputProps } = useKeyflow({
     keyboardMode: mode,
     onKeyboardModeChange: setMode,
   });
 
   return (
     <TextInput
-      {...bindings}
-      ref={inputRef}
+      {...keyflowInputProps}
       defaultValue="Hello"
       onChangeText={(text) => console.log(text)}
       onSubmitEditing={(event) =>
@@ -87,55 +83,79 @@ export function Input() {
 | `keyboardLanguages`        | English/French language and QWERTY/AZERTY template entries                                                                           |
 | `hapticsEnabled`           | Optional key feedback, off by default                                                                                                |
 | `showSecondaryKeyLabels`   | Android’s 1–0 key legends, on by default; hiding them preserves long-press shortcuts. This prop does not hide iPad alternate legends |
-| `onKeyboardFrameChange`    | Frame callback for the shared avoiding-view integration                                                                              |
+| `onKeyboardFrameChange`    | Optional frame observer; `KeyflowAvoidingView` tracks the active frame automatically                                                 |
 | `onKeyboardModeChange`     | Reports custom/system mode changes                                                                                                   |
 | `onKeyboardLanguageChange` | Reports `{ language, layout }`                                                                                                       |
 | `onKeyboardHeightChange`   | Android custom panel height; prefer the frame callback for new integrations                                                          |
 
 The app owns its editor and text. Use ordinary React Native `TextInput` props such as `value`, `defaultValue`, `onChangeText`, `onSubmitEditing`, `placeholderTextColor`, `accessibilityLabel`, `editable`, and `submitBehavior` directly on the input. Keyflow adds no input height, padding, border, color, or font. `onSubmitEditing` receives the standard React Native event, not a string.
 
-Pass a stable `TextInput` ref to `useKeyflow`, then spread the returned `showSoftInputOnFocus`, `onFocus`, and `onSelectionChange` bindings onto that same input. The ref allows native keyboard attachment; the callbacks keep focus and cursor context synchronized. For custom components, forward the ref and bindings to the underlying `TextInput`, not a surrounding `View`.
+The hook returns:
+
+| Value                | Purpose                                                                |
+| -------------------- | ---------------------------------------------------------------------- |
+| `keyflowInputProps`  | The ref and event bindings to spread onto your input                   |
+| `focus()` / `blur()` | Stable methods that target the currently mounted input                 |
+| `inputRef`           | The same ref included in `keyflowInputProps`, for other native methods |
+
+Text state, input appearance, and composer content remain app-controlled. There is no external ref argument.
+
+Single-line and `multiline` inputs are supported. Set editor height, scrolling, and `numberOfLines` on the input. During trackpad movement, a floating caret follows continuous horizontal and vertical drag coordinates across text and blank space inside the input. The native editor resolves the insertion position through text hit testing, including soft wrapping; release removes the floating caret and restores the native caret at that position. The drag target is anchored at gesture start and remains independent of the snapped caret across short lines. Hold space on iOS, or use the space-slide gesture on Android. Return uses the native React Native editing pipeline and respects `submitBehavior`.
+
+Call `useKeyflow(options)` and spread `keyflowInputProps` onto your `TextInput`. The hook creates a stable ref and includes it with the `showSoftInputOnFocus`, `onFocus`, and `onSelectionChange` bindings. The ref allows native keyboard attachment; the callbacks keep focus and cursor context synchronized. For custom components, forward the ref and bindings to the underlying `TextInput`, not a surrounding `View`.
 
 Compose your own focus/selection callbacks with the bindings:
 
 ```tsx
 <MyTextInput
-  {...bindings}
-  ref={inputRef}
+  {...keyflowInputProps}
   value={text}
   onChangeText={setText}
   onFocus={(event) => {
-    bindings.onFocus?.(event);
+    keyflowInputProps.onFocus?.(event);
     setFocused(true);
   }}
   onSelectionChange={(event) => {
-    bindings.onSelectionChange?.(event);
+    keyflowInputProps.onSelectionChange?.(event);
     setSelection(event.nativeEvent.selection);
   }}
   style={styles.input}
 />
 ```
 
-The hook option `keyboardType` chooses the custom layout. Set `keyboardType` on your input too when you want a matching system keyboard. Your input's `keyboardAppearance` controls system mode; the hook option controls the custom keyboard. Multiline inputs are rejected. Focusing a replacement input attached to the same ref reattaches its keyboard.
+The hook option `keyboardType` chooses the custom layout. Set `keyboardType` on your input too when you want a matching system keyboard. Your input's `keyboardAppearance` controls system mode; the hook option controls the custom keyboard. Single-line and multiline inputs are supported. Focusing a replacement input attached to the same ref reattaches its keyboard.
 
-The ref remains a normal React Native `TextInput` ref, so call `inputRef.current?.focus()` and `inputRef.current?.blur()` normally. Change the controlled `keyboardMode` option to switch between custom and system keyboards. A mode change preserves text and selection, cancels active holds, and resets the custom keyboard page.
+The hook returns stable `focus()` and `blur()` methods that act on the currently mounted input and safely do nothing when it is absent. It also exposes `inputRef`, a normal React Native `TextInput` ref, for other native methods. Change the controlled `keyboardMode` option to switch between custom and system keyboards. A mode change preserves text and selection, cancels active holds, and resets the custom keyboard page.
 
 System mode delegates layout, languages, composition and settings to the user’s installed keyboard. Its visibility and floating/hardware-keyboard configuration remain controlled by the OS and IME. Keyflow’s colors and fonts cannot reskin that system keyboard.
 
 ## Keyboard avoidance
 
-Use `KeyflowAvoidingView` for the shared iOS/Android integration, with the active input’s `onKeyboardFrameChange` connected to `keyboardFrame`. A frame describes the area occupied by the keyboard; the avoiding view uses it to keep the composer visible without a hardcoded keyboard height.
+Wrap your content in `KeyflowAvoidingView` for shared iOS/Android integration. It follows the active Keyflow frame internally; no frame state or callback wiring is needed. `onKeyboardFrameChange` remains an optional observer for diagnostics or custom layouts. A frame describes the area occupied by the keyboard; the avoiding view uses it to keep the composer visible without a hardcoded keyboard height.
 
 ```tsx
+const { keyflowInputProps } = useKeyflow({
+  keyflowTheme,
+});
+
 <KeyflowAvoidingView
-  keyboardFrame={frame}
   keyboardVerticalOffset={headerOffset}
   enabled
   style={{ flex: 1 }}
 >
-  {/* Your content and the TextInput bound by useKeyflow */}
+  <TextInput {...keyflowInputProps} style={styles.input} />
+</KeyflowAvoidingView>;
+```
+
+For custom layouts, the optional `keyboardFrame` prop overrides automatic tracking:
+
+```tsx
+<KeyflowAvoidingView keyboardFrame={customFrame} style={styles.container}>
+  <TextInput {...keyflowInputProps} style={styles.input} />
 </KeyflowAvoidingView>
 ```
+
+Omitting `keyboardFrame` follows the active Keyflow. Passing a frame uses your supplied geometry; passing `null` bypasses Keyflow’s tracked frame (iOS can still use native keyboard notifications). Set `enabled={false}` to turn avoidance off entirely. The hook’s optional `onKeyboardFrameChange` callback remains available when you need frame events for diagnostics or another layout implementation.
 
 Set `headerOffset` for your actual container/navigation setup. The example uses React Navigation’s header height on iOS and zero on Android. Do not blindly copy a fixed number or add another keyboard-height spacer.
 
@@ -183,8 +203,10 @@ const materialTheme = {
     material: { type: 'raised', depth: 4, shadowColor: '#102030' },
   },
 };
-const bindings = useKeyflow(inputRef, { keyflowTheme: materialTheme });
-<TextInput {...bindings} ref={inputRef} />;
+const { keyflowInputProps } = useKeyflow({
+  keyflowTheme: materialTheme,
+});
+<TextInput {...keyflowInputProps} />;
 ```
 
 - `backgroundOpacity` (0–1) replaces the panel color’s alpha.

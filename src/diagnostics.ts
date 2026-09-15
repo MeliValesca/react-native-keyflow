@@ -2,6 +2,9 @@
 import type { RefObject } from 'react';
 import type { TextInput } from 'react-native';
 import type { KeyflowKeyboardType } from './useKeyflow';
+import type { KeyflowKeyboardFrame } from './keyboardGeometry';
+import { requireNativeModule } from 'expo';
+import { Platform } from 'react-native';
 export type KeyflowKeyboardMetrics = {
   /** Read-only screen-space touch targets for device regression tests. */
   keyFrames?: {
@@ -65,4 +68,16 @@ export function getKeyboardMetrics(
   const read = ref && readers.get(ref);
   if (!read) return Promise.reject(new Error('Keyflow input is not mounted'));
   return read();
+}
+
+/** Android-only, read-only OS frame for testing an unattached system editor. */
+export function getSystemKeyboardFrame(): Promise<KeyflowKeyboardFrame> {
+  if (Platform.OS !== 'android') {
+    return Promise.reject(
+      new Error('System frame diagnostics require Android'),
+    );
+  }
+  return requireNativeModule<{
+    getSystemKeyboardFrame(): Promise<KeyflowKeyboardFrame>;
+  }>('Keyflow').getSystemKeyboardFrame();
 }

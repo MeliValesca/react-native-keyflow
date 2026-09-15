@@ -1,19 +1,18 @@
 import { ExampleTextInput } from '../components/common/ExampleTextInput';
 import { getKeyboardMetrics } from 'react-native-keyflow/testing';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import {
   Platform,
   Pressable,
   ScrollView,
   Text,
-  TextInput,
   View,
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useKeyflow, KeyflowAvoidingView } from 'react-native-keyflow';
-import type { KeyflowKeyboardFrame } from 'react-native-keyflow';
+
 import { ComparisonTabs } from '../components/common/ComparisonTabs';
 
 // Android's ScrollView can transfer focus during an orientation resize.
@@ -21,11 +20,9 @@ import { ComparisonTabs } from '../components/common/ComparisonTabs';
 const Content = Platform.OS === 'android' ? View : ScrollView;
 
 export function LanguageScreen() {
-  const input = useRef<TextInput>(null);
   const [source, setSource] = useState<'example' | 'device'>('example');
   const [layout, setLayout] = useState<'azerty' | 'qwerty'>('azerty');
   const [mode, setMode] = useState<'custom' | 'system'>('custom');
-  const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
   const [selection, setSelection] = useState('English · QWERTY');
   const [diagnostic, setDiagnostic] = useState('');
   const [error, setError] = useState('');
@@ -33,14 +30,13 @@ export function LanguageScreen() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const landscape = width > height;
-  const bindings = useKeyflow(input, {
+  const { inputRef: input, keyflowInputProps: bindings } = useKeyflow({
     keyboardLanguages:
       source === 'device'
         ? undefined
         : [{ language: 'en' }, { language: 'fr', layout }],
     keyboardMode: mode,
     onKeyboardModeChange: setMode,
-    onKeyboardFrameChange: setFrame,
     onKeyboardLanguageChange: (value) =>
       setSelection(`${value.language} · ${value.layout.toUpperCase()}`),
   });
@@ -65,7 +61,6 @@ export function LanguageScreen() {
   return (
     <KeyflowAvoidingView
       style={{ flex: 1 }}
-      keyboardFrame={frame}
       keyboardVerticalOffset={Platform.OS === 'ios' ? header : 0}
     >
       <Content
@@ -134,7 +129,6 @@ export function LanguageScreen() {
           >
             <ExampleTextInput
               {...bindings}
-              ref={input}
               accessibilityLabel="Language input"
               placeholder="Hello / Bonjour…"
               autoCorrect={false}

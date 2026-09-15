@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
+import { getKeyflowFrame, subscribeToKeyflowFrame } from './keyflowFrameStore';
 import { Keyboard, Platform, View, useWindowDimensions } from 'react-native';
 import type { KeyboardEvent, ViewProps } from 'react-native';
 import { keyboardOverlap } from './keyboardGeometry';
@@ -7,13 +14,13 @@ import type { KeyflowKeyboardFrame } from './keyboardGeometry';
 export type KeyflowAvoidingViewProps = ViewProps & {
   enabled?: boolean;
   keyboardVerticalOffset?: number;
-  /** Connect the active useKeyflow frame callback for shared iOS/Android integration. */
+  /** Optional override for custom layouts; otherwise follows the active Keyflow automatically. */
   keyboardFrame?: KeyflowKeyboardFrame | null;
 };
 
-/** Shared keyboard avoidance for iOS and Android. Wire the active input's frame callback. */
+/** Shared keyboard avoidance for iOS and Android, following the active input automatically. */
 export function KeyflowAvoidingView({
-  keyboardFrame = null,
+  keyboardFrame: frameOverride,
   enabled = true,
   keyboardVerticalOffset = 0,
   style,
@@ -21,6 +28,13 @@ export function KeyflowAvoidingView({
   onLayout,
   ...props
 }: KeyflowAvoidingViewProps) {
+  const activeFrame = useSyncExternalStore(
+    subscribeToKeyflowFrame,
+    getKeyflowFrame,
+    getKeyflowFrame,
+  );
+  const keyboardFrame =
+    frameOverride === undefined ? activeFrame : frameOverride;
   const { height: windowHeight } = useWindowDimensions();
   const container = useRef<View>(null);
   const [bottom, setBottom] = useState(0);

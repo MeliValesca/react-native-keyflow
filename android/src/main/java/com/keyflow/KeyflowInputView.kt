@@ -145,7 +145,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
   private val editor: EditText
     get() = checkNotNull(attachedEditor) { "Keyflow input is not attached" }
 
-  private var savedSoftInputOnFocus = true
+  private val softInputPolicy = KeyflowSoftInputPolicy()
   private val providedTextWatcher =
     object : TextWatcher {
       override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -184,19 +184,16 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     }
     val view = expoContext.findView<View>(tag)
     val field = view?.let { findEditor(it) }
-    require(
-      field != null && field.inputType and android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE == 0
-    ) {
-      "Keyflow requires a single-line React Native TextInput ref."
-    }
+    require(field != null) { "Keyflow requires a React Native TextInput ref." }
     val changed = attachedEditor !== field
     if (changed) {
       detachInput()
       attachedEditor = field
-      savedSoftInputOnFocus = field.showSoftInputOnFocus
+      cursorNavigator.reset()
+      softInputPolicy.remember(field, field is ReactEditText)
       field.addTextChangedListener(providedTextWatcher)
     }
-    field.showSoftInputOnFocus = mode == "system"
+    softInputPolicy.apply(field, mode == "system")
     updateInputContext()
     if (changed && field.hasFocus()) requestKeyboard()
   }
@@ -206,7 +203,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     removeCallbacks(showRequest)
     hideKeyboard(animated = false)
     field.removeTextChangedListener(providedTextWatcher)
-    field.showSoftInputOnFocus = savedSoftInputOnFocus
+    softInputPolicy.restore(field)
     attachedEditor = null
   }
 
@@ -370,7 +367,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     updateInputContext()
     lastSpace = 0
     if (attachedEditor == null) return
-    editor.showSoftInputOnFocus = value == "system"
+    softInputPolicy.apply(editor, value == "system")
     // Refresh the existing editor connection when changing its IME policy.
     // Dismissing the popup can temporarily take window focus away from it.
     (context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).restartInput(
@@ -549,6 +546,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
   }
 
   private fun hideKeyboard(animated: Boolean = true) {
+    cursorNavigator.reset()
 
     keyboard.cancelTouches()
     back?.remove()
@@ -560,7 +558,10 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     }
   }
 
+  private val cursorNavigator = KeyflowCursorNavigator()
+
   private fun replace(text: String) {
+    cursorNavigator.reset()
     val start = minOf(editor.selectionStart, editor.selectionEnd).coerceAtLeast(0)
     val end = maxOf(editor.selectionStart, editor.selectionEnd).coerceAtLeast(start)
     val oldLength = editor.length()
@@ -572,7 +573,21 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
 
   private fun submit() {
     // Keep React Native's submitBehavior and onSubmitEditing event pipeline.
-    editor.onEditorAction(EditorInfo.IME_ACTION_DONE)
+    if (editor.inputType and android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE != 0) {
+      // Send native Enter events so React Native decides between newline and
+      // submit/blur using its existing submitBehavior listener.
+      editor.dispatchKeyEvent(
+        android.view.KeyEvent(
+          android.view.KeyEvent.ACTION_DOWN,
+          android.view.KeyEvent.KEYCODE_ENTER,
+        )
+      )
+      editor.dispatchKeyEvent(
+        android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_ENTER)
+      )
+    } else {
+      editor.onEditorAction(EditorInfo.IME_ACTION_DONE)
+    }
   }
 
   private fun activate(action: String, text: String) {
@@ -584,7 +599,10 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     )
       return
     when (action) {
+      "cursorStart" -> cursorNavigator.begin(editor)
+      "cursorEnd" -> cursorNavigator.reset()
       "text" -> {
+        cursorNavigator.reset()
         val now = android.os.SystemClock.uptimeMillis()
         val before = editor.text.substring(0, editor.selectionStart.coerceAtLeast(0))
         if (
@@ -609,6 +627,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
         updateInputContext()
       }
       "delete" -> {
+        cursorNavigator.reset()
         val start = minOf(editor.selectionStart, editor.selectionEnd).coerceAtLeast(0)
         val end = maxOf(editor.selectionStart, editor.selectionEnd).coerceAtLeast(start)
         if (start != end) replace("")
@@ -621,18 +640,14 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
         }
       }
       "cursor" -> {
-        val iterator = BreakIterator.getCharacterInstance(Locale.ROOT)
-        iterator.setText(editor.text.toString())
-        var position = editor.selectionStart.coerceAtLeast(0)
-        val steps = text.toIntOrNull() ?: 0
-        repeat(kotlin.math.abs(steps)) {
-          val next = if (steps < 0) iterator.preceding(position) else iterator.following(position)
-          if (next != BreakIterator.DONE) position = next
+        val translation = text.split(',').map { it.toFloatOrNull() }
+        if (translation.size != 2 || translation.any { it == null }) return
+        val start = editor.selectionStart
+        val end = editor.selectionEnd
+        cursorNavigator.move(editor, translation[0]!!, translation[1]!!)
+        if (start != editor.selectionStart || end != editor.selectionEnd) {
+          keyboard.updateContext(editor.text.substring(0, editor.selectionStart.coerceAtLeast(0)))
         }
-        editor.setSelection(position)
-        // Cursor movement does not trigger TextWatcher. Re-evaluate sentence
-        // capitalization from the new insertion point just like Gboard does.
-        keyboard.updateContext(editor.text.substring(0, position))
       }
       "paste" ->
         (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip?.let {

@@ -3,6 +3,11 @@ import type { KeyflowKeyboardMetrics } from './diagnostics';
 import { serializeKeyboardLanguages } from './languages';
 import type { KeyflowLanguage } from './languages';
 import type { KeyflowKeyboardFrame } from './keyboardGeometry';
+import {
+  claimKeyflowFrame,
+  clearKeyflowFrame,
+  publishKeyflowFrame,
+} from './keyflowFrameStore';
 import { requireNativeModule } from 'expo';
 import {
   useCallback,
@@ -54,10 +59,17 @@ export type KeyflowOptions = {
   }) => void;
 };
 
-export type KeyflowBindings = Pick<
+export type KeyflowInputProps = Pick<
   TextInputProps,
   'showSoftInputOnFocus' | 'onFocus' | 'onSelectionChange'
->;
+> & { ref: RefObject<TextInput | null> };
+
+export type KeyflowResult = {
+  keyflowInputProps: KeyflowInputProps;
+  inputRef: RefObject<TextInput | null>;
+  focus(): void;
+  blur(): void;
+};
 
 type KeyflowEvents = {
   onKeyflowFrameChange(event: KeyflowKeyboardFrame & { id: string }): void;
@@ -74,7 +86,7 @@ type KeyflowNativeModule = {
     name: Name,
     listener: KeyflowEvents[Name],
   ): { remove(): void };
-  attachInput(id: string, tag: number): Promise<void>;
+  attachInput(id: string, tag: number): Promise<boolean | void>;
   configure(
     id: string,
     mode: string,
@@ -96,18 +108,19 @@ const KeyflowNative =
     : null;
 let nextKeyflowId = 0;
 
-/** Attach a native Keyflow keyboard to an app-owned single-line TextInput. */
-export function useKeyflow(
-  inputRef: RefObject<TextInput | null>,
-  options: KeyflowOptions = {},
-): KeyflowBindings {
+/** Attach a native Keyflow keyboard to an app-owned TextInput. */
+export function useKeyflow(options: KeyflowOptions = {}): KeyflowResult {
   if (!KeyflowNative)
     throw new Error(
       'useKeyflow supports iOS and Android. Use a native build with Expo modules installed.',
     );
   const [id] = useState(() => `keyflow-${++nextKeyflowId}`);
+  const inputRef = useRef<TextInput>(null);
+  const focus = useCallback(() => inputRef.current?.focus(), []);
+  const blur = useCallback(() => inputRef.current?.blur(), []);
   const colorScheme = useColorScheme();
   const mounted = useRef(true);
+  const attachmentAllowed = useRef(true);
   const [error, setError] = useState<Error | null>(null);
   const [panelHeight, setPanelHeight] = useState(0);
   const {
@@ -143,17 +156,53 @@ export function useKeyflow(
       if (tag == null) {
         if (!required) return;
         throw new Error(
-          'useKeyflow requires a ref attached to a native single-line TextInput.',
+          'useKeyflow requires a ref attached to a native TextInput.',
         );
       }
-      await KeyflowNative.attachInput(id, tag);
+      if (required || inputRef.current?.isFocused?.()) claimKeyflowFrame(id);
+      const target = inputRef.current;
+      for (let attempt = 0; attempt < 8; attempt++) {
+        if (
+          !mounted.current ||
+          !attachmentAllowed.current ||
+          inputRef.current !== target
+        )
+          return;
+        if ((await KeyflowNative.attachInput(id, tag)) !== false) return;
+        // Wait for another mount frame only when Android reports “not ready”.
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => resolve()),
+        );
+      }
+      if (
+        mounted.current &&
+        attachmentAllowed.current &&
+        inputRef.current === target
+      ) {
+        throw new Error('Keyflow TextInput did not finish its native mount.');
+      }
     },
     [id, inputRef],
   );
 
+  // Keep teardown in the same phase, before configuration setup. A passive
+  // cleanup during Fast Refresh can otherwise destroy the newly configured id.
   useLayoutEffect(() => {
     mounted.current = true;
+    return () => {
+      mounted.current = false;
+      attachmentAllowed.current = false;
+      clearKeyflowFrame(id);
+      void KeyflowNative.destroy(id);
+    };
+  }, [id]);
+
+  useLayoutEffect(() => {
+    mounted.current = true;
+    attachmentAllowed.current = enabled;
     if (!enabled) {
+      clearKeyflowFrame(id);
+      setPanelHeight(0);
       void KeyflowNative.destroy(id);
       return;
     }
@@ -169,7 +218,9 @@ export function useKeyflow(
       hapticsEnabled,
       showSecondaryKeyLabels,
     )
-      .then(() => attachInput(false))
+      .then(() => {
+        if (active) return attachInput(false);
+      })
       .catch((cause: Error) => {
         if (active) setError(cause);
       });
@@ -190,18 +241,12 @@ export function useKeyflow(
     themeJSON,
   ]);
 
-  useEffect(
-    () => () => {
-      mounted.current = false;
-      void KeyflowNative.destroy(id);
-    },
-    [id],
-  );
-
   useEffect(() => {
     const subscriptions = [
       KeyflowNative.addListener('onKeyflowFrameChange', (event) => {
-        if (event.id === id) onKeyboardFrameChange?.(event);
+        if (event.id !== id) return;
+        if (enabled) publishKeyflowFrame(id, event);
+        onKeyboardFrameChange?.(event);
       }),
       KeyflowNative.addListener('onKeyflowHeightChange', (event) => {
         if (event.id !== id) return;
@@ -217,6 +262,7 @@ export function useKeyflow(
     ];
     return () => subscriptions.forEach((subscription) => subscription.remove());
   }, [
+    enabled,
     id,
     onKeyboardFrameChange,
     onKeyboardHeightChange,
@@ -236,8 +282,9 @@ export function useKeyflow(
     return () => subscription.remove();
   }, [inputRef, panelHeight]);
 
-  const bindings = useMemo<KeyflowBindings>(
+  const keyflowInputProps = useMemo<KeyflowInputProps>(
     () => ({
+      ref: inputRef,
       showSoftInputOnFocus: !enabled || keyboardMode === 'system',
       onFocus: () => {
         if (!enabled) return;
@@ -255,5 +302,5 @@ export function useKeyflow(
     [attachInput, enabled, id, keyboardMode],
   );
   if (error) throw error;
-  return bindings;
+  return { keyflowInputProps, inputRef, focus, blur };
 }

@@ -2,11 +2,11 @@ import { ExampleTextInput } from '../components/common/ExampleTextInput';
 import { settledKeyboardMode } from '../testing/settledKeyboardMode';
 import { getKeyboardMetrics } from 'react-native-keyflow/testing';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { KeyflowAvoidingView, useKeyflow } from 'react-native-keyflow';
-import type { KeyflowKeyboardFrame } from 'react-native-keyflow';
+
 import { ComparisonTabs } from '../components/common/ComparisonTabs';
 
 const cases = {
@@ -15,28 +15,28 @@ const cases = {
   Tone: 'A👋🏽',
   Repeat: 'abcdefghijklmnop',
   Cursor: 'alpha beta',
+  Multiline: 'alpha\nbeta\ngamma',
 };
 const pause = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 export function InteractionScreen() {
-  const input = useRef<TextInput>(null);
   const [mode, setMode] = useState<'custom' | 'system'>('custom');
   const [revision, setRevision] = useState(0);
   const [text, setText] = useState('');
-  const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
+  const [multiline, setMultiline] = useState(false);
   const [diagnostic, setDiagnostic] = useState('');
   const [running, setRunning] = useState(false);
   const alive = useRef(true);
   const request = useRef(0);
+  const diagnosticRequest = useRef(0);
   const header = useHeaderHeight();
-  const bindings = useKeyflow(input, {
+  const { inputRef: input, keyflowInputProps: bindings } = useKeyflow({
     keyboardMode: mode,
     keyboardAppearance: 'light',
-    onKeyboardFrameChange: setFrame,
   });
   useEffect(() => {
     input.current?.focus();
-  }, [revision]);
+  }, [input, revision]);
   useFocusEffect(
     useCallback(() => {
       alive.current = true;
@@ -45,7 +45,7 @@ export function InteractionScreen() {
         request.current++;
         void input.current?.blur();
       };
-    }, []),
+    }, [input]),
   );
   const switchMode = async (next: 'custom' | 'system') => {
     const id = ++request.current;
@@ -54,19 +54,26 @@ export function InteractionScreen() {
     if (alive.current && id === request.current) input.current?.focus();
   };
   const reset = async (name: keyof typeof cases) => {
+    diagnosticRequest.current++;
     await input.current?.blur();
     setText(cases[name]);
+    setMultiline(name === 'Multiline');
     setDiagnostic('');
-    setFrame(null);
     setRevision((value) => value + 1);
   };
   const inspect = async () => {
+    const id = ++diagnosticRequest.current;
+    setDiagnostic('');
     const metrics = await getKeyboardMetrics(input);
-    setDiagnostic(JSON.stringify(metrics));
+    if (alive.current && id === diagnosticRequest.current) {
+      setDiagnostic(JSON.stringify({ ...metrics, diagnosticRequest: id }));
+    }
     console.info('KEYFLOW_INTERACTION_STATE', JSON.stringify(metrics));
   };
   const run = async () => {
     if (running) return;
+    diagnosticRequest.current++;
+    setDiagnostic('');
     setRunning(true);
     const results: object[] = [];
     try {
@@ -115,11 +122,22 @@ export function InteractionScreen() {
       }
       const result = { result: 'PASS', checks: results.length, results };
       console.info('KEYFLOW_SWITCH_TEST', JSON.stringify(result));
-      setDiagnostic(JSON.stringify(result));
+      setDiagnostic(
+        JSON.stringify({
+          ...result,
+          diagnosticRequest: diagnosticRequest.current,
+        }),
+      );
     } catch (error) {
       const result = { result: 'FAIL', error: String(error), results };
       console.info('KEYFLOW_SWITCH_TEST', JSON.stringify(result));
-      if (alive.current) setDiagnostic(JSON.stringify(result));
+      if (alive.current)
+        setDiagnostic(
+          JSON.stringify({
+            ...result,
+            diagnosticRequest: diagnosticRequest.current,
+          }),
+        );
     } finally {
       if (alive.current) setRunning(false);
     }
@@ -198,7 +216,6 @@ export function InteractionScreen() {
         </Text>
       </View>
       <KeyflowAvoidingView
-        keyboardFrame={frame}
         keyboardVerticalOffset={Platform.OS === 'ios' ? header : 0}
         style={{ flex: 1 }}
       >
@@ -206,8 +223,9 @@ export function InteractionScreen() {
         <ExampleTextInput
           {...bindings}
           key={revision}
-          ref={input}
+          testID={`interaction-input-${revision}`}
           value={text}
+          multiline={multiline}
           keyboardAppearance="light"
           accessibilityLabel="Interaction test input"
           placeholder="Start typing…"
@@ -219,7 +237,8 @@ export function InteractionScreen() {
             );
           }}
           style={{
-            height: 48,
+            height: multiline ? 120 : 48,
+            textAlignVertical: multiline ? 'top' : 'center',
             marginHorizontal: 12,
             marginBottom: 8,
             backgroundColor: 'white',

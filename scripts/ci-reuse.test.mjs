@@ -1,12 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  fingerprint,
-  eligible,
-  waitForSuccess,
-  reusableRun,
-} from './ci-reuse.mjs';
+import { fingerprint, eligible, reusableRun } from './ci-reuse.mjs';
 
 const tree = '100644 blob abc\tsrc/index.ts\0';
 test('documentation-only updates preserve the merged input fingerprint', () => {
@@ -60,54 +55,12 @@ test('only older matching PR/repository/workflow runs are eligible', () => {
     { conclusion: 'failure' },
     { conclusion: 'cancelled' },
     { conclusion: 'skipped' },
+    { status: 'queued' },
+    { status: 'in_progress' },
   ]) {
     assert.equal(Boolean(eligible({ ...run, ...patch }, current, 3)), false);
   }
 });
-test('running checks must finish successfully before reuse', async () => {
-  const states = [
-    { status: 'in_progress' },
-    { status: 'completed', conclusion: 'success' },
-  ];
-  let sleeps = 0;
-  assert.equal(
-    await waitForSuccess(
-      () => states.shift(),
-      async () => {
-        sleeps++;
-      },
-    ),
-    true,
-  );
-  assert.equal(sleeps, 1);
-});
-for (const conclusion of ['failure', 'cancelled', 'timed_out', 'skipped']) {
-  test(`${conclusion} results are never reused`, async () => {
-    assert.equal(
-      await waitForSuccess(
-        () => ({ status: 'completed', conclusion }),
-        async () => {},
-      ),
-      false,
-    );
-  });
-}
-test('a stuck run has a bounded wait and falls back to executing tests', async () => {
-  let time = 0;
-  assert.equal(
-    await waitForSuccess(
-      () => ({ status: 'in_progress' }),
-      async (ms) => {
-        time += ms;
-      },
-      () => time,
-      60_000,
-    ),
-    false,
-  );
-  assert.equal(time, 60_000);
-});
-
 test('base branch updates require new checks even with an identical final tree', () => {
   assert.notEqual(
     fingerprint(tree, 'title', 'base1'),
@@ -148,13 +101,15 @@ for (const artifacts of [
     assert.equal(await reusableRun(fakeApi(artifacts), 20, 3, 'key'), null);
   });
 }
-test('matching pending run that fails or times out cannot be reused', async () => {
-  const api = fakeApi([{ name: 'ci-inputs-key', expired: false }], {
-    ...run,
-    status: 'in_progress',
+for (const status of ['queued', 'in_progress']) {
+  test(`matching ${status} runs never delay or skip the current tests`, async () => {
+    const api = fakeApi([{ name: 'ci-inputs-key', expired: false }], {
+      ...run,
+      status,
+    });
+    assert.equal(await reusableRun(api, 20, 3, 'key'), null);
   });
-  assert.equal(await reusableRun(api, 20, 3, 'key', async () => false), null);
-});
+}
 
 test('API unavailability falls back to tests rather than granting reuse', () => {
   const result = spawnSync(process.execPath, ['scripts/ci-reuse.mjs'], {
