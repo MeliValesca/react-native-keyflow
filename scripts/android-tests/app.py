@@ -552,7 +552,7 @@ class ExampleSuite:
 
 
 def run_cli(serial, output):
-    awake = subprocess.Popen(['/usr/bin/caffeinate', '-d', '-i', '-w', str(os.getpid())],
+    awake = subprocess.Popen(['/usr/bin/caffeinate', '-d', '-i', '-s', '-u', '-w', str(os.getpid())],
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) if sys.platform == 'darwin' else None
     try:
         ExampleSuite(serial, output).run()

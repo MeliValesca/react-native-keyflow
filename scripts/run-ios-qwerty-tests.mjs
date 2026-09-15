@@ -11,10 +11,11 @@ if (!/^[0-9A-F-]{36}$/i.test(device || ''))
 const prebuilt = process.env.KEYFLOW_IOS_XCTESTRUN;
 if (prebuilt && !existsSync(prebuilt))
   throw new Error('Missing shared XCTest bundle');
-// Simulator input synthesis cannot progress while the local Mac is asleep.
+// Wake the display and prevent both idle and AC maintenance sleep while
+// simulator input synthesis is running.
 const awake = spawn(
   '/usr/bin/caffeinate',
-  ['-d', '-i', '-w', String(process.pid)],
+  ['-d', '-i', '-s', '-u', '-w', String(process.pid)],
   {
     stdio: 'ignore',
   },

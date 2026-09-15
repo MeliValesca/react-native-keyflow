@@ -19,7 +19,7 @@ class AppHarnessTests(unittest.TestCase):
                 else:
                     with self.assertRaisesRegex(AssertionError, 'device failure'):
                         run_cli('owned-device', 'output')
-                self.assertEqual(process.call_args.args[0][1:3], ['-d', '-i'])
+                self.assertEqual(process.call_args.args[0][1:5], ['-d', '-i', '-s', '-u'])
                 process.return_value.terminate.assert_called_once()
                 process.return_value.wait.assert_called_once_with(timeout=5)
 
