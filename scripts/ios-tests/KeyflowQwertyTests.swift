@@ -26,6 +26,13 @@ final class KeyflowQwertyTests: XCTestCase {
         introduction.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
       }
+      if UIDevice.current.userInterfaceIdiom == .pad {
+        // A fresh iPad keyboard can type the base character on its first hold
+        // without presenting alternatives. Initialize that native path during
+        // setup, before collecting any reference gesture or comparison.
+        key(["E"]).press(forDuration: 2)
+        XCTAssertFalse(text.isEmpty, "Native held-key warm-up must process input")
+      }
       // The introduction creates and dismisses system keyboard windows. End
       // that warm-up session so its responder/AX state cannot leak into the
       // first test. This is setup only; no test action is replayed.
@@ -488,16 +495,15 @@ final class KeyflowQwertyTests: XCTestCase {
     for native in [true, false] {
       mode(native); reset("Empty")
       let e = key(["E"])
-      // Measured É center in the English iOS 26.5 E accent row. Continuous
-      // hold + drag stays in UIKit, avoiding host-tool viewport clipping.
+      // Measured accent targets in the English iOS 26.5 E popup. Assert the
+      // intended accent so a missing native popup cannot become the reference.
       let origin = e.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
       let tablet = max(app.frame.width, app.frame.height) >= 1000
-      let destination = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: e.frame.midX - (tablet ? 84 : 38), dy: e.frame.midY - (tablet ? 60 : 55)))
-      origin.press(forDuration: 1.2, thenDragTo: destination, withVelocity: .slow, thenHoldForDuration: 0.1)
+      let destination = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: e.frame.midX - (tablet ? 84 : 38) - app.frame.minX, dy: e.frame.midY - (tablet ? 60 : 55) - app.frame.minY))
+      origin.press(forDuration: 2, thenDragTo: destination, withVelocity: .slow, thenHoldForDuration: 0.1)
+      waitForText(tablet ? "Ě" : "É", context: "\(native ? "Apple" : "Keyflow") drag must select the target accent")
       if native {
         expected = text
-        XCTAssertFalse(expected.isEmpty, "Native accent drag must produce a character")
-        if !tablet { XCTAssertEqual(expected, "É", "Native drag must reach the selected accent") }
       }
       else { XCTAssertEqual(text, expected) }
       capture(native ? "apple-accent-drag" : "keyflow-accent-drag")
