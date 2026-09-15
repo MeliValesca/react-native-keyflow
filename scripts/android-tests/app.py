@@ -123,7 +123,9 @@ class ExampleSuite:
         labels = {value for node in nodes for value in (node.get('text', ''), node.get('content-desc', ''))}
         anr = next((label for label in labels if label.endswith("isn't responding") or label.endswith('isn’t responding')), None)
         if anr:
-            return 'system_anr' if anr in ("System UI isn't responding", 'System UI isn’t responding', "Process system isn't responding", 'Process system isn’t responding') else 'app_anr'
+            system_names = ('System UI', 'Process system', 'Quickstep', 'Pixel Launcher')
+            system_dialogs = {name + suffix for name in system_names for suffix in (" isn't responding", ' isn’t responding')}
+            return 'system_anr' if anr in system_dialogs else 'app_anr'
         if 'Open React Native dev menu' in labels and 'Reload' in labels:
             return 'dev_menu'
         if 'Keyboard lab' in labels:
