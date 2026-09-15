@@ -35,6 +35,38 @@ final class KeyflowRenderingTests: XCTestCase {
   func testPhonePadRaisedLargeSquareFits() { assertFits("phone-pad", "raised", 32.0, 0.0) }
   func testPhonePadRaisedLargeRoundedFits() { assertFits("phone-pad", "raised", 32.0, 24.0) }
 
+  func testWideAccentUsesOnlyPopupSelectionHighlight() throws {
+    try withAccentPopup(value: "a") { keyboard, touch, choices, indicator in
+      let wide = try XCTUnwrap(choices.first { $0.caption.lowercased() == "æ" })
+      let originalSize = indicator.bounds.size
+      for material in ["flat", "raised"] {
+        var theme = keyboard.theme
+        theme.material = material
+        theme.background = "#163B50"
+        theme.keyBackground = "#163B50"
+        theme.selectedKeyBackground = "#327F8D"
+        keyboard.theme = theme
+        touch.point = CGPoint(x: wide.frame.midX, y: wide.frame.midY)
+        keyboard.touchesMoved([touch], with: nil)
+        XCTAssertTrue(wide.isPressed)
+        XCTAssertEqual(wide.face.backgroundColor, UIColor.clear, "The indicator must be the only accent fill")
+        XCTAssertEqual(wide.face.layer.shadowOpacity, 0)
+        XCTAssertEqual(wide.face.transform, .identity)
+        XCTAssertEqual(indicator.bounds.size, originalSize, "Wide letters must not deform the highlight")
+        XCTAssertEqual(indicator.center, wide.center)
+      }
+      keyboard.layoutIfNeeded()
+      let image = UIGraphicsImageRenderer(size: CGSize(width: keyboard.bounds.width, height: keyboard.bounds.height + 160)).image { context in
+        context.cgContext.translateBy(x: 0, y: 160)
+        keyboard.layer.render(in: context.cgContext)
+      }
+      let attachment = XCTAttachment(image: image)
+      attachment.name = "wide-accent-single-highlight"
+      attachment.lifetime = .keepAlways
+      add(attachment)
+    }
+  }
+
   func testAccentHighlightStaysCenteredWithinChoice() throws {
     try withAccentPopup { keyboard, touch, choices, indicator in
       let choice = choices[1]
