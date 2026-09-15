@@ -36,6 +36,7 @@ internal class KeyflowKeyView(
   var iconSize = if (action in listOf("delete", "submit")) 26f else 24f
   var onSlide: ((Float, Float) -> Unit)? = null
   var onSlideStart: (() -> Unit)? = null
+  var onSlideEnd: (() -> Unit)? = null
   var onHold: (() -> Boolean)? = null
   var onAccessibleHold: (() -> Boolean)? = null
   var onHoldMove: ((Float, Float) -> Unit)? = null
@@ -546,11 +547,15 @@ internal class KeyflowKeyView(
         MotionEvent.ACTION_UP ->
           if (sliding) {
             onSlide?.invoke(event.x - touchX, event.y - touchY)
+            onSlideEnd?.invoke()
             sliding = false
             isPressed = false
             return true
           }
-        MotionEvent.ACTION_CANCEL -> sliding = false
+        MotionEvent.ACTION_CANCEL -> {
+          onSlideEnd?.invoke()
+          sliding = false
+        }
       }
       if (sliding) return true
     }

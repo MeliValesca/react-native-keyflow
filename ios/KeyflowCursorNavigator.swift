@@ -42,9 +42,19 @@ extension UITextInput where Self: UIView {
 /// Keeps the unsnapped drag target independent of the resolved caret position.
 final class KeyflowCursorNavigator {
   private var origin: CGPoint?
-  func reset() { origin = nil }
+  private weak var editor: (UIView & UITextInput)?
+  private var originalTint: UIColor?
+  let floatingCaret = UIView()
+  func reset() {
+    if let editor, let originalTint { editor.tintColor = originalTint }
+    floatingCaret.removeFromSuperview()
+    editor = nil
+    originalTint = nil
+    origin = nil
+  }
 
   func begin(_ input: UIView & UITextInput) {
+    reset()
     guard let selection = input.selectedTextRange else { reset(); return }
     let caret = input.caretRect(for: selection.start)
     origin = CGPoint(x: caret.midX, y: caret.midY)
@@ -55,19 +65,36 @@ final class KeyflowCursorNavigator {
     guard let origin else { return }
     let target = CGPoint(x: origin.x + translation.x, y: origin.y + translation.y)
     guard let position = input.closestPosition(to: target) else { return }
-    if let selection = input.selectedTextRange, selection.isEmpty,
-      input.compare(position, to: selection.start) == .orderedSame
-    {
-      return
-    }
     let before = input.caretRect(for: position)
-    input.selectedTextRange = input.textRange(from: position, to: position)
-    if let view = input as? UITextView { view.scrollRangeToVisible(view.selectedRange) }
+    if editor == nil {
+      editor = input
+      originalTint = input.tintColor
+      floatingCaret.backgroundColor = input.tintColor
+      floatingCaret.isUserInteractionEnabled = false
+      floatingCaret.isAccessibilityElement = false
+      input.addSubview(floatingCaret)
+      input.tintColor = .clear
+    }
+    if let selection = input.selectedTextRange,
+      !selection.isEmpty || input.compare(position, to: selection.start) != .orderedSame
+    {
+      input.selectedTextRange = input.textRange(from: position, to: position)
+      if let view = input as? UITextView { view.scrollRangeToVisible(view.selectedRange) }
+    }
     input.layoutIfNeeded()
     // UITextField can scroll its internal text as selection changes. Keep the
     // original drag anchor in the same text coordinates after that adjustment.
     let after = input.caretRect(for: position)
     self.origin = CGPoint(
       x: origin.x + after.midX - before.midX, y: origin.y + after.midY - before.midY)
+    let width = max(2, before.width)
+    let height = max(1, before.height)
+    let x = min(
+      max(target.x + after.midX - before.midX, input.bounds.minX + width / 2),
+      input.bounds.maxX - width / 2)
+    let y = min(
+      max(target.y + after.midY - before.midY, input.bounds.minY + height / 2),
+      input.bounds.maxY - height / 2)
+    floatingCaret.frame = CGRect(x: x - width / 2, y: y - height / 2, width: width, height: height)
   }
 }

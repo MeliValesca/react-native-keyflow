@@ -200,6 +200,7 @@ internal class KeyflowKeyboardView(
         }
       }
     if (action == "space") key.onSlideStart = { onAction("cursorStart", "") }
+    if (action == "space") key.onSlideEnd = { onAction("cursorEnd", "") }
     if (action == "space")
       key.onSlide = { horizontal, vertical -> onAction("cursor", "$horizontal,$vertical") }
     if (action == "letter") {

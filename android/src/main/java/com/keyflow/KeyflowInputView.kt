@@ -546,6 +546,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
   }
 
   private fun hideKeyboard(animated: Boolean = true) {
+    cursorNavigator.reset()
 
     keyboard.cancelTouches()
     back?.remove()
@@ -599,7 +600,9 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
       return
     when (action) {
       "cursorStart" -> cursorNavigator.begin(editor)
+      "cursorEnd" -> cursorNavigator.reset()
       "text" -> {
+        cursorNavigator.reset()
         val now = android.os.SystemClock.uptimeMillis()
         val before = editor.text.substring(0, editor.selectionStart.coerceAtLeast(0))
         if (

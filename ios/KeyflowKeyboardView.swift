@@ -747,6 +747,7 @@ final class KeyflowKeyboardView: UIView {
   }
 
   private func cancelTouches() {
+    if cursorMode { onAction?(.endCursorMovement) }
     holdWork?.cancel()
     holdWork = nil
     heldTouch = nil

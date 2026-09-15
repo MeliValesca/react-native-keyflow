@@ -4,6 +4,7 @@ enum KeyflowAction: Equatable {
   case text(String)
   case moveCursor(CGPoint)
   case beginCursorMovement
+  case endCursorMovement
   case shift, capsLock, delete, numbers, symbols, letters, submit, dismiss, system, nextLanguage
 }
 

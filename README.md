@@ -116,7 +116,7 @@ export function Composer() {
 />
 ```
 
-On iOS, hold space to enter trackpad mode, then slide in any direction. Keyflow tracks the continuous drag point and the native editor resolves the nearest caret position, including wrapped lines. Android's space-slide gesture supports both directions too. The drag target stays independent of the snapped caret, so short lines do not discard its horizontal position. Return follows your input's React Native `submitBehavior`; multiline inputs insert a newline by default.
+On iOS, hold space to enter trackpad mode, then slide in any direction. A floating caret follows the finger freely across letters and blank space inside the input. On release, it snaps to the nearest valid insertion position, including wrapped lines. Android's space-slide gesture supports both directions too. The drag target stays independent of the snapped caret, so short lines do not discard its horizontal position. Return follows your input's React Native `submitBehavior`; multiline inputs insert a newline by default.
 
 Call `useKeyflow` unconditionally with the component's other hooks. The input itself may render later, such as after a font or other asset loads; Keyflow attaches when that input receives focus. See [the input API](docs/api.md#input-api) for composing callbacks and [keyboard avoidance](docs/api.md#keyboard-avoidance) for navigation headers.
 

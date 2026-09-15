@@ -46,6 +46,16 @@ class KeyflowPressFeedbackTest {
         val layout = editor.layout
         val lineHeight = (layout.getLineBottom(0) - layout.getLineTop(0)).toFloat()
         cursor.begin(editor)
+        cursor.move(editor, density * 2, density * 3)
+        assertEquals(5, editor.selectionStart)
+        assertFalse(editor.isCursorVisible)
+        val targetX =
+          layout.getPrimaryHorizontal(5) + editor.totalPaddingLeft - editor.scrollX + density * 2
+        assertEquals(targetX, cursor.floatingCaret!!.bounds.exactCenterX(), 1f)
+        cursor.reset()
+        assertTrue(editor.isCursorVisible)
+        assertNull(cursor.floatingCaret)
+        cursor.begin(editor)
         cursor.move(editor, 0f, lineHeight)
         assertEquals(11, editor.selectionStart)
         cursor.move(editor, 0f, lineHeight * 2)
@@ -57,6 +67,22 @@ class KeyflowPressFeedbackTest {
         val before = layout.getLineForOffset(editor.selectionStart)
         cursor.move(editor, 0f, -lineHeight)
         assertEquals(before - 1, layout.getLineForOffset(editor.selectionStart))
+        cursor.move(editor, width.toFloat(), 120 * density)
+        val floatingBounds = android.graphics.Rect(cursor.floatingCaret!!.bounds)
+        val image = Bitmap.createBitmap(editor.width, editor.height, Bitmap.Config.ARGB_8888)
+        editor.draw(Canvas(image))
+        assertNotEquals(
+          "Floating caret must render in blank space",
+          image.getPixel(1, floatingBounds.centerY()),
+          image.getPixel(floatingBounds.centerX(), floatingBounds.centerY()),
+        )
+        cursor.reset()
+        assertTrue(editor.isCursorVisible)
+        editor.isCursorVisible = false
+        cursor.begin(editor)
+        cursor.move(editor, 1f, 1f)
+        cursor.reset()
+        assertFalse("Restore the app's original cursor visibility", editor.isCursorVisible)
 
         val moves = mutableListOf<Pair<Float, Float>>()
         val space = KeyflowKeyView(activity, "space", "") {}

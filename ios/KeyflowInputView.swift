@@ -161,6 +161,7 @@ final class KeyflowInputView: ExpoView {
   }
 
   @objc private func providedInputEndedEditing() {
+    cursorNavigator.reset()
     clearKeyboardFrame()
     keyboard.cancelInteractions()
     lastSpaceTime = 0
@@ -445,6 +446,8 @@ final class KeyflowInputView: ExpoView {
     switch action {
     case .beginCursorMovement:
       cursorNavigator.begin(textField)
+    case .endCursorMovement:
+      cursorNavigator.reset()
     case .text(let value):
       cursorNavigator.reset()
       let now = CACurrentMediaTime()

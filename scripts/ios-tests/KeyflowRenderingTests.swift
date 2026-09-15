@@ -68,6 +68,34 @@ final class KeyflowRenderingTests: XCTestCase {
     }
   }
 
+  func testTrackpadCaretFloatsBetweenCharactersAndRestoresOnRelease() throws {
+    let view = UITextView(frame: CGRect(x: 0, y: 0, width: 240, height: 180))
+    view.font = UIFont.monospacedSystemFont(ofSize: 20, weight: .regular)
+    view.text = "abcdef\nsecond line"
+    view.tintColor = .systemBlue
+    view.selectedRange = NSRange(location: 2, length: 0)
+    view.layoutIfNeeded()
+    let initial = view.caretRect(for: try XCTUnwrap(view.selectedTextRange).start)
+    let navigator = KeyflowCursorNavigator()
+    navigator.begin(view)
+    navigator.move(view, translation: CGPoint(x: 0.25, y: 3.5))
+    XCTAssertEqual(view.selectedRange.location, 2)
+    XCTAssertEqual(navigator.floatingCaret.frame.midX, initial.midX + 0.25, accuracy: 0.01)
+    XCTAssertEqual(navigator.floatingCaret.frame.midY, initial.midY + 3.5, accuracy: 0.01)
+    XCTAssertEqual(view.tintColor, .clear)
+    navigator.move(view, translation: CGPoint(x: 180, y: 90))
+    XCTAssertGreaterThan(navigator.floatingCaret.frame.midX, view.caretRect(for: try XCTUnwrap(view.selectedTextRange).start).midX)
+    let image = UIGraphicsImageRenderer(bounds: view.bounds).image { view.layer.render(in: $0.cgContext) }
+    let attachment = XCTAttachment(image: image)
+    attachment.name = "floating-caret-in-blank-space"
+    attachment.lifetime = .keepAlways
+    add(attachment)
+    navigator.reset()
+    XCTAssertNil(navigator.floatingCaret.superview)
+    XCTAssertEqual(view.tintColor, .systemBlue)
+    XCTAssertEqual(view.selectedRange.location, view.text.count)
+  }
+
   func testMultilineCursorMovesAcrossVisualLinesAndEmoji() throws {
     let view = UITextView(frame: CGRect(x: 0, y: 0, width: 150, height: 220))
     view.font = UIFont.monospacedSystemFont(ofSize: 18, weight: .regular)

@@ -23,7 +23,7 @@ The consumer passes a React Native `TextInput` ref to `useKeyflow` and spreads t
 
 `KeyflowAccentPopup` owns accent content, selection animation, drag bounds, and popup dismissal. It receives the current theme and reports visibility to the keyboard. `KeyflowKeyView` owns individual-key drawing, touch handling, preview feedback, and held-key timing. Theme conversion, icons, language resolution, and label bounds are separate components.
 
-The cursor navigators anchor a continuous two-dimensional drag target at the initial caret and resolve it through native text hit testing. They retain fractional movement and the unsnapped target across short and wrapped lines.
+The cursor navigators anchor a continuous two-dimensional drag target at the initial caret and resolve it through native text hit testing. They retain fractional movement and the unsnapped target across short and wrapped lines. During dragging, an overlay caret follows that target while the native caret is hidden. Release or cancellation removes the overlay and restores the editor’s original caret appearance at the resolved insertion position.
 
 ## Example and tests
 
