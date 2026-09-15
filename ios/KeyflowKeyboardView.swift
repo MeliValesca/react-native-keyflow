@@ -104,6 +104,7 @@ final class KeyflowKeyboardView: UIView {
   private var heldOrigin: CGPoint = .zero
   private var cursorMode = false
   private var cursorLastX: CGFloat = 0
+  private var cursorLastY: CGFloat = 0
   private var accentKeys: [KeyflowKey] = []
   private var selectedAccent: KeyflowKey?
   private let accentCallout = KeyflowCallout()
@@ -467,6 +468,8 @@ final class KeyflowKeyboardView: UIView {
           key.isPressed = false
           if value == " " {
             cursorLastX = heldOrigin.x
+            cursorLastY = heldOrigin.y
+            onAction?(.beginCursorMovement)
             setCursorMode(true)
             if hapticsEnabled { hapticFeedback() }
           } else {
@@ -505,6 +508,11 @@ final class KeyflowKeyboardView: UIView {
         if steps != 0 {
           onAction?(.moveCursor(steps))
           cursorLastX += CGFloat(steps) * 8
+        }
+        let lines = Int((point.y - cursorLastY) / 24)
+        if lines != 0 {
+          onAction?(.moveCursorVertically(lines))
+          cursorLastY += CGFloat(lines) * 24
         }
         continue
       }

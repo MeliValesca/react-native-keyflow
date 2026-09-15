@@ -15,6 +15,63 @@ import org.junit.runner.RunWith
 /** Runs on both phone and tablet; checks the rendered face at release, not just click output. */
 @RunWith(AndroidJUnit4::class)
 class KeyflowPressFeedbackTest {
+  @Test
+  fun multilineCursorPreservesColumnAndMovesOnBothAxes() {
+    ActivityScenario.launch(KeyflowTestActivity::class.java).use { scenario ->
+      scenario.onActivity { activity ->
+        val editor = android.widget.EditText(activity)
+        editor.inputType =
+          android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+        editor.typeface = android.graphics.Typeface.MONOSPACE
+        editor.textSize = 18f
+        editor.setText("abcdefghi\nx\nabcdefghi\nlong text that wraps onto several visual lines")
+        val host = FrameLayout(activity)
+        val density = activity.resources.displayMetrics.density
+        val width = (150 * density).toInt()
+        host.addView(editor, FrameLayout.LayoutParams(width, (220 * density).toInt()))
+        activity.setContentView(host)
+        editor.measure(
+          android.view.View.MeasureSpec.makeMeasureSpec(
+            width,
+            android.view.View.MeasureSpec.EXACTLY,
+          ),
+          android.view.View.MeasureSpec.makeMeasureSpec(
+            (220 * density).toInt(),
+            android.view.View.MeasureSpec.EXACTLY,
+          ),
+        )
+        editor.layout(0, 0, width, editor.measuredHeight)
+        val cursor = KeyflowCursorNavigator()
+        editor.setSelection(5)
+        cursor.move(editor, 0, 1)
+        assertEquals(11, editor.selectionStart)
+        cursor.move(editor, 0, 1)
+        assertEquals(17, editor.selectionStart)
+        cursor.move(editor, 0, -2)
+        assertEquals(5, editor.selectionStart)
+        editor.setSelection(editor.length())
+        val before = editor.layout.getLineForOffset(editor.selectionStart)
+        cursor.move(editor, 0, -1)
+        assertEquals(before - 1, editor.layout.getLineForOffset(editor.selectionStart))
+
+        val moves = mutableListOf<Pair<Int, Int>>()
+        val space = KeyflowKeyView(activity, "space", "") {}
+        space.onSlide = { x, y -> moves += x to y }
+        space.layout(0, 0, (240 * density).toInt(), (180 * density).toInt())
+        val now = SystemClock.uptimeMillis()
+        fun touch(action: Int, x: Float, y: Float) {
+          val event = MotionEvent.obtain(now, now, action, x * density, y * density, 0)
+          space.onTouchEvent(event)
+          event.recycle()
+        }
+        touch(MotionEvent.ACTION_DOWN, 30f, 30f)
+        touch(MotionEvent.ACTION_MOVE, 54f, 78f)
+        assertEquals(listOf(2 to 2), moves)
+        touch(MotionEvent.ACTION_CANCEL, 54f, 78f)
+      }
+    }
+  }
+
   @Test fun letterTapClearsFeedbackAtRelease() = assertRelease("letter", "flat", false)
 
   @Test fun spaceTapClearsFeedbackAtRelease() = assertRelease("space", "flat", false)
@@ -248,7 +305,7 @@ class KeyflowPressFeedbackTest {
       val moves = mutableListOf<Int>()
       scenario.onActivity { activity ->
         val key = KeyflowKeyView(activity, "space", "") { clicks++ }
-        key.onSlide = { moves += it }
+        key.onSlide = { horizontal, _ -> moves += horizontal }
         val host = FrameLayout(activity)
         host.addView(key, FrameLayout.LayoutParams(240, 180))
         activity.setContentView(host)

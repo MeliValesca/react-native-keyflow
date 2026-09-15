@@ -148,6 +148,17 @@ export function ShowcaseScreen({
         />
         <LabLinkCard
           eyebrow="Original app theme"
+          title="Multiline notes"
+          accessibilityLabel="Try multiline notes"
+          description="Write paragraphs, insert newlines, and move the cursor across wrapped lines in Keyflow or the system keyboard."
+          sample="↔ ↕"
+          color="#E9F6F1"
+          onPress={() =>
+            navigation.navigate('Keyboard', { preset: 'multiline' })
+          }
+        />
+        <LabLinkCard
+          eyebrow="Original app theme"
           title="Story Studio"
           description="A polished plum, rose and aqua keyboard inside a real note-writing screen."
           sample="S T O R Y"

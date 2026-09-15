@@ -26,6 +26,8 @@ export const KeyboardScreen = observer(function KeyboardScreenContent({
   navigation,
 }: NativeStackScreenProps<Routes, 'Keyboard'>) {
   const { preset } = route.params;
+  const multiline = preset === 'multiline';
+  const inputHeight = multiline ? 140 : 54;
   const { height: screenHeight } = useWindowDimensions();
   const scroll = useRef<ScrollView>(null);
   const inputY = useRef(0);
@@ -33,7 +35,10 @@ export const KeyboardScreen = observer(function KeyboardScreenContent({
   const revealInput = () => {
     if (scrollHeight.current > 0)
       scroll.current?.scrollTo({
-        y: Math.max(0, inputY.current + 54 + 16 - scrollHeight.current),
+        y: Math.max(
+          0,
+          inputY.current + inputHeight + 16 - scrollHeight.current,
+        ),
         animated: false,
       });
   };
@@ -52,7 +57,11 @@ export const KeyboardScreen = observer(function KeyboardScreenContent({
   const compact =
     Platform.OS === 'android' && screenHeight < 700 && !!frame?.visible;
   const headerHeight = useHeaderHeight();
-  const [text, setText] = useState('');
+  const [text, setText] = useState(
+    multiline
+      ? 'A note with several lines.\nTry moving up and down.\nThis longer paragraph wraps naturally as you write more text.'
+      : '',
+  );
   const [submitted, setSubmitted] = useState<string | null>(null);
   const game = preset === 'studio';
   const bindings = useKeyflow(input, {
@@ -122,7 +131,11 @@ export const KeyboardScreen = observer(function KeyboardScreenContent({
           }}
         >
           <Text style={{ color: foreground, fontSize: 32, fontWeight: '700' }}>
-            {game ? 'Make every word count.' : 'Familiar by default.'}
+            {multiline
+              ? 'Room for every line.'
+              : game
+              ? 'Make every word count.'
+              : 'Familiar by default.'}
           </Text>
           {game && (
             <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -149,7 +162,9 @@ export const KeyboardScreen = observer(function KeyboardScreenContent({
             </View>
           )}
           <Text style={{ color: foreground, lineHeight: 23 }}>
-            {game
+            {multiline
+              ? 'Write paragraphs and use Return for a new line. Hold space on iOS, or slide on space on Android, then move left/right or up/down to place the cursor. Compare with your system keyboard.'
+              : game
               ? 'An original product skin composed through Keyflow’s public theme API. The editor still supports ordinary text and selection.'
               : Platform.OS === 'ios'
               ? 'Compare the same text in Keyflow and your system keyboard. Try accents, held delete, and holding space to move the cursor.'
@@ -163,13 +178,17 @@ export const KeyboardScreen = observer(function KeyboardScreenContent({
             <ExampleTextInput
               {...bindings}
               ref={input}
+              multiline={multiline}
+              value={text}
               placeholder="Write something…"
               accessibilityLabel="Try Keyflow"
               keyboardAppearance={dark ? 'dark' : 'light'}
               onChangeText={setText}
               onSubmitEditing={(event) => setSubmitted(event.nativeEvent.text)}
               style={{
-                height: 54,
+                height: inputHeight,
+                textAlignVertical: multiline ? 'top' : 'center',
+                paddingVertical: multiline ? 12 : undefined,
                 backgroundColor: '#FFFFFF',
                 borderRadius: 12,
               }}

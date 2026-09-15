@@ -15,6 +15,7 @@ const cases = {
   Tone: 'A👋🏽',
   Repeat: 'abcdefghijklmnop',
   Cursor: 'alpha beta',
+  Multiline: 'alpha\nbeta\ngamma',
 };
 const pause = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -23,6 +24,7 @@ export function InteractionScreen() {
   const [mode, setMode] = useState<'custom' | 'system'>('custom');
   const [revision, setRevision] = useState(0);
   const [text, setText] = useState('');
+  const [multiline, setMultiline] = useState(false);
   const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
   const [diagnostic, setDiagnostic] = useState('');
   const [running, setRunning] = useState(false);
@@ -56,6 +58,7 @@ export function InteractionScreen() {
   const reset = async (name: keyof typeof cases) => {
     await input.current?.blur();
     setText(cases[name]);
+    setMultiline(name === 'Multiline');
     setDiagnostic('');
     setFrame(null);
     setRevision((value) => value + 1);
@@ -209,6 +212,7 @@ export function InteractionScreen() {
           testID={`interaction-input-${revision}`}
           ref={input}
           value={text}
+          multiline={multiline}
           keyboardAppearance="light"
           accessibilityLabel="Interaction test input"
           placeholder="Start typing…"
@@ -220,7 +224,8 @@ export function InteractionScreen() {
             );
           }}
           style={{
-            height: 48,
+            height: multiline ? 120 : 48,
+            textAlignVertical: multiline ? 'top' : 'center',
             marginHorizontal: 12,
             marginBottom: 8,
             backgroundColor: 'white',

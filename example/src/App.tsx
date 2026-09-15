@@ -25,7 +25,7 @@ export type Routes = {
   Transitions: undefined;
   Customization: undefined;
   CustomFont: undefined;
-  Keyboard: { preset: 'native' | 'studio' };
+  Keyboard: { preset: 'native' | 'studio' | 'multiline' };
 };
 const Stack = createNativeStackNavigator<Routes>();
 export default function App() {

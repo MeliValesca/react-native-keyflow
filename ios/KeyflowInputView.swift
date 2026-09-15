@@ -6,7 +6,8 @@ final class KeyflowInputView: ExpoView {
   var onKeyflowFrameChange: (([String: Any]) -> Void)?
   private var lastKeyboardFrame: CGRect?
   var onKeyflowLanguageChange: (([String: Any]) -> Void)?
-  private weak var attachedEditor: UITextField?
+  private weak var attachedEditor: (UIView & UITextInput)?
+  private let cursorNavigator = KeyflowCursorNavigator()
   private var usesCustomKeyboard = true
   private var customInputSurface: UIView?
   private var customKeyboard: UIView?
@@ -32,8 +33,7 @@ final class KeyflowInputView: ExpoView {
     guard textField.inputView !== surface || textField.inputAccessoryView !== accessory else {
       return
     }
-    textField.inputView = surface
-    textField.inputAccessoryView = accessory
+    textField.keyflowSetInputViews(surface, accessory: accessory)
     if textField.isFirstResponder { requestInputReload() }
   }
 
@@ -42,8 +42,8 @@ final class KeyflowInputView: ExpoView {
       detachInput()
       return
     }
-    func findEditor(_ view: UIView) -> UITextField? {
-      if let field = view as? UITextField { return field }
+    func findEditor(_ view: UIView) -> (UIView & UITextInput)? {
+      if view is UITextField || view is UITextView { return view as? (UIView & UITextInput) }
       return view.subviews.lazy.compactMap { findEditor($0) }.first
     }
     guard let view = appContext?.findView(withTag: tag, ofType: UIView.self),
@@ -53,7 +53,7 @@ final class KeyflowInputView: ExpoView {
         domain: "Keyflow", code: 1,
         userInfo: [
           NSLocalizedDescriptionKey:
-            "Keyflow requires a single-line React Native TextInput ref."
+            "Keyflow requires a React Native TextInput ref."
         ])
     }
     if attachedEditor !== field {
@@ -61,17 +61,22 @@ final class KeyflowInputView: ExpoView {
       attachedEditor = field
       savedInputView = field.inputView
       savedAccessoryView = field.inputAccessoryView
-      savedAutocorrection = field.autocorrectionType
-      savedSpellChecking = field.spellCheckingType
+      savedAutocorrection = field.keyflowAutocorrection
+      savedSpellChecking = field.keyflowSpellChecking
       savedLeadingBarButtonGroups = field.inputAssistantItem.leadingBarButtonGroups
       savedTrailingBarButtonGroups = field.inputAssistantItem.trailingBarButtonGroups
-      field.addTarget(self, action: #selector(textChanged), for: .editingChanged)
-      field.addTarget(self, action: #selector(providedInputBeganEditing), for: .editingDidBegin)
-      field.addTarget(self, action: #selector(providedInputEndedEditing), for: .editingDidEnd)
+      if let control = field as? UITextField {
+        control.addTarget(self, action: #selector(textChanged), for: .editingChanged)
+        control.addTarget(self, action: #selector(providedInputBeganEditing), for: .editingDidBegin)
+        control.addTarget(self, action: #selector(providedInputEndedEditing), for: .editingDidEnd)
+      } else {
+        NotificationCenter.default.addObserver(self, selector: #selector(textChanged), name: UITextView.textDidChangeNotification, object: field)
+        NotificationCenter.default.addObserver(self, selector: #selector(providedInputBeganEditing), name: UITextView.textDidBeginEditingNotification, object: field)
+        NotificationCenter.default.addObserver(self, selector: #selector(providedInputEndedEditing), name: UITextView.textDidEndEditingNotification, object: field)
+      }
     }
     synchronizeInputAssistant()
-    field.autocorrectionType = usesCustomKeyboard ? .no : savedAutocorrection
-    field.spellCheckingType = usesCustomKeyboard ? .no : savedSpellChecking
+    field.keyflowSetCorrection(usesCustomKeyboard ? .no : savedAutocorrection, spellChecking: usesCustomKeyboard ? .no : savedSpellChecking)
     prepareKeyboardForPresentation()
     synchronizeInputSurface()
     updateInputContext()
@@ -80,13 +85,18 @@ final class KeyflowInputView: ExpoView {
   private func detachInput() {
     guard let field = attachedEditor else { return }
     keyboard.cancelInteractions()
-    field.removeTarget(self, action: #selector(textChanged), for: .editingChanged)
-    field.removeTarget(self, action: #selector(providedInputBeganEditing), for: .editingDidBegin)
-    field.removeTarget(self, action: #selector(providedInputEndedEditing), for: .editingDidEnd)
-    field.inputView = savedInputView
-    field.inputAccessoryView = savedAccessoryView
-    field.autocorrectionType = savedAutocorrection
-    field.spellCheckingType = savedSpellChecking
+    if let control = field as? UITextField {
+      control.removeTarget(self, action: #selector(textChanged), for: .editingChanged)
+      control.removeTarget(self, action: #selector(providedInputBeganEditing), for: .editingDidBegin)
+      control.removeTarget(self, action: #selector(providedInputEndedEditing), for: .editingDidEnd)
+    } else {
+      NotificationCenter.default.removeObserver(self, name: UITextView.textDidChangeNotification, object: field)
+      NotificationCenter.default.removeObserver(self, name: UITextView.textDidBeginEditingNotification, object: field)
+      NotificationCenter.default.removeObserver(self, name: UITextView.textDidEndEditingNotification, object: field)
+    }
+    cursorNavigator.reset()
+    field.keyflowSetInputViews(savedInputView, accessory: savedAccessoryView)
+    field.keyflowSetCorrection(savedAutocorrection, spellChecking: savedSpellChecking)
     field.inputAssistantItem.leadingBarButtonGroups = savedLeadingBarButtonGroups
     field.inputAssistantItem.trailingBarButtonGroups = savedTrailingBarButtonGroups
     if field.isFirstResponder { field.reloadInputViews() }
@@ -320,7 +330,7 @@ final class KeyflowInputView: ExpoView {
       result["editorBottom"] = textField.convert(textField.bounds, to: window).maxY
       result["screenY"] = keyboard.convert(keyboard.bounds, to: window).minY
     }
-    result["text"] = textField.text ?? ""
+    result["text"] = textField.keyflowText
     result["keyboardLanguage"] = language.language
     result["keyboardLayout"] = language.layout
     result["availableKeyboardLanguages"] = languages.map { $0.language }
@@ -408,18 +418,20 @@ final class KeyflowInputView: ExpoView {
     lastKeyboardFrame = nil
     synchronizeInputAssistant()
     synchronizeInputSurface()
-    attachedEditor?.autocorrectionType = wantsCustom ? .no : savedAutocorrection
-    attachedEditor?.spellCheckingType = wantsCustom ? .no : savedSpellChecking
+    attachedEditor?.keyflowSetCorrection(wantsCustom ? .no : savedAutocorrection, spellChecking: wantsCustom ? .no : savedSpellChecking)
     requestInputReload()
     keyboard.updateContext(beforeCursor())
   }
 
   private func handle(_ action: KeyflowAction) {
-    guard let textField = attachedEditor, textField.isEnabled, textField.isFirstResponder else {
+    guard let textField = attachedEditor, textField.keyflowEditable, textField.isFirstResponder else {
       return
     }
     switch action {
+    case .beginCursorMovement:
+      cursorNavigator.reset()
     case .text(let value):
+      cursorNavigator.reset()
       let now = CACurrentMediaTime()
       let before = beforeCursor()
       if value == " ", textField.selectedTextRange?.isEmpty == true, now - lastSpaceTime < 0.7,
@@ -434,25 +446,20 @@ final class KeyflowInputView: ExpoView {
         lastSpaceTime = value == " " ? now : 0
       }
     case .moveCursor(let count):
-      guard let selection = textField.selectedTextRange else { return }
-      let text = (textField.text ?? "") as NSString
-      var offset = textField.offset(from: textField.beginningOfDocument, to: selection.start)
-      for _ in 0..<abs(count) {
-        if count < 0 && offset > 0 {
-          offset = text.rangeOfComposedCharacterSequence(at: offset - 1).location
-        } else if count > 0 && offset < text.length {
-          offset = NSMaxRange(text.rangeOfComposedCharacterSequence(at: offset))
-        }
-      }
-      if let position = textField.position(from: textField.beginningOfDocument, offset: offset) {
-        textField.selectedTextRange = textField.textRange(from: position, to: position)
-      }
+      cursorNavigator.move(textField, horizontal: count, vertical: 0)
+    case .moveCursorVertically(let count):
+      cursorNavigator.move(textField, horizontal: 0, vertical: count)
     case .delete:
+      cursorNavigator.reset()
       textField.deleteBackward()
     case .submit:
       // Keep React Native's submitBehavior and onSubmitEditing event pipeline.
-      if textField.delegate?.textFieldShouldReturn?(textField) ?? true {
-        textField.resignFirstResponder()
+      if let field = textField as? UITextField {
+        if field.delegate?.textFieldShouldReturn?(field) ?? true { field.resignFirstResponder() }
+      } else {
+        // UIKit invokes React Native's text-view delegate for newline insertion,
+        // preserving submitBehavior, filters, and onSubmitEditing.
+        textField.insertText("\n")
       }
     case .dismiss:
       textField.resignFirstResponder()

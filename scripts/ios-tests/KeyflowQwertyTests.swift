@@ -490,6 +490,30 @@ final class KeyflowQwertyTests: XCTestCase {
       }
     }
   }
+  func testMultilineEditorSupportsReturnAndVerticalTrackpad() throws {
+    for native in [true, false] {
+      mode(native)
+      app.buttons["Reset Multiline"].tap()
+      let editor = app.textViews.firstMatch
+      XCTAssertTrue(editor.waitForExistence(timeout: 5))
+      func waitForValue(_ expected: String) {
+        let applied = NSPredicate { _, _ in editor.value as? String == expected }
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: applied, object: editor)], timeout: 5), .completed)
+      }
+      waitForValue("alpha\nbeta\ngamma")
+      key(["Return", "return", "newline"]).tap()
+      waitForValue("alpha\nbeta\ngamma\n")
+      if !native {
+        let space = key(["space"])
+        let origin = space.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        origin.press(forDuration: 0.7, thenDragTo: origin.withOffset(CGVector(dx: 0, dy: -24)), withVelocity: .slow, thenHoldForDuration: 0.1)
+        key(["Delete", "delete"]).tap()
+        waitForValue("alpha\nbetagamma\n")
+        capture("multiline-vertical-trackpad")
+      }
+    }
+  }
+
   func testAccentDragMatchesApple() {
     var expected = ""
     for native in [true, false] {

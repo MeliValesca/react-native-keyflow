@@ -155,6 +155,8 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
     const regressions =
       group === 'iosRendering'
         ? [
+            'testMultilineCursorMovesAcrossVisualLinesAndEmoji',
+            'testTrackpadEmitsBothCursorAxes',
             'testAccentPresentationRespectsHapticsSetting',
             'testWideAccentUsesOnlyPopupSelectionHighlight',
             'testPhoneDoubleShiftLocksCaseAndShowsLockGlyph',
@@ -173,7 +175,7 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
             'testTabletCapsLockClearsManualShift',
             'testTabletShiftTurnsCapsLockOff',
           ]
-        : [];
+        : ['testMultilineEditorSupportsReturnAndVerticalTrackpad'];
     assert.deepEqual(
       actual.sort(),
       [...baseline[group], ...regressions].sort(),
@@ -189,6 +191,7 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
       );
     });
   const regressions = [
+    'multilineCursorPreservesColumnAndMovesOnBothAxes',
     'phoneDoubleShiftLocksCaseAndShowsDistinctGlyph',
     'leftShiftFillsArrowsUntilOneLetterIsTyped',
     'rightShiftFillsArrowsUntilOneLetterIsTyped',

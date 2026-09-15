@@ -34,7 +34,8 @@ internal class KeyflowKeyView(
   var circular = false
   var themeSection: String? = null
   var iconSize = if (action in listOf("delete", "submit")) 26f else 24f
-  var onSlide: ((Int) -> Unit)? = null
+  var onSlide: ((Int, Int) -> Unit)? = null
+  var onSlideStart: (() -> Unit)? = null
   var onHold: (() -> Boolean)? = null
   var onAccessibleHold: (() -> Boolean)? = null
   var onHoldMove: ((Float, Float) -> Unit)? = null
@@ -55,6 +56,7 @@ internal class KeyflowKeyView(
   private var previewPopup: android.widget.PopupWindow? = null
   private val dismissPreview = Runnable { hidePreview() }
   private var touchX = 0f
+  private var touchY = 0f
   private var sliding = false
   private val icon
     get() =
@@ -527,15 +529,19 @@ internal class KeyflowKeyView(
       when (event.actionMasked) {
         MotionEvent.ACTION_DOWN -> {
           touchX = event.x
+          touchY = event.y
+          onSlideStart?.invoke()
           sliding = false
         }
         MotionEvent.ACTION_MOVE -> {
           val delta = event.x - touchX
           val steps = (delta / (12 * density)).toInt()
-          if (steps != 0) {
+          val lines = ((event.y - touchY) / (24 * density)).toInt()
+          if (steps != 0 || lines != 0) {
             sliding = true
             touchX += steps * 12 * density
-            onSlide?.invoke(steps)
+            touchY += lines * 24 * density
+            onSlide?.invoke(steps, lines)
             isPressed = true
           }
         }

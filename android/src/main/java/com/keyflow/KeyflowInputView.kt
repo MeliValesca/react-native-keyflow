@@ -184,15 +184,12 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     }
     val view = expoContext.findView<View>(tag)
     val field = view?.let { findEditor(it) }
-    require(
-      field != null && field.inputType and android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE == 0
-    ) {
-      "Keyflow requires a single-line React Native TextInput ref."
-    }
+    require(field != null) { "Keyflow requires a React Native TextInput ref." }
     val changed = attachedEditor !== field
     if (changed) {
       detachInput()
       attachedEditor = field
+      cursorNavigator.reset()
       savedSoftInputOnFocus = field.showSoftInputOnFocus
       field.addTextChangedListener(providedTextWatcher)
     }
@@ -560,7 +557,10 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     }
   }
 
+  private val cursorNavigator = KeyflowCursorNavigator()
+
   private fun replace(text: String) {
+    cursorNavigator.reset()
     val start = minOf(editor.selectionStart, editor.selectionEnd).coerceAtLeast(0)
     val end = maxOf(editor.selectionStart, editor.selectionEnd).coerceAtLeast(start)
     val oldLength = editor.length()
@@ -572,7 +572,21 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
 
   private fun submit() {
     // Keep React Native's submitBehavior and onSubmitEditing event pipeline.
-    editor.onEditorAction(EditorInfo.IME_ACTION_DONE)
+    if (editor.inputType and android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE != 0) {
+      // Send native Enter events so React Native decides between newline and
+      // submit/blur using its existing submitBehavior listener.
+      editor.dispatchKeyEvent(
+        android.view.KeyEvent(
+          android.view.KeyEvent.ACTION_DOWN,
+          android.view.KeyEvent.KEYCODE_ENTER,
+        )
+      )
+      editor.dispatchKeyEvent(
+        android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_ENTER)
+      )
+    } else {
+      editor.onEditorAction(EditorInfo.IME_ACTION_DONE)
+    }
   }
 
   private fun activate(action: String, text: String) {
@@ -584,6 +598,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     )
       return
     when (action) {
+      "cursorStart" -> cursorNavigator.reset()
       "text" -> {
         val now = android.os.SystemClock.uptimeMillis()
         val before = editor.text.substring(0, editor.selectionStart.coerceAtLeast(0))
@@ -609,6 +624,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
         updateInputContext()
       }
       "delete" -> {
+        cursorNavigator.reset()
         val start = minOf(editor.selectionStart, editor.selectionEnd).coerceAtLeast(0)
         val end = maxOf(editor.selectionStart, editor.selectionEnd).coerceAtLeast(start)
         if (start != end) replace("")
@@ -620,19 +636,15 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
           editor.setSelection(previous)
         }
       }
-      "cursor" -> {
-        val iterator = BreakIterator.getCharacterInstance(Locale.ROOT)
-        iterator.setText(editor.text.toString())
-        var position = editor.selectionStart.coerceAtLeast(0)
+      "cursor",
+      "cursorVertical" -> {
         val steps = text.toIntOrNull() ?: 0
-        repeat(kotlin.math.abs(steps)) {
-          val next = if (steps < 0) iterator.preceding(position) else iterator.following(position)
-          if (next != BreakIterator.DONE) position = next
-        }
-        editor.setSelection(position)
-        // Cursor movement does not trigger TextWatcher. Re-evaluate sentence
-        // capitalization from the new insertion point just like Gboard does.
-        keyboard.updateContext(editor.text.substring(0, position))
+        cursorNavigator.move(
+          editor,
+          if (action == "cursor") steps else 0,
+          if (action == "cursorVertical") steps else 0,
+        )
+        keyboard.updateContext(editor.text.substring(0, editor.selectionStart.coerceAtLeast(0)))
       }
       "paste" ->
         (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip?.let {

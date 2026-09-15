@@ -35,6 +35,42 @@ final class KeyflowRenderingTests: XCTestCase {
   func testPhonePadRaisedLargeSquareFits() { assertFits("phone-pad", "raised", 32.0, 0.0) }
   func testPhonePadRaisedLargeRoundedFits() { assertFits("phone-pad", "raised", 32.0, 24.0) }
 
+  func testMultilineCursorMovesAcrossVisualLinesAndEmoji() throws {
+    let view = UITextView(frame: CGRect(x: 0, y: 0, width: 150, height: 220))
+    view.font = UIFont.monospacedSystemFont(ofSize: 18, weight: .regular)
+    view.text = "abcdefghi\nx\nabcdefghi\nlong text that wraps onto more than one visual line 👨‍👩‍👧‍👦"
+    view.layoutIfNeeded()
+    view.selectedRange = NSRange(location: 5, length: 0)
+    let cursor = KeyflowCursorNavigator()
+    cursor.move(view, horizontal: 0, vertical: 1)
+    XCTAssertEqual(view.selectedRange.location, 11, "Short lines must clamp to their end")
+    cursor.move(view, horizontal: 0, vertical: 1)
+    XCTAssertEqual(view.selectedRange.location, 17, "The desired column must survive a short line")
+    cursor.move(view, horizontal: 0, vertical: -2)
+    XCTAssertEqual(view.selectedRange.location, 5)
+    view.selectedRange = NSRange(location: (view.text as NSString).length, length: 0)
+    cursor.move(view, horizontal: -1, vertical: 0)
+    let string = view.text as NSString
+    XCTAssertEqual(view.selectedRange.location, string.rangeOfComposedCharacterSequence(at: string.length - 1).location, "Horizontal motion must not split composed emoji")
+    let caret = view.caretRect(for: try XCTUnwrap(view.selectedTextRange).start)
+    cursor.move(view, horizontal: 0, vertical: -1)
+    let moved = view.caretRect(for: try XCTUnwrap(view.selectedTextRange).start)
+    XCTAssertLessThan(moved.midY, caret.midY, "Wrapped text must move by rendered lines")
+  }
+
+  func testTrackpadEmitsBothCursorAxes() throws {
+    try withTrackpad { keyboard, touch, _ in
+      var moves: [KeyflowAction] = []
+      keyboard.onAction = { moves.append($0) }
+      touch.point.x += 16
+      touch.point.y += 48
+      keyboard.touchesMoved([touch], with: nil)
+      XCTAssertEqual(moves, [.moveCursor(2), .moveCursorVertically(2)])
+      keyboard.touchesMoved([touch], with: nil)
+      XCTAssertEqual(moves.count, 2, "Stationary touches must not move the cursor again")
+    }
+  }
+
   func testAccentPresentationRespectsHapticsSetting() throws {
     for enabled in [false, true] {
       var pulses = 0

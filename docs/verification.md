@@ -30,7 +30,7 @@ Android search, tone choices, correction undo, and repeated-delete edge cases st
 
 ## Remaining differences and unverified cases
 
-The original comparison below targets portrait phone geometry. Dedicated pads and phone landscape have a separate [layout comparison suite](keyboard-layouts.md). Physical haptics, spoken VoiceOver/TalkBack traversal, hardware keyboards, iPad, OEM devices, multiple input fields, and longer stress tests remain unverified. Current editing is single-line and uncontrolled. System keyboard mode remains available for advanced input.
+The original comparison below targets portrait phone geometry. Dedicated pads and phone landscape have a separate [layout comparison suite](keyboard-layouts.md). Physical haptics, spoken VoiceOver/TalkBack traversal, hardware keyboards, iPad, OEM devices, multiple input fields, and longer stress tests remain unverified. That original comparison used single-line uncontrolled editing; multiline cursor movement now has native regression coverage. System keyboard mode remains available for advanced input.
 
 ## Android comparison repair
 

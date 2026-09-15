@@ -99,7 +99,22 @@ export function Composer() {
 }
 ```
 
-**Your app owns the input.** Pass its ref to `useKeyflow`, spread the returned bindings onto the same single-line React Native `TextInput`, and attach the ref. This also works with your own input component when it forwards the ref and bindings to a native `TextInput`. Set `style`, `value`/`defaultValue`, placeholder, accessibility props, and text callbacks directly on your input. Keep larger keyboard styling in a reusable `keyflowTheme` constant; it styles Keyflow only.
+**Your app owns the input.** Pass its ref to `useKeyflow`, spread the returned bindings onto the same React Native `TextInput`, and attach the ref. This also works with your own input component when it forwards the ref and bindings to a native `TextInput`. Set `style`, `value`/`defaultValue`, placeholder, accessibility props, and text callbacks directly on your input. Keep larger keyboard styling in a reusable `keyflowTheme` constant; it styles Keyflow only.
+
+For larger editors, set `multiline` on your input and choose its height or `numberOfLines` yourself:
+
+```tsx
+<TextInput
+  {...bindings}
+  ref={inputRef}
+  multiline
+  value={text}
+  onChangeText={setText}
+  style={{ minHeight: 140, textAlignVertical: 'top' }}
+/>
+```
+
+On iOS, hold space to enter trackpad mode, then slide left/right to move by characters or up/down to move between rendered lines, including wrapped text. Android's space-slide gesture supports both directions too. Vertical movement preserves the desired column across shorter lines. Return follows your input's React Native `submitBehavior`; multiline inputs insert a newline by default.
 
 Call `useKeyflow` unconditionally with the component's other hooks. The input itself may render later, such as after a font or other asset loads; Keyflow attaches when that input receives focus. See [the input API](docs/api.md#input-api) for composing callbacks and [keyboard avoidance](docs/api.md#keyboard-avoidance) for navigation headers.
 
@@ -311,6 +326,7 @@ Need the user’s actual keyboard and its full feature set? Pass `keyboardMode: 
 | Category    | Explore                                                                |
 | ----------- | ---------------------------------------------------------------------- |
 | Behavior    | Typing, long presses, deletion, cursor movement and native comparisons |
+| Multiline   | Notes with paragraphs, wrapped lines, Return and movement on both axes |
 | Transitions | Presentation, dismissal, mode handoffs and keyboard avoidance          |
 | Layouts     | Number pads, rotation, English/French switching                        |
 | Appearance  | Fonts, borders, sizes, focused accents and customization bounds        |
@@ -355,7 +371,7 @@ Use `keyboardMode: 'system'` for the installed keyboard and whatever features it
 
 ### Integration limits
 
-- `useKeyflow` attaches to one single-line React Native `TextInput` ref. Multiline and arbitrary native editor implementations are not supported. Input props and controlled values belong to your input; Keyflow does not replace React Native’s editing/event pipeline.
+- `useKeyflow` attaches to one React Native `TextInput` ref. Single-line and multiline inputs are supported; arbitrary native editor implementations are not. Input props and controlled values belong to your input; Keyflow does not replace React Native’s editing/event pipeline.
 - Supported preview peers are Expo SDK 57, React Native 0.86.x (0.86.3+) and React 19.2.3+. Earlier combinations are not claimed as supported. A native build with Expo Modules is required; Expo Go is unsupported. On web, calling `useKeyflow` throws; provide your own [fallback](docs/api.md#web-fallback).
 - Keyflow is an **in-app keyboard library**, not a system-wide keyboard extension/IME that users can install for other apps.
 

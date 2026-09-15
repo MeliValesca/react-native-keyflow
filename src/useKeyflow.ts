@@ -96,7 +96,7 @@ const KeyflowNative =
     : null;
 let nextKeyflowId = 0;
 
-/** Attach a native Keyflow keyboard to an app-owned single-line TextInput. */
+/** Attach a native Keyflow keyboard to an app-owned TextInput. */
 export function useKeyflow(
   inputRef: RefObject<TextInput | null>,
   options: KeyflowOptions = {},
@@ -143,7 +143,7 @@ export function useKeyflow(
       if (tag == null) {
         if (!required) return;
         throw new Error(
-          'useKeyflow requires a ref attached to a native single-line TextInput.',
+          'useKeyflow requires a ref attached to a native TextInput.',
         );
       }
       await KeyflowNative.attachInput(id, tag);
