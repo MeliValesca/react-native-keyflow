@@ -43,18 +43,22 @@ class KeyflowPressFeedbackTest {
         editor.layout(0, 0, width, editor.measuredHeight)
         val cursor = KeyflowCursorNavigator()
         editor.setSelection(5)
-        cursor.move(editor, 0, 1)
+        val layout = editor.layout
+        val lineHeight = (layout.getLineBottom(0) - layout.getLineTop(0)).toFloat()
+        cursor.begin(editor)
+        cursor.move(editor, 0f, lineHeight)
         assertEquals(11, editor.selectionStart)
-        cursor.move(editor, 0, 1)
+        cursor.move(editor, 0f, lineHeight * 2)
         assertEquals(17, editor.selectionStart)
-        cursor.move(editor, 0, -2)
+        cursor.move(editor, 0f, 0f)
         assertEquals(5, editor.selectionStart)
         editor.setSelection(editor.length())
-        val before = editor.layout.getLineForOffset(editor.selectionStart)
-        cursor.move(editor, 0, -1)
-        assertEquals(before - 1, editor.layout.getLineForOffset(editor.selectionStart))
+        cursor.begin(editor)
+        val before = layout.getLineForOffset(editor.selectionStart)
+        cursor.move(editor, 0f, -lineHeight)
+        assertEquals(before - 1, layout.getLineForOffset(editor.selectionStart))
 
-        val moves = mutableListOf<Pair<Int, Int>>()
+        val moves = mutableListOf<Pair<Float, Float>>()
         val space = KeyflowKeyView(activity, "space", "") {}
         space.onSlide = { x, y -> moves += x to y }
         space.layout(0, 0, (240 * density).toInt(), (180 * density).toInt())
@@ -66,7 +70,10 @@ class KeyflowPressFeedbackTest {
         }
         touch(MotionEvent.ACTION_DOWN, 30f, 30f)
         touch(MotionEvent.ACTION_MOVE, 54f, 78f)
-        assertEquals(listOf(2 to 2), moves)
+        assertEquals(listOf(24f * density to 48f * density), moves)
+        touch(MotionEvent.ACTION_MOVE, 54.25f, 78.5f)
+        assertEquals(24.25f * density, moves.last().first, 0.01f)
+        assertEquals(48.5f * density, moves.last().second, 0.01f)
         touch(MotionEvent.ACTION_CANCEL, 54f, 78f)
       }
     }
@@ -302,7 +309,7 @@ class KeyflowPressFeedbackTest {
   private fun assertTrackpadFeedback(material: String, cancel: Boolean) {
     ActivityScenario.launch(KeyflowTestActivity::class.java).use { scenario ->
       var clicks = 0
-      val moves = mutableListOf<Int>()
+      val moves = mutableListOf<Float>()
       scenario.onActivity { activity ->
         val key = KeyflowKeyView(activity, "space", "") { clicks++ }
         key.onSlide = { horizontal, _ -> moves += horizontal }

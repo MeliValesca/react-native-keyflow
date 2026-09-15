@@ -42,32 +42,41 @@ final class KeyflowRenderingTests: XCTestCase {
     view.layoutIfNeeded()
     view.selectedRange = NSRange(location: 5, length: 0)
     let cursor = KeyflowCursorNavigator()
-    cursor.move(view, horizontal: 0, vertical: 1)
+    let initial = view.caretRect(for: try XCTUnwrap(view.selectedTextRange).start)
+    cursor.begin(view)
+    cursor.move(view, translation: CGPoint(x: 0, y: initial.height))
     XCTAssertEqual(view.selectedRange.location, 11, "Short lines must clamp to their end")
-    cursor.move(view, horizontal: 0, vertical: 1)
-    XCTAssertEqual(view.selectedRange.location, 17, "The desired column must survive a short line")
-    cursor.move(view, horizontal: 0, vertical: -2)
-    XCTAssertEqual(view.selectedRange.location, 5)
+    cursor.move(view, translation: CGPoint(x: 0, y: initial.height * 2))
+    XCTAssertEqual(view.selectedRange.location, 17, "The unsnapped horizontal target must survive a short line")
+    cursor.move(view, translation: .zero)
+    XCTAssertEqual(view.selectedRange.location, 5, "Reversing the drag must return to the original column")
     view.selectedRange = NSRange(location: (view.text as NSString).length, length: 0)
-    cursor.move(view, horizontal: -1, vertical: 0)
+    cursor.begin(view)
     let string = view.text as NSString
-    XCTAssertEqual(view.selectedRange.location, string.rangeOfComposedCharacterSequence(at: string.length - 1).location, "Horizontal motion must not split composed emoji")
-    let caret = view.caretRect(for: try XCTUnwrap(view.selectedTextRange).start)
-    cursor.move(view, horizontal: 0, vertical: -1)
+    let emoji = string.rangeOfComposedCharacterSequence(at: string.length - 1)
+    for dx: CGFloat in [-1, -5, -10, -20] {
+      cursor.move(view, translation: CGPoint(x: dx, y: 0))
+      let offset = view.selectedRange.location
+      XCTAssertTrue(offset <= emoji.location || offset == string.length, "Native hit testing must not split composed emoji")
+    }
+    let caret = view.caretRect(for: view.endOfDocument)
+    cursor.move(view, translation: CGPoint(x: 0, y: -caret.height))
     let moved = view.caretRect(for: try XCTUnwrap(view.selectedTextRange).start)
-    XCTAssertLessThan(moved.midY, caret.midY, "Wrapped text must move by rendered lines")
+    XCTAssertLessThan(moved.midY, caret.midY, "Wrapped text must use rendered line geometry")
   }
 
   func testTrackpadEmitsBothCursorAxes() throws {
     try withTrackpad { keyboard, touch, _ in
       var moves: [KeyflowAction] = []
       keyboard.onAction = { moves.append($0) }
+      touch.point.x += 0.25
+      touch.point.y += 0.5
+      keyboard.touchesMoved([touch], with: nil)
+      XCTAssertEqual(moves, [.moveCursor(CGPoint(x: 0.25, y: 0.5))], "Even fractional drag coordinates must reach native hit testing")
       touch.point.x += 16
       touch.point.y += 48
       keyboard.touchesMoved([touch], with: nil)
-      XCTAssertEqual(moves, [.moveCursor(2), .moveCursorVertically(2)])
-      keyboard.touchesMoved([touch], with: nil)
-      XCTAssertEqual(moves.count, 2, "Stationary touches must not move the cursor again")
+      XCTAssertEqual(moves.last, .moveCursor(CGPoint(x: 16.25, y: 48.5)))
     }
   }
 
@@ -365,7 +374,7 @@ final class KeyflowRenderingTests: XCTestCase {
       keyboard.onAction = { moves.append($0) }
       touch.point.x += 24
       keyboard.touchesMoved([touch], with: nil)
-      XCTAssertEqual(moves, [.moveCursor(3)], "Fading must not block cursor movement")
+      XCTAssertEqual(moves, [.moveCursor(CGPoint(x: 24, y: 0))], "Fading must not block cursor movement")
     }
   }
 

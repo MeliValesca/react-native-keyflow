@@ -1,36 +1,39 @@
 package com.keyflow
 
+import android.graphics.PointF
 import android.widget.EditText
-import java.text.BreakIterator
-import java.util.Locale
 
+/** Resolve an unsnapped drag target through the editor's native text layout. */
 internal class KeyflowCursorNavigator {
-  private var preferredX: Float? = null
+  private var origin: PointF? = null
 
   fun reset() {
-    preferredX = null
+    origin = null
   }
 
-  fun move(editor: EditText, horizontal: Int, vertical: Int) {
-    var position = editor.selectionStart.coerceAtLeast(0)
-    if (horizontal != 0) {
-      reset()
-      val iterator = BreakIterator.getCharacterInstance(Locale.ROOT)
-      iterator.setText(editor.text.toString())
-      repeat(kotlin.math.abs(horizontal)) {
-        val next =
-          if (horizontal < 0) iterator.preceding(position) else iterator.following(position)
-        if (next != BreakIterator.DONE) position = next
-      }
-    }
-    if (vertical != 0) {
-      editor.layout?.let { layout ->
-        val line = layout.getLineForOffset(position)
-        if (preferredX == null) preferredX = layout.getPrimaryHorizontal(position)
-        val target = (line + vertical).coerceIn(0, layout.lineCount - 1)
-        position = layout.getOffsetForHorizontal(target, preferredX!!)
-      }
-    }
+  fun begin(editor: EditText) {
+    val layout =
+      editor.layout
+        ?: run {
+          reset()
+          return
+        }
+    val position = editor.selectionStart.coerceAtLeast(0)
+    val line = layout.getLineForOffset(position)
+    origin =
+      PointF(
+        layout.getPrimaryHorizontal(position),
+        (layout.getLineTop(line) + layout.getLineBottom(line)) / 2f,
+      )
+  }
+
+  fun move(editor: EditText, dx: Float, dy: Float) {
+    if (origin == null) begin(editor)
+    val anchor = origin ?: return
+    val layout = editor.layout ?: return
+    val line = layout.getLineForVertical((anchor.y + dy).toInt())
+    val position = layout.getOffsetForHorizontal(line, anchor.x + dx)
+    if (editor.selectionStart == position && editor.selectionEnd == position) return
     editor.setSelection(position)
     editor.bringPointIntoView(position)
   }

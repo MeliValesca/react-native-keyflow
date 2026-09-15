@@ -114,7 +114,7 @@ For larger editors, set `multiline` on your input and choose its height or `numb
 />
 ```
 
-On iOS, hold space to enter trackpad mode, then slide left/right to move by characters or up/down to move between rendered lines, including wrapped text. Android's space-slide gesture supports both directions too. Vertical movement preserves the desired column across shorter lines. Return follows your input's React Native `submitBehavior`; multiline inputs insert a newline by default.
+On iOS, hold space to enter trackpad mode, then slide in any direction. Keyflow tracks the continuous drag point and the native editor resolves the nearest caret position, including wrapped lines. Android's space-slide gesture supports both directions too. The drag target stays independent of the snapped caret, so short lines do not discard its horizontal position. Return follows your input's React Native `submitBehavior`; multiline inputs insert a newline by default.
 
 Call `useKeyflow` unconditionally with the component's other hooks. The input itself may render later, such as after a font or other asset loads; Keyflow attaches when that input receives focus. See [the input API](docs/api.md#input-api) for composing callbacks and [keyboard avoidance](docs/api.md#keyboard-avoidance) for navigation headers.
 

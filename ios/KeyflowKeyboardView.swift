@@ -103,8 +103,8 @@ final class KeyflowKeyboardView: UIView {
   private var heldTouch: ObjectIdentifier?
   private var heldOrigin: CGPoint = .zero
   private var cursorMode = false
-  private var cursorLastX: CGFloat = 0
-  private var cursorLastY: CGFloat = 0
+  private var cursorOriginX: CGFloat = 0
+  private var cursorOriginY: CGFloat = 0
   private var accentKeys: [KeyflowKey] = []
   private var selectedAccent: KeyflowKey?
   private let accentCallout = KeyflowCallout()
@@ -467,8 +467,8 @@ final class KeyflowKeyboardView: UIView {
           guard let self, let key, touchesByID[id] === key else { return }
           key.isPressed = false
           if value == " " {
-            cursorLastX = heldOrigin.x
-            cursorLastY = heldOrigin.y
+            cursorOriginX = heldOrigin.x
+            cursorOriginY = heldOrigin.y
             onAction?(.beginCursorMovement)
             setCursorMode(true)
             if hapticsEnabled { hapticFeedback() }
@@ -504,16 +504,7 @@ final class KeyflowKeyboardView: UIView {
         continue
       }
       if cursorMode && id == heldTouch {
-        let steps = Int((point.x - cursorLastX) / 8)
-        if steps != 0 {
-          onAction?(.moveCursor(steps))
-          cursorLastX += CGFloat(steps) * 8
-        }
-        let lines = Int((point.y - cursorLastY) / 24)
-        if lines != 0 {
-          onAction?(.moveCursorVertically(lines))
-          cursorLastY += CGFloat(lines) * 24
-        }
+        onAction?(.moveCursor(CGPoint(x: point.x - cursorOriginX, y: point.y - cursorOriginY)))
         continue
       }
       if !accentKeys.isEmpty && id == heldTouch {
@@ -587,6 +578,8 @@ final class KeyflowKeyboardView: UIView {
       }
       holdWork?.cancel()
       if cursorMode && id == heldTouch {
+        let point = touch.location(in: self)
+        onAction?(.moveCursor(CGPoint(x: point.x - cursorOriginX, y: point.y - cursorOriginY)))
         cancelTouches()
         continue
       }

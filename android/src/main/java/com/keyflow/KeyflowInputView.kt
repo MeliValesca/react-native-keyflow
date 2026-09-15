@@ -598,7 +598,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     )
       return
     when (action) {
-      "cursorStart" -> cursorNavigator.reset()
+      "cursorStart" -> cursorNavigator.begin(editor)
       "text" -> {
         val now = android.os.SystemClock.uptimeMillis()
         val before = editor.text.substring(0, editor.selectionStart.coerceAtLeast(0))
@@ -636,15 +636,15 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
           editor.setSelection(previous)
         }
       }
-      "cursor",
-      "cursorVertical" -> {
-        val steps = text.toIntOrNull() ?: 0
-        cursorNavigator.move(
-          editor,
-          if (action == "cursor") steps else 0,
-          if (action == "cursorVertical") steps else 0,
-        )
-        keyboard.updateContext(editor.text.substring(0, editor.selectionStart.coerceAtLeast(0)))
+      "cursor" -> {
+        val translation = text.split(',').map { it.toFloatOrNull() }
+        if (translation.size != 2 || translation.any { it == null }) return
+        val start = editor.selectionStart
+        val end = editor.selectionEnd
+        cursorNavigator.move(editor, translation[0]!!, translation[1]!!)
+        if (start != editor.selectionStart || end != editor.selectionEnd) {
+          keyboard.updateContext(editor.text.substring(0, editor.selectionStart.coerceAtLeast(0)))
+        }
       }
       "paste" ->
         (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip?.let {

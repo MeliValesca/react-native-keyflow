@@ -37,34 +37,31 @@ extension UITextInput where Self: UIView {
   }
 }
 
-/// Uses native caret geometry for visual lines, including soft-wrapped text.
+/// Keeps the unsnapped drag target independent of the resolved caret position.
 final class KeyflowCursorNavigator {
-  private var preferredX: CGFloat?
-  func reset() { preferredX = nil }
+  private var origin: CGPoint?
+  func reset() { origin = nil }
 
-  func move(_ input: UIView & UITextInput, horizontal: Int, vertical: Int) {
-    guard let selection = input.selectedTextRange else { return }
-    var position = selection.start
-    if horizontal != 0 {
-      reset()
-      let text = input.keyflowText as NSString
-      var offset = input.offset(from: input.beginningOfDocument, to: position)
-      for _ in 0..<abs(horizontal) {
-        if horizontal < 0 && offset > 0 {
-          offset = text.rangeOfComposedCharacterSequence(at: offset - 1).location
-        } else if horizontal > 0 && offset < text.length {
-          offset = NSMaxRange(text.rangeOfComposedCharacterSequence(at: offset))
-        }
-      }
-      position = input.position(from: input.beginningOfDocument, offset: offset) ?? position
-    }
-    if vertical != 0, input is UITextView {
-      let caret = input.caretRect(for: position)
-      if preferredX == nil { preferredX = caret.midX }
-      let target = CGPoint(x: preferredX!, y: caret.midY + CGFloat(vertical) * max(1, caret.height))
-      position = input.closestPosition(to: target) ?? position
-    }
+  func begin(_ input: UIView & UITextInput) {
+    guard let selection = input.selectedTextRange else { reset(); return }
+    let caret = input.caretRect(for: selection.start)
+    origin = CGPoint(x: caret.midX, y: caret.midY)
+  }
+
+  func move(_ input: UIView & UITextInput, translation: CGPoint) {
+    if origin == nil { begin(input) }
+    guard let origin else { return }
+    let target = CGPoint(x: origin.x + translation.x, y: origin.y + translation.y)
+    guard let position = input.closestPosition(to: target) else { return }
+    if let selection = input.selectedTextRange, selection.isEmpty,
+      input.compare(position, to: selection.start) == .orderedSame { return }
+    let before = input.caretRect(for: position)
     input.selectedTextRange = input.textRange(from: position, to: position)
     if let view = input as? UITextView { view.scrollRangeToVisible(view.selectedRange) }
+    input.layoutIfNeeded()
+    // UITextField can scroll its internal text as selection changes. Keep the
+    // original drag anchor in the same text coordinates after that adjustment.
+    let after = input.caretRect(for: position)
+    self.origin = CGPoint(x: origin.x + after.midX - before.midX, y: origin.y + after.midY - before.midY)
   }
 }

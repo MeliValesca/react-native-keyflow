@@ -94,7 +94,7 @@ export function Input() {
 
 The app owns its editor and text. Use ordinary React Native `TextInput` props such as `value`, `defaultValue`, `onChangeText`, `onSubmitEditing`, `placeholderTextColor`, `accessibilityLabel`, `editable`, and `submitBehavior` directly on the input. Keyflow adds no input height, padding, border, color, or font. `onSubmitEditing` receives the standard React Native event, not a string.
 
-Single-line and `multiline` inputs are supported. Set editor height, scrolling, and `numberOfLines` on the input. Trackpad movement supports horizontal character steps and vertical rendered-line steps, including soft wrapping; vertical movement keeps the desired horizontal column across short lines. Hold space on iOS, or use the space-slide gesture on Android. Return uses the native React Native editing pipeline and respects `submitBehavior`.
+Single-line and `multiline` inputs are supported. Set editor height, scrolling, and `numberOfLines` on the input. Trackpad movement passes continuous horizontal and vertical drag coordinates to native text hit testing, including soft wrapping. The drag target is anchored at gesture start and remains independent of the snapped caret across short lines. Hold space on iOS, or use the space-slide gesture on Android. Return uses the native React Native editing pipeline and respects `submitBehavior`.
 
 Pass a stable `TextInput` ref to `useKeyflow`, then spread the returned `showSoftInputOnFocus`, `onFocus`, and `onSelectionChange` bindings onto that same input. The ref allows native keyboard attachment; the callbacks keep focus and cursor context synchronized. For custom components, forward the ref and bindings to the underlying `TextInput`, not a surrounding `View`.
 

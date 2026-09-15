@@ -201,10 +201,7 @@ internal class KeyflowKeyboardView(
       }
     if (action == "space") key.onSlideStart = { onAction("cursorStart", "") }
     if (action == "space")
-      key.onSlide = { horizontal, vertical ->
-        if (horizontal != 0) onAction("cursor", horizontal.toString())
-        if (vertical != 0) onAction("cursorVertical", vertical.toString())
-      }
+      key.onSlide = { horizontal, vertical -> onAction("cursor", "$horizontal,$vertical") }
     if (action == "letter") {
       key.hasAlternatives = accentPopup.hasAlternatives(label)
       key.onHold = {

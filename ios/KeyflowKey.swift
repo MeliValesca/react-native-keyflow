@@ -2,8 +2,7 @@ import UIKit
 
 enum KeyflowAction: Equatable {
   case text(String)
-  case moveCursor(Int)
-  case moveCursorVertically(Int)
+  case moveCursor(CGPoint)
   case beginCursorMovement
   case shift, capsLock, delete, numbers, symbols, letters, submit, dismiss, system, nextLanguage
 }

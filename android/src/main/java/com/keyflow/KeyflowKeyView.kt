@@ -34,7 +34,7 @@ internal class KeyflowKeyView(
   var circular = false
   var themeSection: String? = null
   var iconSize = if (action in listOf("delete", "submit")) 26f else 24f
-  var onSlide: ((Int, Int) -> Unit)? = null
+  var onSlide: ((Float, Float) -> Unit)? = null
   var onSlideStart: (() -> Unit)? = null
   var onHold: (() -> Boolean)? = null
   var onAccessibleHold: (() -> Boolean)? = null
@@ -534,19 +534,18 @@ internal class KeyflowKeyView(
           sliding = false
         }
         MotionEvent.ACTION_MOVE -> {
-          val delta = event.x - touchX
-          val steps = (delta / (12 * density)).toInt()
-          val lines = ((event.y - touchY) / (24 * density)).toInt()
-          if (steps != 0 || lines != 0) {
+          val dx = event.x - touchX
+          val dy = event.y - touchY
+          val slop = ViewConfiguration.get(context).scaledTouchSlop
+          if (sliding || kotlin.math.hypot(dx, dy) > slop) {
             sliding = true
-            touchX += steps * 12 * density
-            touchY += lines * 24 * density
-            onSlide?.invoke(steps, lines)
+            onSlide?.invoke(dx, dy)
             isPressed = true
           }
         }
         MotionEvent.ACTION_UP ->
           if (sliding) {
+            onSlide?.invoke(event.x - touchX, event.y - touchY)
             sliding = false
             isPressed = false
             return true

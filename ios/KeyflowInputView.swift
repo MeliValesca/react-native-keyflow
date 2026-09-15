@@ -429,7 +429,7 @@ final class KeyflowInputView: ExpoView {
     }
     switch action {
     case .beginCursorMovement:
-      cursorNavigator.reset()
+      cursorNavigator.begin(textField)
     case .text(let value):
       cursorNavigator.reset()
       let now = CACurrentMediaTime()
@@ -445,10 +445,8 @@ final class KeyflowInputView: ExpoView {
         textField.insertText(value)
         lastSpaceTime = value == " " ? now : 0
       }
-    case .moveCursor(let count):
-      cursorNavigator.move(textField, horizontal: count, vertical: 0)
-    case .moveCursorVertically(let count):
-      cursorNavigator.move(textField, horizontal: 0, vertical: count)
+    case .moveCursor(let translation):
+      cursorNavigator.move(textField, translation: translation)
     case .delete:
       cursorNavigator.reset()
       textField.deleteBackward()
