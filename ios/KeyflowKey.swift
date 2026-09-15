@@ -352,14 +352,17 @@ final class KeyflowKey: UIView {
         ? theme.actionKeyForeground
         : ((isText || (isPadKey && action == .letters))
           ? theme.keyForeground : theme.specialKeyForeground)
-    face.backgroundColor = UIColor(keyflowHex: isPressed ? theme.pressedKeyBackground : fill)
+    // The popup owns a single selection indicator. A second pressed keycap
+    // has different bounds and makes the focused accent look deformed.
+    face.backgroundColor = isSelectionChoice
+      ? .clear : UIColor(keyflowHex: isPressed ? theme.pressedKeyBackground : fill)
     face.layer.cornerRadius = CGFloat(theme.keyCornerRadius)
     face.layer.shadowColor = UIColor.black.cgColor
     face.layer.shadowColor = UIColor(keyflowHex: theme.keyShadow).cgColor
-    face.layer.shadowOpacity = theme.material == "raised" ? 1 : 0
+    face.layer.shadowOpacity = theme.material == "raised" && !isSelectionChoice ? 1 : 0
     face.transform = CGAffineTransform(
       translationX: 0,
-      y: theme.material == "raised" && isPressed ? min(6, max(0, CGFloat(theme.keyDepth))) : 0)
+      y: theme.material == "raised" && isPressed && !isSelectionChoice ? min(6, max(0, CGFloat(theme.keyDepth))) : 0)
     face.layer.shadowOffset = CGSize(width: 0, height: min(6, max(0, CGFloat(theme.keyDepth))))
     face.layer.shadowRadius = 0
     label.textColor = UIColor(
