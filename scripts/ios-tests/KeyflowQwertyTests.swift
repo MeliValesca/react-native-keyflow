@@ -4,6 +4,7 @@ import UIKit
 final class KeyflowQwertyTests: XCTestCase {
   let app = XCUIApplication(bundleIdentifier: "com.keyflow.example")
   private static var preparedSystemKeyboard = false
+  private static var preparedNativeGestures = false
   private var expectsSystemKeyboard = false
   private var settledKeyboardGeometry: String?
   override func setUpWithError() throws {
@@ -23,14 +24,15 @@ final class KeyflowQwertyTests: XCTestCase {
     }
     // A fresh simulator presents Apple's slide-to-type introduction on first
     // use. Warm up and dismiss that UI before measuring any native gesture.
-    if !Self.preparedSystemKeyboard {
+    let needsNativeGestures = !name.contains("testKeyflowCoreInteractions")
+    if !Self.preparedSystemKeyboard || (needsNativeGestures && !Self.preparedNativeGestures) {
       mode(true)
       let introduction = app.buttons["Continue"]
       if introduction.waitForExistence(timeout: 5) {
         introduction.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
       }
-      if !name.contains("testKeyflowCoreInteractions") {
+      if needsNativeGestures && !Self.preparedNativeGestures {
         reset("Empty")
         // A fresh system keyboard can type the base character on its first hold
         // without presenting alternatives. Initialize that native path during
@@ -40,6 +42,7 @@ final class KeyflowQwertyTests: XCTestCase {
         // committing text. Preparation does not compare editing behavior;
         // the actual reference cases still assert their intended non-empty edit.
         if text.isEmpty { capture("native-warmup-without-insertion") }
+        Self.preparedNativeGestures = true
       }
       // The introduction creates and dismisses system keyboard windows. End
       // that warm-up session so its responder/AX state cannot leak into the
