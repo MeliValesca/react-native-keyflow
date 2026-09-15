@@ -14,6 +14,7 @@ export function TransitionScreen() {
     status,
     composer,
     baseline,
+    baselineFocused,
     bindings,
     run,
   } = useTransitionTests();
@@ -62,6 +63,12 @@ export function TransitionScreen() {
         {engine === 'baseline' ? (
           <TextInput
             ref={baseline}
+            onFocus={() => {
+              baselineFocused.current = true;
+            }}
+            onBlur={() => {
+              baselineFocused.current = false;
+            }}
             defaultValue="Transition"
             accessibilityLabel="Baseline transition input"
             style={{ height: 48, backgroundColor: 'white', color: '#192231' }}

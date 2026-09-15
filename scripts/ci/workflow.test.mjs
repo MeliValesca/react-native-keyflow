@@ -155,10 +155,13 @@ test('Android phone and tablet run both native and real React Native app suites'
   assert.match(runner, /startup\.py "\$keyflow_port" android/);
   assert.match(runner, /scripts\/android-tests\/instrumentation\.py/);
   assert.match(runner, /scripts\/android-tests\/app\.py/);
-  assert.match(
-    runner,
-    /keyflow_native_status.*== 0 &&.*keyflow_app_status.*== 0/,
+  assert.match(runner, /set -euo pipefail/);
+  assert.ok(
+    runner.indexOf('python3 scripts/android-tests/app.py') <
+      runner.indexOf('python3 scripts/android-tests/instrumentation.py'),
+    'Previously failing app groups must run before native instrumentation',
   );
+  assert.doesNotMatch(runner, /scripts\/android-tests\/app\.py[^\n]*\|\|/);
   assert.ok(
     jobs['android-interactions'].steps.some((step) =>
       step.run?.includes('stim@1.2.0'),
@@ -166,9 +169,32 @@ test('Android phone and tablet run both native and real React Native app suites'
   );
 });
 
-test('device coverage has no optional mode or hidden filters', () => {
+test('PRs require core device coverage while scheduled and manual runs retain full comparisons', () => {
   assert.equal(workflow.on.workflow_dispatch, null);
-  assert.equal(workflow.env?.KEYFLOW_TEST_SUITE, undefined);
+  assert.match(
+    workflow.env.KEYFLOW_CI_PROFILE,
+    /schedule.*workflow_dispatch.*'full'.*'smoke'/,
+  );
+  const ios = readFileSync('scripts/ci/run-ios.sh', 'utf8');
+  assert.match(ios, /KEYFLOW_CI_PROFILE:-full/);
+  assert.match(ios, /set -- testKeyflowCoreInteractions/);
+  assert.ok(
+    ios.indexOf('node scripts/run-ios-qwerty-tests.mjs') <
+      ios.indexOf('xcodebuild test-without-building'),
+  );
+  const matrices = [
+    ...jobs['ios-ipad-suites'].strategy.matrix.include.matchAll(/'(\[.*?\])'/g),
+  ];
+  assert.equal(
+    JSON.parse(matrices.at(-1)[1]).length,
+    1,
+    'PR iPad core suite needs only one runner',
+  );
+  assert.equal(
+    JSON.parse(matrices.at(-2)[1]).length,
+    2,
+    'Full manual iPad inventory stays sharded',
+  );
   for (const file of [
     'scripts/ci/run-ios.sh',
     'scripts/run-ios-qwerty-tests.mjs',
@@ -237,6 +263,7 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
         : [
             'testMultilineEditorSupportsReturnAndVerticalTrackpad',
             'testRemountedInputUsesTheSelectedKeyboardBeforeTyping',
+            'testKeyflowCoreInteractions',
           ];
     assert.deepEqual(
       actual.sort(),

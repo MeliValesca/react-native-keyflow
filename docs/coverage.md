@@ -1,24 +1,36 @@
 # Automated coverage and its limits
 
-## Required device suite
+## Required PR device suite
 
 The device suite retains the pre-release test inventory recorded in
 [`baseline-tests.json`](../scripts/ci/baseline-tests.json),
 plus regressions for glyph rendering, modifier states, held-delete lifecycle,
 space/trackpad feedback, multiline editing, panel clipping, and input remounts.
-Every required device runs its full suite against the current implementation;
-platform-specific assumptions remain explicit skips.
+PRs and pushes to `main` run all fast native tests plus one focused React Native
+interaction case per device. It exercises typing/deletion, accent selection,
+multiline Return, both trackpad axes, system/custom switching, submit and rotation.
+These checks remain required; a failure stops the device group immediately.
 
 | Device         | Required cases before platform-specific skips |
 | -------------- | --------------------------------------------- |
-| Android phone  | 66 native + 10 React Native app groups        |
-| Android tablet | 66 native + 10 React Native app groups        |
-| iPhone         | 57 rendering + 63 interaction cases           |
-| iPad           | 57 rendering + 63 interaction cases           |
+| Android phone  | 66 native + 1 core React Native app case      |
+| Android tablet | 66 native + 1 core React Native app case      |
+| iPhone         | 57 rendering + 1 core interaction case        |
+| iPad           | 57 rendering + 1 core interaction case        |
+
+## Full comparison suite
+
+Local device commands default to the full suite. Manual **Native builds and
+device tests** runs and the weekly workflow also run the full inventory:
+10 Android app groups and 64 iOS interaction cases before platform-specific
+skips, alongside the same native tests. Apple reference comparisons, all accent
+catalogues, theme matrices, transparency and transition measurements belong
+here rather than in the required PR feedback loop. iPad full runs use two
+disjoint shards; PRs need only one iPad runner.
 
 `scripts/ci/baseline-tests.json` records the original inventory for verification.
 A fast workflow test verifies the original inventory plus the explicitly recorded
-regressions. It does not select or skip tests.
+regressions, the documented PR/full profile split and the shared required gates.
 
 iOS coverage includes typing, symbol pages, long presses, accent selection,
 number pads, tablet layouts, customization, transparency and transition diagnostics.
@@ -30,7 +42,7 @@ Space/trackpad regressions verify iOS touch-down fill contrast, normal release a
 
 Android native IME-policy regressions verify that mode changes and cleanup preserve React-owned TextInput props, while temporary changes on plain native editors restore their original setting.
 
-Android also exercises the actual React Native example on both phone and tablet:
+The full suite also exercises the actual React Native example on both phone and tablet:
 
 - All letters, combined-emoji deletion, and held-delete release.
 - Controlled multiline Return, vertical and horizontal trackpad editing, and automatic avoidance.
@@ -42,7 +54,7 @@ Android also exercises the actual React Native example on both phone and tablet:
 - The same customization matrix and independent transparency checks used by iOS.
 - QWERTY, number, decimal, and phone pads in portrait and landscape, including actual text insertion and editor clearance.
 
-The integration categories run on both platforms; platform-specific native behavior remains different. iOS comparisons use Apple’s keyboard. Android’s system-editor baseline sends Android editor events with the installed IME active; it does not assume a particular Gboard version or compare its pixels. Allocation/performance/background stress tests remain outside the required suite on both platforms.
+The full integration categories run on both platforms; platform-specific native behavior remains different. iOS comparisons use Apple’s keyboard. Android’s system-editor baseline sends Android editor events with the installed IME active; it does not assume a particular Gboard version or compare its pixels. Allocation/performance/background stress tests remain outside these suites on both platforms.
 
 Fast unit regressions remain for input readiness, rotation/frame ordering, stable
 keyboard geometry and mode handoffs. CI helper tests reject incomplete native test
@@ -60,17 +72,19 @@ Android runs the installed native instrumentation APK and the shared React Nativ
 
 Library formatting, lint, types, unit tests, package checks and native build checks
 remain required. The seven protected check names and platform change filtering
-are unchanged. Weekly runs add larger iOS devices and an older Android API using
-the same suite; they do not add another coverage mode.
+are unchanged. Weekly runs select the full comparison profile and add larger
+iOS devices and an older Android API. Manual workflow dispatch selects full
+coverage on the standard device sizes. PRs and `main` pushes select core coverage.
 
 ## Known findings and limits
 
-A superseded expanded development run left the Android app while navigating to
-transparency and reported roughly 3.3 points of input overlap in iPhone transparency.
-Removing an unreliable suite does not prove those reports harmless. The iOS
-transparency case remains required, retains the original 600 ms presentation
-allowance and rejects stable overlap. A focused local run passed; GitHub validation
-of the final revision is still required.
+Android CI reported a missing plain-editor baseline IME and a lab navigation tap
+that left the app for Camera. Focus acknowledgement, fresh transition results,
+taskbar-aware card targeting and per-group logs improve those full-suite checks;
+targeted local transition, transparency and layout runs passed. Those comparisons
+remain part of local/manual/weekly verification, not the required PR profile.
+The transparency test still rejects stable overlap; moving it does not prove
+an untested configuration harmless.
 
 Passing CI does not certify complete VoiceOver/TalkBack navigation or speech,
 every native visual detail, sustained frame pacing or memory usage on physical
@@ -85,6 +99,8 @@ corepack yarn check
 python3 -m unittest discover -s scripts/android-tests -p 'test_*.py' -v
 python3 -m unittest discover -s scripts/ci -p 'test_*.py' -v
 node scripts/run-ios-qwerty-tests.mjs SIMULATOR_UDID testIndependentTransparencyPasses
+node scripts/run-ios-qwerty-tests.mjs SIMULATOR_UDID testKeyflowCoreInteractions
+KEYFLOW_CI_PROFILE=smoke KEYFLOW_ANDROID_SERIAL=emulator-XXXX yarn test:device:android:app
 ```
 
 Use the device IDs and Metro port reported by Stim. Supply XCTest method names for

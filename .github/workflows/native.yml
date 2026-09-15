@@ -17,6 +17,9 @@ permissions:
   contents: read
   actions: read
 
+env:
+  KEYFLOW_CI_PROFILE: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'full' || 'smoke' }}
+
 jobs:
   scope:
     uses: ./.github/workflows/change-scope.yml
@@ -229,7 +232,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(github.event_name == 'schedule' && '[{"label":"iPad","device":"iPad Pro 11-inch (M5)","shard":0},{"label":"iPad","device":"iPad Pro 11-inch (M5)","shard":1},{"label":"Large iPad","device":"iPad Pro 13-inch (M5)","shard":0},{"label":"Large iPad","device":"iPad Pro 13-inch (M5)","shard":1}]' || '[{"label":"iPad","device":"iPad Pro 11-inch (M5)","shard":0},{"label":"iPad","device":"iPad Pro 11-inch (M5)","shard":1}]') }}
+        include: ${{ fromJSON(github.event_name == 'schedule' && '[{"label":"iPad","device":"iPad Pro 11-inch (M5)","shard":0},{"label":"iPad","device":"iPad Pro 11-inch (M5)","shard":1},{"label":"Large iPad","device":"iPad Pro 13-inch (M5)","shard":0},{"label":"Large iPad","device":"iPad Pro 13-inch (M5)","shard":1}]' || github.event_name == 'workflow_dispatch' && '[{"label":"iPad","device":"iPad Pro 11-inch (M5)","shard":0},{"label":"iPad","device":"iPad Pro 11-inch (M5)","shard":1}]' || '[{"label":"iPad","device":"iPad Pro 11-inch (M5)","shard":0}]') }}
     steps:
       - name: No ios changes
         if: ${{ needs.ios.result == 'skipped' }}

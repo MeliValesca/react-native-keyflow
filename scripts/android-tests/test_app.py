@@ -3,12 +3,70 @@ import unittest
 import json
 import subprocess
 import tempfile
+from unittest.mock import patch
 from pathlib import Path
 import xml.etree.ElementTree as ET
 from app import ExampleSuite
 
 
 class AppHarnessTests(unittest.TestCase):
+    def test_ci_core_profile_runs_real_required_case_and_local_default_retains_full_inventory(self):
+        self.assertEqual(ExampleSuite.SMOKE_CASES, ('core',))
+        self.assertEqual(set(ExampleSuite.CASES), {'editing','multiline','pages_and_accents','handoff','system_editor','submit','transitions','customization','transparency','layouts'})
+        with tempfile.TemporaryDirectory() as output:
+            suite = ExampleSuite.__new__(ExampleSuite)
+            suite.output = Path(output)
+            suite.results = []
+            suite.prepare = lambda: None
+            suite.artifact_read = lambda *args: b'capture'
+            suite.save_log = lambda: None
+            visited = []
+            suite.core = lambda: visited.append('core')
+            with patch.dict('os.environ', {'KEYFLOW_CI_PROFILE':'smoke'}):
+                suite.run()
+            self.assertEqual(visited, ['core'])
+            self.assertEqual(suite.results, [{'test':'core','result':'PASS'}])
+            with patch.dict('os.environ', {'KEYFLOW_CI_PROFILE':'typo'}):
+                with self.assertRaisesRegex(AssertionError, 'Invalid CI profile'):
+                    suite.run()
+
+    def test_lab_card_cannot_be_tapped_through_tablet_taskbar(self):
+        root = ET.fromstring('<node bounds="[0,176][2560,1800]"/>')
+        display = 'InsetsSource type=navigationBars frame=[0,1688][2560,1800] visible=true'
+        viewport = ExampleSuite.lab_viewport(root, display)
+        self.assertEqual(viewport, [0,176,2560,1688])
+        covered = ET.fromstring('<node package="com.keyflow.example" bounds="[40,1660][2520,1780]"/>')
+        visible = ET.fromstring('<node package="com.keyflow.example" bounds="[40,1400][2520,1520]"/>')
+        self.assertFalse(ExampleSuite.card_visible(covered, viewport))
+        self.assertTrue(ExampleSuite.card_visible(visible, viewport))
+        visible.set('package', 'com.android.camera')
+        self.assertFalse(ExampleSuite.card_visible(visible, viewport))
+
+    def test_priority_failures_stop_before_remaining_cases_and_keep_report(self):
+        self.assertEqual(len(ExampleSuite.CASES), 10)
+        self.assertEqual(len(set(ExampleSuite.CASES)), 10)
+        self.assertEqual(ExampleSuite.CASES[:3], ExampleSuite.PRIORITY_CASES)
+        with tempfile.TemporaryDirectory() as output:
+            suite = ExampleSuite.__new__(ExampleSuite)
+            suite.output = Path(output)
+            suite.results = []
+            suite.prepare = lambda: None
+            suite.artifact_read = lambda *args: b'capture'
+            suite.save_log = lambda: None
+            visited = []
+            def fail():
+                visited.append('transitions')
+                raise AssertionError('baseline did not appear')
+            suite.transitions = fail
+            suite.transparency = lambda: visited.append('transparency')
+            with patch.dict('os.environ', {'KEYFLOW_CI_PROFILE':'full'}):
+                with self.assertRaisesRegex(AssertionError, '1 React Native'):
+                    suite.run()
+            self.assertEqual(visited, ['transitions'])
+            report = ET.parse(suite.output/'app-tests.xml').getroot()
+            self.assertEqual(report.get('tests'), '1')
+            self.assertEqual(report.get('failures'), '1')
+
     def test_key_target_uses_reported_geometry_and_device_density(self):
         suite = ExampleSuite.__new__(ExampleSuite)
         suite.density = 2.625

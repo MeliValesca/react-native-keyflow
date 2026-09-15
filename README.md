@@ -348,7 +348,7 @@ python3 -m unittest discover -s scripts/android-tests -p 'test_*.py' -v
 
 CI builds the app and test binaries once per platform, then shares them with parallel phone/tablet test jobs. It also runs library checks. Platform filtering avoids unrelated native jobs; extra device profiles run weekly. Both platforms run native rendering/interaction tests and the actual React Native example. Android phone and tablet also cover multiline editing, trackpad movement, system handoffs, avoidance transitions, customization, transparency, and portrait/landscape layouts.
 
-See [test commands](docs/testing.md), [coverage and limits](docs/coverage.md), and [visual comparisons](docs/visual-feature-tests.md). Passing these checks does not certify every native visual detail, complete VoiceOver/TalkBack navigation, or real-device smoothness.
+PR CI runs unit/native tests and focused core interactions on phone and tablet. Exhaustive native keyboard comparisons and visual matrices run locally, manually, and weekly. See [test commands](docs/testing.md), [coverage and limits](docs/coverage.md), and [visual comparisons](docs/visual-feature-tests.md). Passing these checks does not certify every native visual detail, complete VoiceOver/TalkBack navigation, or real-device smoothness.
 
 ## Current limitations
 

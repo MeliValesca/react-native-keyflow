@@ -21,7 +21,9 @@ Start and launch the current example with Stim from `example/`. Use the normal d
 KEYFLOW_ANDROID_SERIAL=emulator-XXXX corepack yarn test:device:android:app
 ```
 
-The suite navigates the actual example and runs every integration group on either phone or tablet. It uses reported key geometry rather than fixed coordinates. Reports, screenshots, UI hierarchies, and logcat are saved under `artifacts/android-app/`. CI installs the shared example APK, starts Metro, warms the Android bundle once, and runs this suite after native instrumentation. Either suite failing fails the device job.
+The suite navigates the actual example and runs every integration group on either phone or tablet. It uses reported key geometry rather than fixed coordinates. Lab cards must be fully visible, stable, and clear of the OS taskbar before a single tap. Transition checks wait for the new run to start before accepting its result, and the plain React Native reference must acknowledge native focus before its keyboard is measured. Reports, screenshots, UI hierarchies, and per-group logcat are saved under `artifacts/android-app/`.
+
+PR/main CI installs the shared example APK, starts Metro, and warms the Android bundle once. One core app case runs first, covering typing, deletion, accents, multiline/both trackpad axes, switching, submit and QWERTY rotation. All 66 native tests remain required after it passes. Local commands default to the full ten app groups; manual and weekly CI also run those groups, with previously failing transition, transparency and full layout comparisons first and an immediate stop on failure. Neither product is rebuilt in a device job.
 
 ## Local iOS rotation checks
 
@@ -32,7 +34,7 @@ Landscape cases require the simulator home screen to rotate as well as the app. 
 The repository includes two automatic GitHub Actions workflows and an optional manual comparison workflow:
 
 - **Library checks** runs formatting, both TypeScript projects, Jest, visual-helper unit tests, source-integrity checks, and package generation on pull requests and pushes to `main` with code changes.
-- **Native builds and device tests** builds the Android example/test APKs and iOS app/XCTest bundles once, then shares them with parallel phone and tablet jobs. Device jobs install those artifacts and run native tests plus the actual React Native example without compiling again. Focused Android glyph and cross-platform modifier-state regressions supplement that inventory; see [coverage](coverage.md) for the exact retained suite. There is no optional expanded suite. Platform filtering avoids unrelated work; weekly runs add larger iOS devices and an older Android API. The seven protected check names stay unchanged.
+- **Native builds and device tests** builds the Android example/test APKs and iOS app/XCTest bundles once, then shares them with parallel phone and tablet jobs. PR/main runs require all native tests and one focused core app case per device. Full Apple reference comparisons, accent catalogues, theme matrices, transparency and transition measurements run locally, on manual workflow dispatch and weekly. Weekly runs also add larger iOS devices and an older Android API. See [coverage](coverage.md) for the exact split. Platform filtering and the seven protected check names stay unchanged.
 - **Native keyboard regression** is a manual workflow for the real simulator/emulator comparisons. It builds and launches the current checkout, runs the phone feature suites, optionally runs both tablet matrices, and uploads screenshots, videos, metrics, reports, and Stim logs for 30 days.
 
 CI uses isolated GitHub-hosted runners for each job. Android device jobs run on
@@ -127,6 +129,6 @@ Missing or expired evidence, API errors, failures, or cancellation fall back to 
 
 Automatic workflows use a concurrency group per workflow and PR or branch, with cancellation enabled. A newer revision cancels superseded runs. Android and iOS build jobs within the latest run remain parallel; each device job waits only for its own platform's shared build. Runner capacity can still queue a job. The separate manual native comparison workflow retains its device-lab concurrency policy.
 
-The required iPad CI check combines two independent device jobs. They partition all interaction methods exactly once, each uses its own simulator and the shared compiled binaries, and both must pass. This bounds runtime without reducing coverage or replaying failures. Each job runs the rendering suite before its interaction shard.
+PR/main iPad CI uses one simulator: its core interaction case runs first and stops immediately on failure, followed by all 57 rendering tests. Full manual/weekly iPad comparisons use two independent jobs, partitioning all interaction methods exactly once. Each uses its own simulator and the shared compiled binaries; both must pass the combined check. The full profile runs rendering before its interaction shard.
 
 The iOS interaction runner holds a temporary idle-sleep assertion for its lifetime and has a 30-minute process deadline, followed by bounded artifact export. This prevents laptop sleep from suspending event synthesis and ensures a stuck XCTest process reports failure before the CI job timeout. The assertion ends with the runner; system power preferences are unchanged.

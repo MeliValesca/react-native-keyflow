@@ -10,10 +10,14 @@ import re
 import subprocess
 import sys
 import time
+import traceback
 import xml.etree.ElementTree as ET
 
 
 class ExampleSuite:
+    PRIORITY_CASES = ('transitions', 'transparency', 'layouts')
+    CASES = PRIORITY_CASES + ('editing', 'multiline', 'pages_and_accents', 'handoff', 'system_editor', 'submit', 'customization')
+    SMOKE_CASES = ('core',)
     def __init__(self, serial, output):
         self.serial = serial
         self.output = Path(output)
@@ -61,6 +65,24 @@ class ExampleSuite:
         node = self.wait(lambda: self.find(label, prefix))
         self.adb('shell', 'input', 'tap', *self.center(node))
 
+    @staticmethod
+    def lab_viewport(root, display):
+        bounds = list(map(int, re.findall(r'\d+', root.get('bounds'))))
+        for frame in re.findall(r'type=navigationBars frame=(\[\d+,\d+\]\[\d+,\d+\]) visible=true', display):
+            left, top, right, bottom = map(int, re.findall(r'\d+', frame))
+            if left <= bounds[0] and right >= bounds[2] and bottom >= bounds[3]:
+                bounds[3] = min(bounds[3], top)
+        assert bounds[2] > bounds[0] and bounds[3] > bounds[1], 'Lab viewport is occluded'
+        return bounds
+
+    @staticmethod
+    def card_visible(node, viewport):
+        if node is None or node.get('package') != 'com.keyflow.example':
+            return False
+        left, top, right, bottom = map(int, re.findall(r'\d+', node.get('bounds')))
+        x1, y1, x2, y2 = viewport
+        return x1 <= left < right <= x2 and y1 <= top < bottom <= y2
+
     def open(self, label):
         # Navigate with the actual header; Back first dismisses an open keyboard.
         if self.find('Navigate up') is not None:
@@ -73,13 +95,26 @@ class ExampleSuite:
             x1, y1, x2, y2 = map(int, re.findall(r'\d+', root.get('bounds')))
             self.adb('shell', 'input', 'swipe', (x1+x2)//2, int(y1+(y2-y1)*.3), (x1+x2)//2, int(y1+(y2-y1)*.8), 300)
         self.wait(lambda: self.find('Keyboard lab'))
-        for _ in range(10):
-            node = self.find(label)
-            if node is not None:
-                self.adb('shell', 'input', 'tap', *self.center(node))
-                return
-            root = self.wait(lambda: next((n for n in self.nodes() if n.get('scrollable') == 'true'), None))
-            x1, y1, x2, y2 = map(int, re.findall(r'\d+', root.get('bounds')))
+        for _ in range(12):
+            nodes = self.nodes()
+            root = next((n for n in nodes if n.get('scrollable') == 'true' and n.get('package') == 'com.keyflow.example'), None)
+            if root is None:
+                time.sleep(.15)
+                continue
+            display = self.adb('shell', 'dumpsys', 'window', 'displays').decode()
+            assert re.search(r'mCurrentFocus=.*com\.keyflow\.example/', display), 'Example lost foreground during lab navigation'
+            viewport = self.lab_viewport(root, display)
+            node = next((n for n in nodes if label in (n.get('text'), n.get('content-desc'))), None)
+            if self.card_visible(node, viewport):
+                # A card may be exposed in XML while covered by the taskbar,
+                # or still move as the previous keyboard dismisses. Tap once
+                # only after its fully visible bounds survive another read.
+                stable = self.find(label)
+                if self.card_visible(stable, viewport) and stable.get('bounds') == node.get('bounds'):
+                    self.adb('shell', 'input', 'tap', *self.center(stable))
+                    return
+                continue
+            x1, y1, x2, y2 = viewport
             self.adb('shell', 'input', 'swipe', (x1+x2)//2, int(y1+(y2-y1)*.8), (x1+x2)//2, int(y1+(y2-y1)*.3), 300)
         raise AssertionError(f'Missing lab card: {label}')
 
@@ -218,6 +253,46 @@ class ExampleSuite:
         self.key(metrics, 'a')
         self.wait(self.text, lambda text: text is not None and text.lower() == (remaining+'a').lower())
 
+    def core(self):
+        self.open('Compare native interactions')
+        metrics = self.reset('Empty', '')
+        self.key(metrics, 'q')
+        self.wait(self.text, lambda value: value is not None and value.lower() == 'q')
+        self.key(metrics, '⌫', 'delete')
+        self.expect_text('')
+        metrics = self.reset('Grapheme', 'A👨‍👩‍👧‍👦')
+        self.key(metrics, '⌫', 'delete')
+        self.expect_text('A')
+        metrics = self.reset('Empty', '')
+        self.key(metrics, 'n', hold=850)
+        self.wait(self.text, lambda value: value is not None and value.lower() == 'ñ')
+        metrics = self.reset('Multiline', 'alpha\nbeta\ngamma')
+        self.key(metrics, '↵', 'return', 'submit')
+        self.expect_text('alpha\nbeta\ngamma\n')
+        self.trackpad(self.metrics(), 0, -24)
+        self.key(self.metrics(), '⌫', 'delete')
+        self.expect_text('alpha\nbetagamma\n')
+        metrics = self.reset('Cursor', 'alpha beta')
+        self.trackpad(metrics, -32, 0)
+        moved = self.metrics()
+        assert 0 <= moved['selectionStart'] < 10 and moved['text'] == 'alpha beta', moved
+        self.tap('Run switching checks')
+        def switched():
+            node = self.find('Diagnostic state: {', True)
+            if node is None:
+                return None
+            report = json.loads(node.get('content-desc').removeprefix('Diagnostic state: '))
+            return report if 'result' in report else None
+        report = self.wait(switched, timeout=45)
+        assert report['result'] == 'PASS' and report['checks'] == 6, report
+        self.expect_text('alpha beta')
+        metrics = self.metrics()
+        self.key(metrics, 'submit')
+        self.expect_text('alpha beta')
+        state = self.metrics()
+        assert not state['focused'] and not state['popupVisible'], state
+        self.layouts(smoke=True)
+
     def multiline(self):
         self.open('Compare native interactions')
         metrics = self.reset('Multiline', 'alpha\nbeta\ngamma')
@@ -323,6 +398,10 @@ class ExampleSuite:
         self.open('Test keyboard transitions')
         for material in ['Flat', 'Raised']:
             self.tap('RUN TRANSITION TESTS')
+            # A previous material's PASS remains mounted until the new run
+            # starts. Observe its running state before accepting a terminal.
+            self.wait(lambda: self.find('transition-result'),
+                      lambda node: node is not None and node.get('text', '').startswith(('Running:', 'baseline:', 'custom:', 'system:')))
             result = self.wait(lambda: self.find('transition-result'),
                                lambda node: node is not None and node.get('text', '').startswith(('PASS:', 'FAIL:')), timeout=210)
             assert result.get('text').startswith('PASS:'), result.attrib
@@ -358,7 +437,7 @@ class ExampleSuite:
         assert 0 <= start <= end <= len(before), metrics
         return before[:start] + typed + before[end:]
 
-    def layouts(self):
+    def layouts(self, smoke=False):
         self.open('Compare layouts & rotation')
         size = self.adb('shell', 'wm', 'size').decode()
         natural_width, natural_height = map(int, re.findall(r'size: (\d+)x(\d+)', size)[-1])
@@ -368,8 +447,12 @@ class ExampleSuite:
             self.adb('shell', 'settings', 'put', 'system', 'accelerometer_rotation', 0)
             for orientation in [0, 1]:
                 self.adb('shell', 'settings', 'put', 'system', 'user_rotation', orientation)
-                for name, keyboard_type in [('QWERTY', 'default'), ('Number', 'number-pad'), ('Decimal', 'decimal-pad'), ('Phone', 'phone-pad')]:
-                    self.tap(name)
+                types = [('QWERTY', 'default')] if smoke else [('QWERTY', 'default'), ('Number', 'number-pad'), ('Decimal', 'decimal-pad'), ('Phone', 'phone-pad')]
+                for name, keyboard_type in types:
+                    # Core coverage keeps the already selected QWERTY layout.
+                    # A focused phone editor can scroll its tabs out of view.
+                    if not smoke:
+                        self.tap(name)
                     self.tap('Layout input')
                     self.tap('check-layout')
                     def outcome():
@@ -409,7 +492,11 @@ class ExampleSuite:
         self.output.joinpath('app.log').write_bytes(
             self.artifact_read('logcat', 'logcat', '-d', '-t', '5000', '-v', 'threadtime'))
 
-    def run(self):
+    def run(self, names=None):
+        profile = os.environ.get('KEYFLOW_CI_PROFILE', 'full')
+        assert profile in ('full', 'smoke'), 'Invalid CI profile'
+        names = (self.SMOKE_CASES if profile == 'smoke' else self.CASES) if names is None else tuple(names)
+        assert names and len(set(names)) == len(names) and set(names) <= set(self.CASES + self.SMOKE_CASES), 'Invalid app test selection'
         suite = ET.Element('testsuite', name='Android React Native example')
         failures = 0
         try:
@@ -424,7 +511,7 @@ class ExampleSuite:
             (self.output/'app-tests.json').write_text(json.dumps([{'test': 'startup', 'result': 'FAIL', 'error': str(error)}]))
             self.save_log()
             raise
-        for name in ['editing', 'multiline', 'pages_and_accents', 'handoff', 'system_editor', 'submit', 'transitions', 'customization', 'transparency', 'layouts']:
+        for name in names:
             case = ET.SubElement(suite, 'testcase', classname='KeyflowExample', name=name)
             started = time.monotonic()
             self.xml = b''
@@ -433,13 +520,17 @@ class ExampleSuite:
                 self.results.append({'test': name, 'result': 'PASS'})
             except Exception as error:
                 failures += 1
+                self.output.joinpath(f'{name}-failure.txt').write_text(traceback.format_exc())
                 ET.SubElement(case, 'failure', message=str(error))
                 self.results.append({'test': name, 'result': 'FAIL', 'error': str(error)})
             finally:
                 case.set('time', str(round(time.monotonic()-started, 3)))
                 self.output.joinpath(f'{name}.xml').write_bytes(getattr(self, 'xml', b''))
                 self.output.joinpath(f'{name}.png').write_bytes(self.artifact_read('screenshot', 'exec-out', 'screencap', '-p'))
+                self.output.joinpath(f'{name}-app.log').write_bytes(self.artifact_read('logcat', 'logcat', '-d', '-t', '5000', '-v', 'threadtime'))
                 print(json.dumps(self.results[-1]), flush=True)
+            if failures and name in self.PRIORITY_CASES + self.SMOKE_CASES:
+                break
         suite.set('tests', str(len(self.results)))
         suite.set('failures', str(failures))
         ET.ElementTree(suite).write(self.output/'app-tests.xml', encoding='utf-8', xml_declaration=True)

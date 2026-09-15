@@ -3,7 +3,11 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 keyflow_model="$1"
 shift
-if [[ "${1:-}" == "--shard" ]]; then
+keyflow_profile="${KEYFLOW_CI_PROFILE:-full}"
+[[ "$keyflow_profile" == full || "$keyflow_profile" == smoke ]]
+if [[ "$keyflow_profile" == smoke ]]; then
+  set -- testKeyflowCoreInteractions
+elif [[ "${1:-}" == "--shard" ]]; then
   [[ "$#" == 2 ]]
   keyflow_test_names=$(node scripts/ci/ios-interaction-shards.mjs "$2")
   read -r -a keyflow_tests <<< "$keyflow_test_names"
@@ -28,13 +32,19 @@ keyflow_rendering=("$keyflow_build"/rendering/Products/*.xctestrun)
 keyflow_interactions=("$keyflow_build"/qwerty/Products/*.xctestrun)
 [[ ${#keyflow_rendering[@]} == 1 && -f "${keyflow_rendering[0]}" ]]
 [[ ${#keyflow_interactions[@]} == 1 && -f "${keyflow_interactions[0]}" ]]
+export KEYFLOW_IOS_XCTESTRUN="${keyflow_interactions[0]}"
+export TEST_RUNNER_KEYFLOW_METRO_URL="http://127.0.0.1:$keyflow_port/?disableOnboarding=1"
+# The focused device regression runs first in PRs and fails immediately.
+if [[ "$keyflow_profile" == smoke ]]; then
+  node scripts/run-ios-qwerty-tests.mjs "$keyflow_udid" "$@"
+fi
 keyflow_render_status=0
 xcodebuild test-without-building -xctestrun "${keyflow_rendering[0]}" \
   -destination "platform=iOS Simulator,id=$keyflow_udid" \
   -resultBundlePath "$keyflow_output/rendering.xcresult" \
   -parallel-testing-enabled NO || keyflow_render_status=$?
-export KEYFLOW_IOS_XCTESTRUN="${keyflow_interactions[0]}"
-export TEST_RUNNER_KEYFLOW_METRO_URL="http://127.0.0.1:$keyflow_port/?disableOnboarding=1"
 keyflow_ui_status=0
-node scripts/run-ios-qwerty-tests.mjs "$keyflow_udid" "$@" || keyflow_ui_status=$?
+if [[ "$keyflow_profile" == full ]]; then
+  node scripts/run-ios-qwerty-tests.mjs "$keyflow_udid" "$@" || keyflow_ui_status=$?
+fi
 [[ "$keyflow_render_status" == 0 && "$keyflow_ui_status" == 0 ]]
