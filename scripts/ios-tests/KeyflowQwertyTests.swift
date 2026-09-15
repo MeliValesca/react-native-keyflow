@@ -179,23 +179,29 @@ final class KeyflowQwertyTests: XCTestCase {
     let state = try readInteractionState()
     XCTAssertEqual(state["keyboardMode"] as? String, "system")
   }
-  func testAccentCataloguesFit() {
-    let catalogues = ["a", "e", "i", "o", "u", "c", "n", "s", "y", "z", "l", "d", "r", "t", "g", "h", "k", "w"].map { ($0, false) }
-      + [("i", true), ("s", true)]
-    mode(false)
-    let previousFailurePolicy = continueAfterFailure
-    continueAfterFailure = true
-    defer { continueAfterFailure = previousFailurePolicy }
-    for (base, uppercase) in catalogues {
-      XCTContext.runActivity(named: "\(uppercase ? "Uppercase" : "Lowercase") \(base)") { _ in
-        do {
-          try assertAccentCatalogue(base, uppercase: uppercase)
-        } catch {
-          XCTFail("Could not inspect \(base): \(error)")
-        }
-      }
-    }
-  }
+  // Keep each catalogue in a separate test with a fresh app launch. A held key
+  // can leave iPadOS reporting the app as animated for XCTest's 60-second idle
+  // window; relaunching between cases avoids multiplying that delay.
+  func testAccentCatalogueAFits() throws { try assertAccentCatalogue("a", uppercase: false) }
+  func testAccentCatalogueEFits() throws { try assertAccentCatalogue("e", uppercase: false) }
+  func testAccentCatalogueIFits() throws { try assertAccentCatalogue("i", uppercase: false) }
+  func testAccentCatalogueOFits() throws { try assertAccentCatalogue("o", uppercase: false) }
+  func testAccentCatalogueUFits() throws { try assertAccentCatalogue("u", uppercase: false) }
+  func testAccentCatalogueCFits() throws { try assertAccentCatalogue("c", uppercase: false) }
+  func testAccentCatalogueNFits() throws { try assertAccentCatalogue("n", uppercase: false) }
+  func testAccentCatalogueSFits() throws { try assertAccentCatalogue("s", uppercase: false) }
+  func testAccentCatalogueYFits() throws { try assertAccentCatalogue("y", uppercase: false) }
+  func testAccentCatalogueZFits() throws { try assertAccentCatalogue("z", uppercase: false) }
+  func testAccentCatalogueLFits() throws { try assertAccentCatalogue("l", uppercase: false) }
+  func testAccentCatalogueDFits() throws { try assertAccentCatalogue("d", uppercase: false) }
+  func testAccentCatalogueRFits() throws { try assertAccentCatalogue("r", uppercase: false) }
+  func testAccentCatalogueTFits() throws { try assertAccentCatalogue("t", uppercase: false) }
+  func testAccentCatalogueGFits() throws { try assertAccentCatalogue("g", uppercase: false) }
+  func testAccentCatalogueHFits() throws { try assertAccentCatalogue("h", uppercase: false) }
+  func testAccentCatalogueKFits() throws { try assertAccentCatalogue("k", uppercase: false) }
+  func testAccentCatalogueWFits() throws { try assertAccentCatalogue("w", uppercase: false) }
+  func testAccentCatalogueUppercaseIFits() throws { try assertAccentCatalogue("i", uppercase: true) }
+  func testAccentCatalogueUppercaseSFits() throws { try assertAccentCatalogue("s", uppercase: true) }
   private func assertAccentCatalogue(_ base: String, uppercase: Bool) throws {
     let reference = UIDevice.current.userInterfaceIdiom == .pad ? "apple-tablet-letter-reference" : "apple-letter-reference"
     let url = Bundle(for: Self.self).url(forResource: reference, withExtension: "json")!
@@ -360,22 +366,12 @@ final class KeyflowQwertyTests: XCTestCase {
     XCTAssertEqual(returns.count, 2, "iPad \(layout) page must have left and right return keys")
     capture("ipad-\(layout.replacingOccurrences(of: " ", with: "-"))-two-return-keys")
   }
-  func testPunctuationHoldsMatchApple() {
-    let tablet = max(app.frame.width, app.frame.height) >= 1000
-    let symbols = tablet ? ["$", "-", "'", "\""] : ["$", "-", "'", "\"", "?", "!"]
-    let previousFailurePolicy = continueAfterFailure
-    continueAfterFailure = true
-    defer { continueAfterFailure = previousFailurePolicy }
-    for symbol in symbols {
-      XCTContext.runActivity(named: "Hold \(symbol)") { _ in
-        do {
-          try assertPunctuationHold(symbol)
-        } catch {
-          XCTFail("Could not compare held \(symbol): \(error)")
-        }
-      }
-    }
-  }
+  func testDollarHoldMatchesApple() throws { try assertPunctuationHold("$") }
+  func testHyphenHoldMatchesApple() throws { try assertPunctuationHold("-") }
+  func testApostropheHoldMatchesApple() throws { try assertPunctuationHold("'") }
+  func testQuoteHoldMatchesApple() throws { try assertPunctuationHold("\"") }
+  func testQuestionHoldMatchesApple() throws { try assertPunctuationHold("?") }
+  func testExclamationHoldMatchesApple() throws { try assertPunctuationHold("!") }
   private func assertPunctuationHold(_ symbol: String) throws {
     let tablet = max(app.frame.width, app.frame.height) >= 1000
     if tablet && ["?", "!"].contains(symbol) { throw XCTSkip("Phone punctuation layout") }
@@ -448,13 +444,9 @@ final class KeyflowQwertyTests: XCTestCase {
       capture(native ? "apple-shift-drag" : "keyflow-shift-drag")
     }
   }
-  func testLetterPreviewContoursMatchApple() {
-    for (letter, duration) in [("Q", 0.8), ("E", 0.3), ("P", 0.8)] {
-      XCTContext.runActivity(named: "Preview \(letter)") { _ in
-        assertLetterPreview(letter, duration: duration)
-      }
-    }
-  }
+  func testLeftEdgeLetterPreviewContour() { assertLetterPreview("Q", duration: 0.8) }
+  func testCenterLetterPreviewContour() { assertLetterPreview("E", duration: 0.3) }
+  func testRightEdgeLetterPreviewContour() { assertLetterPreview("P", duration: 0.8) }
   private func assertLetterPreview(_ letter: String, duration: TimeInterval) {
     for native in [true, false] {
       mode(native); reset("Empty")

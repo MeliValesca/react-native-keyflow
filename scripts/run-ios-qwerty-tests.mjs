@@ -43,6 +43,12 @@ const result = spawnSync(
     resultBundle,
     '-parallel-testing-enabled',
     'NO',
+    '-test-timeouts-enabled',
+    'YES',
+    '-default-test-execution-time-allowance',
+    '240',
+    '-maximum-test-execution-time-allowance',
+    '240',
     ...tests.map(
       (test) => `-only-testing:QwertyTests/KeyflowQwertyTests/${test}`,
     ),

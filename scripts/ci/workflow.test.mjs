@@ -125,6 +125,21 @@ test('device coverage has no optional mode or hidden filters', () => {
   }
 });
 
+test('iPad-sensitive held-key cases remain isolated and XCTest is bounded', () => {
+  const source = readFileSync(
+    'scripts/ios-tests/KeyflowQwertyTests.swift',
+    'utf8',
+  );
+  assert.doesNotMatch(source, /func testAccentCataloguesFit\(/);
+  assert.match(source, /func testAccentCatalogueAFits\(/);
+  assert.match(source, /func testAccentCatalogueUppercaseSFits\(/);
+
+  const runner = readFileSync('scripts/run-ios-qwerty-tests.mjs', 'utf8');
+  assert.match(runner, /'-test-timeouts-enabled',\s*'YES'/);
+  assert.match(runner, /'-maximum-test-execution-time-allowance',\s*'240'/);
+  assert.equal(jobs['ios-interactions']['timeout-minutes'], 45);
+});
+
 test('device sources contain the proven inventory plus glyph and Shift regressions', () => {
   const baseline = JSON.parse(
     readFileSync('scripts/ci/baseline-tests.json', 'utf8'),
