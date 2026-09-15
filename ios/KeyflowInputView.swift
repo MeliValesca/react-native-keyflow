@@ -70,13 +70,21 @@ final class KeyflowInputView: ExpoView {
         control.addTarget(self, action: #selector(providedInputBeganEditing), for: .editingDidBegin)
         control.addTarget(self, action: #selector(providedInputEndedEditing), for: .editingDidEnd)
       } else {
-        NotificationCenter.default.addObserver(self, selector: #selector(textChanged), name: UITextView.textDidChangeNotification, object: field)
-        NotificationCenter.default.addObserver(self, selector: #selector(providedInputBeganEditing), name: UITextView.textDidBeginEditingNotification, object: field)
-        NotificationCenter.default.addObserver(self, selector: #selector(providedInputEndedEditing), name: UITextView.textDidEndEditingNotification, object: field)
+        NotificationCenter.default.addObserver(
+          self, selector: #selector(textChanged), name: UITextView.textDidChangeNotification,
+          object: field)
+        NotificationCenter.default.addObserver(
+          self, selector: #selector(providedInputBeganEditing),
+          name: UITextView.textDidBeginEditingNotification, object: field)
+        NotificationCenter.default.addObserver(
+          self, selector: #selector(providedInputEndedEditing),
+          name: UITextView.textDidEndEditingNotification, object: field)
       }
     }
     synchronizeInputAssistant()
-    field.keyflowSetCorrection(usesCustomKeyboard ? .no : savedAutocorrection, spellChecking: usesCustomKeyboard ? .no : savedSpellChecking)
+    field.keyflowSetCorrection(
+      usesCustomKeyboard ? .no : savedAutocorrection,
+      spellChecking: usesCustomKeyboard ? .no : savedSpellChecking)
     prepareKeyboardForPresentation()
     synchronizeInputSurface()
     updateInputContext()
@@ -87,12 +95,16 @@ final class KeyflowInputView: ExpoView {
     keyboard.cancelInteractions()
     if let control = field as? UITextField {
       control.removeTarget(self, action: #selector(textChanged), for: .editingChanged)
-      control.removeTarget(self, action: #selector(providedInputBeganEditing), for: .editingDidBegin)
+      control.removeTarget(
+        self, action: #selector(providedInputBeganEditing), for: .editingDidBegin)
       control.removeTarget(self, action: #selector(providedInputEndedEditing), for: .editingDidEnd)
     } else {
-      NotificationCenter.default.removeObserver(self, name: UITextView.textDidChangeNotification, object: field)
-      NotificationCenter.default.removeObserver(self, name: UITextView.textDidBeginEditingNotification, object: field)
-      NotificationCenter.default.removeObserver(self, name: UITextView.textDidEndEditingNotification, object: field)
+      NotificationCenter.default.removeObserver(
+        self, name: UITextView.textDidChangeNotification, object: field)
+      NotificationCenter.default.removeObserver(
+        self, name: UITextView.textDidBeginEditingNotification, object: field)
+      NotificationCenter.default.removeObserver(
+        self, name: UITextView.textDidEndEditingNotification, object: field)
     }
     cursorNavigator.reset()
     field.keyflowSetInputViews(savedInputView, accessory: savedAccessoryView)
@@ -418,13 +430,16 @@ final class KeyflowInputView: ExpoView {
     lastKeyboardFrame = nil
     synchronizeInputAssistant()
     synchronizeInputSurface()
-    attachedEditor?.keyflowSetCorrection(wantsCustom ? .no : savedAutocorrection, spellChecking: wantsCustom ? .no : savedSpellChecking)
+    attachedEditor?.keyflowSetCorrection(
+      wantsCustom ? .no : savedAutocorrection, spellChecking: wantsCustom ? .no : savedSpellChecking
+    )
     requestInputReload()
     keyboard.updateContext(beforeCursor())
   }
 
   private func handle(_ action: KeyflowAction) {
-    guard let textField = attachedEditor, textField.keyflowEditable, textField.isFirstResponder else {
+    guard let textField = attachedEditor, textField.keyflowEditable, textField.isFirstResponder
+    else {
       return
     }
     switch action {

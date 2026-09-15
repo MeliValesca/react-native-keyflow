@@ -17,7 +17,9 @@ extension UITextInput where Self: UIView {
     if let field = self as? UITextField { return field.spellCheckingType }
     return (self as? UITextView)?.spellCheckingType ?? .default
   }
-  func keyflowSetCorrection(_ autocorrection: UITextAutocorrectionType, spellChecking: UITextSpellCheckingType) {
+  func keyflowSetCorrection(
+    _ autocorrection: UITextAutocorrectionType, spellChecking: UITextSpellCheckingType
+  ) {
     if let field = self as? UITextField {
       field.autocorrectionType = autocorrection
       field.spellCheckingType = spellChecking
@@ -54,7 +56,10 @@ final class KeyflowCursorNavigator {
     let target = CGPoint(x: origin.x + translation.x, y: origin.y + translation.y)
     guard let position = input.closestPosition(to: target) else { return }
     if let selection = input.selectedTextRange, selection.isEmpty,
-      input.compare(position, to: selection.start) == .orderedSame { return }
+      input.compare(position, to: selection.start) == .orderedSame
+    {
+      return
+    }
     let before = input.caretRect(for: position)
     input.selectedTextRange = input.textRange(from: position, to: position)
     if let view = input as? UITextView { view.scrollRangeToVisible(view.selectedRange) }
@@ -62,6 +67,7 @@ final class KeyflowCursorNavigator {
     // UITextField can scroll its internal text as selection changes. Keep the
     // original drag anchor in the same text coordinates after that adjustment.
     let after = input.caretRect(for: position)
-    self.origin = CGPoint(x: origin.x + after.midX - before.midX, y: origin.y + after.midY - before.midY)
+    self.origin = CGPoint(
+      x: origin.x + after.midX - before.midX, y: origin.y + after.midY - before.midY)
   }
 }
