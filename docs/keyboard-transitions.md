@@ -14,19 +14,14 @@ This checks layout and animation delivery. It does not assert pixel-identical ti
 
 ```tsx
 import { TextInput } from 'react-native';
-const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
-const inputRef = useRef<TextInput>(null);
-const bindings = useKeyflow(inputRef, {
-  onKeyboardFrameChange: setFrame,
-});
+const { keyflowInputProps } = useKeyflow({});
 
 <KeyflowAvoidingView
   style={{ flex: 1 }}
-  keyboardFrame={frame}
   keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
 >
   <ScrollView keyboardShouldPersistTaps="handled">
-    <TextInput {...bindings} ref={inputRef} style={styles.input} />
+    <TextInput {...keyflowInputProps} style={styles.input} />
   </ScrollView>
 </KeyflowAvoidingView>;
 ```
@@ -45,7 +40,7 @@ Internally, `KeyflowAvoidingView` delegates to React Native's KeyboardAvoidingVi
 
 On Android, the component always uses padding calculated from its measured screen position and `keyboardFrame`. It accounts for existing window resizing and safe areas without subtracting a guessed keyboard height. `keyboardVerticalOffset` is additional clearance here, normally zero; do not pass a navigation-header height when screen coordinates already include it. Frame events cover both Keyflow's panel and the real system IME. The library does not emit synthetic global React Native keyboard events or alter the activity's soft-input mode. A plain KeyboardAvoidingView cannot detect the Android custom panel by itself.
 
-The Android custom panel uses a native 285ms animation using the measured Android 16 IME interpolator, respects disabled system animations, and can reverse an in-flight show/hide. System frame updates come from WindowInsetsAnimationCompat. Final-layout inset callbacks are suppressed while an IME animation is running to avoid applying the destination frame prematurely. `onKeyboardHeightChange` remains the legacy custom-panel height notification; use `onKeyboardFrameChange` for avoidance and motion.
+The Android custom panel uses a native 285ms animation using the measured Android 16 IME interpolator, respects disabled system animations, and can reverse an in-flight show/hide. System frame updates come from WindowInsetsAnimationCompat. Final-layout inset callbacks are suppressed while an IME animation is running to avoid applying the destination frame prematurely. `onKeyboardHeightChange` remains the legacy custom-panel height notification; use `KeyflowAvoidingView` for automatic avoidance and `onKeyboardFrameChange` to observe motion.
 
 ## Remaining device coverage
 

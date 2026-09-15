@@ -11164,6 +11164,7 @@ __metadata:
   resolution: "react-native-keyflow@workspace:."
   dependencies:
     "@babel/core": "npm:^7.25.2"
+    "@babel/plugin-transform-react-jsx": "npm:^7.29.7"
     "@babel/preset-env": "npm:^7.25.3"
     "@babel/preset-typescript": "npm:^7.25.2"
     "@commitlint/cli": "npm:^19"

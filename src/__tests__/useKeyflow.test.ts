@@ -1,14 +1,28 @@
-import { createElement, createRef, useState } from 'react';
-import type { ReactElement, RefObject } from 'react';
+import { createElement, useState } from 'react';
+import type { ReactElement } from 'react';
 import { act, create } from 'react-test-renderer';
 import type { ReactTestRenderer } from 'react-test-renderer';
 import { useKeyflow } from '../useKeyflow';
-import type { TextInput } from 'react-native';
+import { KeyflowAvoidingView } from '../KeyflowAvoidingView';
+import type { KeyflowKeyboardFrame } from '../keyboardGeometry';
+import {
+  clearKeyflowFrame,
+  claimKeyflowFrame,
+  getKeyflowFrame,
+  publishKeyflowFrame,
+} from '../keyflowFrameStore';
 
 jest.mock('expo', () => jest.requireActual('./KeyflowNativeMock'));
 jest.mock('react-native', () => ({
   Platform: { OS: 'ios', constants: { interfaceIdiom: 'phone' } },
   useColorScheme: () => 'light',
+  useWindowDimensions: () => ({ height: 800 }),
+  View: (props: Record<string, unknown>) =>
+    jest.requireActual('react').createElement('div', props),
+  Keyboard: {
+    addListener: jest.fn(() => ({ remove: jest.fn() })),
+    scheduleLayoutAnimation: jest.fn(),
+  },
   findNodeHandle: (input: { tag: number }) => input.tag,
   BackHandler: { addEventListener: jest.fn() },
 }));
@@ -32,46 +46,55 @@ beforeEach(() => {
 });
 
 function HookInput({
-  inputRef,
   mounted = true,
   replacement = false,
   onFrame,
+  frameOverride,
 }: {
-  inputRef: RefObject<TextInput | null>;
   mounted?: boolean;
   replacement?: boolean;
   onFrame?: jest.Mock;
+  frameOverride?: KeyflowKeyboardFrame | null;
 }) {
   const [value, setValue] = useState('App owns this');
-  const bindings = useKeyflow(inputRef, {
+  const { keyflowInputProps, inputRef, focus, blur } = useKeyflow({
     keyboardMode: 'custom',
     keyflowTheme: { keyboard: { background: '#123456' } },
     hapticsEnabled: true,
     onKeyboardFrameChange: onFrame,
   });
-  if (!mounted) return null;
-  return createElement('AppInput', {
-    ...bindings,
-    ref: inputRef,
-    key: replacement ? 'replacement' : 'initial',
-    testID: replacement ? 'replacement' : 'initial',
-    value,
-    onChangeText: setValue,
-    style: { color: 'purple', fontSize: 27 },
-  });
+  return createElement(
+    'AppControls',
+    { inputRef, focus, blur, testID: 'controls' },
+    createElement(
+      KeyflowAvoidingView,
+      { style: { flex: 1 }, testID: 'surface', keyboardFrame: frameOverride },
+      !mounted
+        ? null
+        : createElement('AppInput', {
+            ...keyflowInputProps,
+            key: replacement ? 'replacement' : 'initial',
+            testID: replacement ? 'replacement' : 'initial',
+            value,
+            onChangeText: setValue,
+            style: { color: 'purple', fontSize: 27 },
+          }),
+    ),
+  );
 }
 
 const createNodeMock = (element: ReactElement) => ({
+  focus: jest.fn(),
+  blur: jest.fn(),
   tag:
     (element.props as { testID?: string }).testID === 'replacement' ? 22 : 11,
 });
 
-test('attaches an app-owned input while preserving its value and style', async () => {
-  const inputRef = createRef<TextInput>();
+test('owns the ref and automatically avoids the active keyboard without consumer frame props', async () => {
   const onFrame = jest.fn();
   let renderer!: ReactTestRenderer;
   await act(async () => {
-    renderer = create(createElement(HookInput, { inputRef, onFrame }), {
+    renderer = create(createElement(HookInput, { onFrame }), {
       createNodeMock,
     });
   });
@@ -91,41 +114,116 @@ test('attaches an app-owned input while preserving its value and style', async (
   );
   expect(mockNative.attachInput).toHaveBeenCalledWith(expect.any(String), 11);
   const id = mockNative.attachInput.mock.calls[0]![0];
+  const controls = renderer.root.findByProps({ testID: 'controls' }).props;
+  const surface = () =>
+    renderer.root.find(
+      (node) => node.type === 'div' && node.props.testID === 'surface',
+    );
+  await act(async () =>
+    surface().props.onLayout({
+      nativeEvent: { layout: { y: 0, height: 800 } },
+    }),
+  );
+  controls.focus();
+  controls.blur();
+  expect(controls.inputRef.current.focus).toHaveBeenCalledTimes(1);
+  expect(controls.inputRef.current.blur).toHaveBeenCalledTimes(1);
   await act(async () => {
     mockListeners.get('onKeyflowFrameChange')?.({
-      id,
+      id: 'other-input',
       screenY: 500,
       height: 300,
       visible: true,
       source: 'custom',
     });
   });
+  expect(surface().props.style).toEqual([{ flex: 1 }, { paddingBottom: 0 }]);
+  const frame = {
+    screenY: 500,
+    height: 300,
+    visible: true,
+    source: 'custom' as const,
+  };
+  await act(async () => {
+    mockListeners.get('onKeyflowFrameChange')?.({ id, ...frame });
+  });
+  expect(surface().props.style).toEqual([{ flex: 1 }, { paddingBottom: 300 }]);
   expect(onFrame).toHaveBeenCalledWith(
     expect.objectContaining({ height: 300 }),
   );
+  await act(async () =>
+    renderer.update(
+      createElement(HookInput, {
+        onFrame,
+        frameOverride: { ...frame, screenY: 650, height: 150 },
+      }),
+    ),
+  );
+  expect(surface().props.style).toEqual([{ flex: 1 }, { paddingBottom: 150 }]);
+  await act(async () => renderer.update(createElement(HookInput, { onFrame })));
+  expect(surface().props.style).toEqual([{ flex: 1 }, { paddingBottom: 300 }]);
+  const updated = renderer.root.findByProps({ testID: 'controls' }).props;
+  expect(updated.inputRef).toBe(controls.inputRef);
+  expect(updated.focus).toBe(controls.focus);
+  expect(updated.blur).toBe(controls.blur);
+  await act(async () => {
+    claimKeyflowFrame('next-editor');
+    publishKeyflowFrame('next-editor', { ...frame, screenY: 600, height: 200 });
+  });
+  await act(async () => {
+    mockListeners.get('onKeyflowFrameChange')?.({ id, ...frame });
+  });
+  await act(async () => {
+    mockListeners.get('onKeyflowFrameChange')?.({
+      id,
+      ...frame,
+      height: 0,
+      visible: false,
+    });
+  });
+  expect(surface().props.style).toEqual([{ flex: 1 }, { paddingBottom: 200 }]);
+  await act(async () => clearKeyflowFrame('next-editor'));
+  expect(surface().props.style).toEqual([{ flex: 1 }, { paddingBottom: 0 }]);
+  await act(async () => {
+    mockListeners.get('onKeyflowFrameChange')?.({ id, ...frame });
+  });
   await act(async () => renderer.unmount());
   expect(mockNative.destroy).toHaveBeenCalledWith(id);
+  expect(getKeyflowFrame()).toBeNull();
+  expect(() => {
+    controls.focus();
+    controls.blur();
+  }).not.toThrow();
 });
 
-test('supports delayed and replacement inputs through their focus binding', async () => {
-  const inputRef = createRef<TextInput>();
+test('focus controls and bindings target delayed and replacement inputs', async () => {
   let renderer!: ReactTestRenderer;
   await act(async () => {
-    renderer = create(createElement(HookInput, { inputRef, mounted: false }), {
+    renderer = create(createElement(HookInput, { mounted: false }), {
       createNodeMock,
     });
   });
+  const controls = renderer.root.findByProps({ testID: 'controls' }).props;
+  expect(() => {
+    controls.focus();
+    controls.blur();
+  }).not.toThrow();
   expect(mockNative.configure).toHaveBeenCalled();
   expect(mockNative.attachInput).not.toHaveBeenCalled();
-  await act(async () => {
-    renderer.update(createElement(HookInput, { inputRef, replacement: true }));
-  });
+  await act(async () =>
+    renderer.update(createElement(HookInput, { replacement: true })),
+  );
   const replacement = renderer.root.findByProps({ testID: 'replacement' });
   await act(async () => replacement.props.onFocus());
   expect(mockNative.attachInput).toHaveBeenLastCalledWith(
     expect.any(String),
     22,
   );
+  controls.focus();
+  controls.blur();
+  expect(controls.inputRef.current.tag).toBe(22);
+  expect(controls.inputRef.current.focus).toHaveBeenCalledTimes(1);
+  expect(controls.inputRef.current.blur).toHaveBeenCalledTimes(1);
   await act(async () => replacement.props.onSelectionChange());
   expect(mockNative.updateInputContext).toHaveBeenCalledWith(
     expect.any(String),

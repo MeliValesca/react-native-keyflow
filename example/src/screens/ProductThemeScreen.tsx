@@ -1,28 +1,24 @@
 import { ExampleTextInput } from '../components/common/ExampleTextInput';
-import { useCallback, useRef, useState } from 'react';
-import { Platform, ScrollView, Text, TextInput, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Platform, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { KeyflowAvoidingView, useKeyflow } from 'react-native-keyflow';
-import type { KeyflowKeyboardFrame } from 'react-native-keyflow';
+
 import { studioTheme } from '../themes/studio';
 
 export function ProductThemeScreen() {
-  const input = useRef<TextInput>(null);
-  const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
   const [text, setText] = useState('');
   const header = useHeaderHeight();
-  const bindings = useKeyflow(input, {
+  const { inputRef: input, keyflowInputProps: bindings } = useKeyflow({
     keyboardAppearance: 'light',
     keyflowTheme: studioTheme,
-    onKeyboardFrameChange: setFrame,
   });
-  useFocusEffect(useCallback(() => () => void input.current?.blur(), []));
+  useFocusEffect(useCallback(() => () => void input.current?.blur(), [input]));
   return (
     <View style={{ flex: 1, backgroundColor: '#F4F0FF' }}>
       <KeyflowAvoidingView
         style={{ flex: 1 }}
-        keyboardFrame={frame}
         keyboardVerticalOffset={Platform.OS === 'ios' ? header : 0}
       >
         <ScrollView
@@ -73,7 +69,6 @@ export function ProductThemeScreen() {
         <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
           <ExampleTextInput
             {...bindings}
-            ref={input}
             autoFocus
             placeholder="Continue the story…"
             accessibilityLabel="Product theme input"

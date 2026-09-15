@@ -1,8 +1,10 @@
 # Keyboard types and landscape
 
 ```tsx
-const bindings = useKeyflow(inputRef, { keyboardType: 'decimal-pad' });
-<TextInput {...bindings} ref={inputRef} keyboardType="decimal-pad" />;
+const { keyflowInputProps } = useKeyflow({
+  keyboardType: 'decimal-pad',
+});
+<TextInput {...keyflowInputProps} keyboardType="decimal-pad" />;
 ```
 
 Omit `keyboardType` (or use `"default"`) for the alphabet layout selected by [language configuration](languages.md). The hook option selects the custom layout; set the matching prop on your input for system mode. Changing the option preserves the existing text and selection; it does not remount or validate the input. Pasted text is not filtered. Validate PINs, prices, and phone numbers in your application.
@@ -13,7 +15,7 @@ Omit `keyboardType` (or use `"default"`) for the alphabet layout selected by [la
 - Suggestions and QWERTY modifiers are absent from dedicated pads. The QWERTY `123` page remains available separately.
 - `keyflowTheme` works across types. Pad defaults resolve before your overrides, including `specialKeys`, `deleteKey`, and fonts.
 
-On phones, rotation selects compact rows and recalculates the occupied keyboard height. iOS respects horizontal safe areas. Android asks its system IME to keep editing inline instead of entering full-screen extract mode. Use `KeyflowAvoidingView` as in the other examples; wire `onKeyboardFrameChange` on Android. Your app must allow landscape orientation. The example's Expo orientation is `default`.
+On phones, rotation selects compact rows and recalculates the occupied keyboard height. iOS respects horizontal safe areas. Android asks its system IME to keep editing inline instead of entering full-screen extract mode. Use `KeyflowAvoidingView` as in the other examples; it follows the active input automatically on both platforms. Your app must allow landscape orientation. The example's Expo orientation is `default`.
 
 Open **Compare layouts & rotation** in the example. Select QWERTY, Number, Decimal, or Phone, switch Native/Keyflow, then rotate while typing. **Check layout** checks native key bounds and font overflow; it does not change editor contents.
 

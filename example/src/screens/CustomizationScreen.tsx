@@ -53,7 +53,6 @@ export function CustomizationScreen() {
     theme,
     type,
     setType,
-    frame,
     running,
     status,
     report,
@@ -96,7 +95,6 @@ export function CustomizationScreen() {
       />
       <KeyflowAvoidingView
         style={{ flex: 1 }}
-        keyboardFrame={frame}
         keyboardVerticalOffset={Platform.OS === 'ios' ? header : 0}
       >
         <View
@@ -119,7 +117,6 @@ export function CustomizationScreen() {
           <View style={{ flexDirection: 'row', gap: 4 }}>
             <ExampleTextInput
               {...bindings}
-              ref={input}
               keyboardType={type}
               accessibilityLabel="Font customization input"
               placeholder="Try your keyboard…"

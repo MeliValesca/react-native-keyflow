@@ -21,7 +21,8 @@ export { useKeyflow } from './useKeyflow';
 export type {
   KeyflowKeyboardType,
   KeyflowOptions,
-  KeyflowBindings,
+  KeyflowInputProps,
+  KeyflowResult,
 } from './useKeyflow';
 
 export { KeyflowAvoidingView } from './KeyflowAvoidingView';

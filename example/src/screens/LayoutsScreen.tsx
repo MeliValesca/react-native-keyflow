@@ -1,22 +1,18 @@
 import { ExampleTextInput } from '../components/common/ExampleTextInput';
 import { getKeyboardMetrics } from 'react-native-keyflow/testing';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import {
   Platform,
   Pressable,
   ScrollView,
   Text,
-  TextInput,
   View,
   useWindowDimensions,
 } from 'react-native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useKeyflow, KeyflowAvoidingView } from 'react-native-keyflow';
-import type {
-  KeyflowKeyboardType,
-  KeyflowKeyboardFrame,
-} from 'react-native-keyflow';
+import type { KeyflowKeyboardType } from 'react-native-keyflow';
 import { ComparisonTabs } from '../components/common/ComparisonTabs';
 
 const types = [
@@ -27,12 +23,10 @@ const types = [
 ] as const;
 
 export function LayoutsScreen() {
-  const input = useRef<TextInput>(null);
   const [type, setType] = useState<KeyflowKeyboardType>('default');
   const [mode, setMode] = useState<'custom' | 'system'>('custom');
   const [text, setText] = useState('');
   const [diagnostic, setDiagnostic] = useState('');
-  const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
   const [status, setStatus] = useState(
     'Rotate the device with the keyboard open.',
   );
@@ -40,11 +34,10 @@ export function LayoutsScreen() {
   const landscape = width > height;
   const insets = useSafeAreaInsets();
   const header = useHeaderHeight();
-  const bindings = useKeyflow(input, {
+  const { inputRef: input, keyflowInputProps: bindings } = useKeyflow({
     keyboardType: type,
     keyboardMode: mode,
     onKeyboardModeChange: setMode,
-    onKeyboardFrameChange: setFrame,
   });
   const inspect = async () => {
     try {
@@ -75,7 +68,6 @@ export function LayoutsScreen() {
   return (
     <KeyflowAvoidingView
       style={{ flex: 1 }}
-      keyboardFrame={frame}
       keyboardVerticalOffset={Platform.OS === 'ios' ? header : 0}
     >
       <ScrollView
@@ -116,7 +108,6 @@ export function LayoutsScreen() {
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <ExampleTextInput
             {...bindings}
-            ref={input}
             placeholder="Try this layout…"
             accessibilityLabel="Layout input"
             keyboardType={type}

@@ -11,8 +11,10 @@ const pressedTheme = createKeyflowTheme(
   },
   transparentKeyflowTheme,
 );
-const bindings = useKeyflow(inputRef, { keyflowTheme: pressedTheme });
-<TextInput {...bindings} ref={inputRef} />;
+const { keyflowInputProps } = useKeyflow({
+  keyflowTheme: pressedTheme,
+});
+<TextInput {...keyflowInputProps} />;
 ```
 
 The Apple letter inventory was captured from actual holds on the iOS 26.5 English keyboard: `artifacts/accent-parity/apple-*.png`. It adds previously missing alternatives and matches the observed base-letter position. Uppercase I uses dotted İ instead of duplicating I; uppercase S retains ß and uses Apple's separately observed ordering. This reference is specific to that locale and OS, not every installed language.

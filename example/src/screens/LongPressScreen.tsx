@@ -1,11 +1,11 @@
 import { ExampleTextInput } from '../components/common/ExampleTextInput';
 import { getKeyboardMetrics } from 'react-native-keyflow/testing';
-import { useCallback, useRef, useState } from 'react';
-import { Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Platform, Pressable, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { KeyflowAvoidingView, useKeyflow } from 'react-native-keyflow';
-import type { KeyflowKeyboardFrame } from 'react-native-keyflow';
+
 import { ComparisonTabs } from '../components/common/ComparisonTabs';
 
 const cases = {
@@ -16,21 +16,18 @@ const cases = {
 };
 
 export function LongPressScreen() {
-  const input = useRef<TextInput>(null);
   const [mode, setMode] = useState<'custom' | 'system'>('custom');
   const [seed, setSeed] = useState('');
   const [revision, setRevision] = useState(0);
   const [text, setText] = useState('');
-  const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
   const [diagnostic, setDiagnostic] = useState('Ready for comparison.');
   const header = useHeaderHeight();
-  const bindings = useKeyflow(input, {
+  const { inputRef: input, keyflowInputProps: bindings } = useKeyflow({
     keyboardMode: mode,
     keyboardAppearance: 'light',
-    onKeyboardFrameChange: setFrame,
   });
 
-  useFocusEffect(useCallback(() => () => void input.current?.blur(), []));
+  useFocusEffect(useCallback(() => () => void input.current?.blur(), [input]));
 
   const switchMode = async (next: 'custom' | 'system') => {
     setMode(next);
@@ -122,7 +119,6 @@ export function LongPressScreen() {
         </Text>
       </View>
       <KeyflowAvoidingView
-        keyboardFrame={frame}
         keyboardVerticalOffset={Platform.OS === 'ios' ? header : 0}
         style={{ flex: 1 }}
       >
@@ -130,7 +126,6 @@ export function LongPressScreen() {
         <ExampleTextInput
           {...bindings}
           key={revision}
-          ref={input}
           autoFocus
           defaultValue={seed}
           keyboardAppearance="light"

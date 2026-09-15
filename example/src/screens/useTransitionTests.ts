@@ -34,7 +34,6 @@ export function useTransitionTests() {
   );
   const [running, setRunning] = useState(false);
   const alive = useRef(true);
-  const input = useRef<TextInput>(null);
   const baseline = useRef<TextInput>(null);
   const composer = useRef<View>(null);
   const record = (next: KeyflowKeyboardFrame) => {
@@ -42,7 +41,7 @@ export function useTransitionTests() {
     frames.current.push(next);
     setFrame(next);
   };
-  const bindings = useKeyflow(input, {
+  const { inputRef: input, keyflowInputProps: bindings } = useKeyflow({
     enabled: engine !== 'baseline',
     keyboardMode: engine === 'baseline' ? 'custom' : engine,
     keyflowTheme: raised ? studioTheme : undefined,
@@ -57,7 +56,7 @@ export function useTransitionTests() {
       void mountedInput?.blur();
       mountedBaseline?.blur();
     };
-  }, []);
+  }, [input]);
   useEffect(() => {
     if (Platform.OS === 'android' && engine !== 'baseline') return;
     const willShow = Keyboard.addListener('keyboardWillShow', (event) => {

@@ -14,7 +14,6 @@ export function TransitionScreen() {
     status,
     composer,
     baseline,
-    input,
     bindings,
     run,
   } = useTransitionTests();
@@ -70,7 +69,6 @@ export function TransitionScreen() {
         ) : (
           <ExampleTextInput
             {...bindings}
-            ref={input}
             defaultValue="Transition"
             accessibilityLabel="Keyflow transition input"
             style={{ height: 48, backgroundColor: 'white' }}

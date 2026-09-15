@@ -4,12 +4,12 @@ Keyflow provides in-app keyboards using Swift/UIKit and Kotlin/Android controlle
 
 ## Library boundaries
 
-- `src/useKeyflow.ts` exposes `useKeyflow`, adapts typed options, themes, events, and the native ref, and returns only the bindings required by the app-owned input. React Native retains ownership of the editor and its text/event pipeline.
+- `src/useKeyflow.ts` exposes `useKeyflow`, adapts typed options, themes, events, and the native ref, and owns the input ref. Keyboard frames are published to an internal active-input store consumed by `KeyflowAvoidingView`. It returns `keyflowInputProps`, `inputRef`, and stable `focus()`/`blur()` controls. React Native retains ownership of the editor and its text/event pipeline.
 - `src/KeyflowAvoidingView.tsx` handles keyboard avoidance. Android consumers connect the active input's frame callback; iOS combines UIKit notifications with the custom keyboard’s actual native frame, including attachment to an autofocus input.
 - Theme sections, defaults, serialization, language configuration, and overlap geometry live in separate TypeScript modules.
 - `src/testing.ts` exposes diagnostics separately from the ordinary input ref. Native metrics remain available to the example and device suites.
 
-The consumer passes a React Native `TextInput` ref to `useKeyflow` and spreads the returned bindings onto that input. Controlled values use React Native’s existing revision handling. The library creates no text editor and applies no input appearance. The example app owns its `ExampleTextInput` styles.
+The consumer calls `useKeyflow(options)` and spreads `keyflowInputProps` onto a React Native `TextInput`. Those props include the hook-owned ref and event bindings. The avoiding view subscribes internally to the active input’s frame. Late hide events from a previous input cannot collapse the active layout. Controlled values use React Native’s existing revision handling. The library creates no text editor and applies no input appearance. The example app owns its `ExampleTextInput` styles.
 
 ## iOS
 

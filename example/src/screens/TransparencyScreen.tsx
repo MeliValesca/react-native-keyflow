@@ -8,7 +8,6 @@ import {
   Pressable,
   ScrollView,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -26,13 +25,11 @@ import { OpacitySlider } from '../components/common/OpacitySlider';
 
 const wallpaper = require('../../assets/backdrops/coast.jpg');
 export function TransparencyScreen() {
-  const input = useRef<TextInput>(null);
   const [backdrop, setBackdrop] = useState(0);
   const [backgroundOpacity, setBackgroundOpacity] = useState(0.35);
   const [keyOpacity, setKeyOpacity] = useState(
     transparentKeyflowTheme.keyOpacity,
   );
-  const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
   const latestFrame = useRef<KeyflowKeyboardFrame | null>(null);
   const [result, setResult] = useState('');
   const [running, setRunning] = useState(false);
@@ -50,12 +47,11 @@ export function TransparencyScreen() {
     },
     transparentKeyflowTheme,
   );
-  const bindings = useKeyflow(input, {
+  const { inputRef: input, keyflowInputProps: bindings } = useKeyflow({
     keyboardAppearance: 'light',
     keyflowTheme,
     onKeyboardFrameChange: (next) => {
       latestFrame.current = next;
-      setFrame(next);
     },
   });
   useFocusEffect(
@@ -63,7 +59,7 @@ export function TransparencyScreen() {
       () => () => {
         void input.current?.blur();
       },
-      [],
+      [input],
     ),
   );
   const check = async () => {
@@ -132,7 +128,6 @@ export function TransparencyScreen() {
         />
       )}
       <KeyflowAvoidingView
-        keyboardFrame={frame}
         keyboardVerticalOffset={Platform.OS === 'ios' ? header : 0}
         style={{ flex: 1 }}
       >
@@ -237,7 +232,6 @@ export function TransparencyScreen() {
         </ScrollView>
         <ExampleTextInput
           {...bindings}
-          ref={input}
           autoFocus
           placeholder="What made today memorable?"
           accessibilityLabel="Transparency comparison input"

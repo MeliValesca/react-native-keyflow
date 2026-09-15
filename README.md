@@ -45,16 +45,13 @@ The example uses **Expo SDK 57, React Native 0.86.3, and React 19.2.3**. Keyflow
 
 ### Your first input
 
-Connect the input’s keyboard frame to `KeyflowAvoidingView`. It handles keyboard avoidance through the same integration on both platforms.
+Spread `keyflowInputProps` onto your input. `KeyflowAvoidingView` follows the active Keyflow automatically on both platforms; no ref or keyboard-frame wiring is required.
 
 ```tsx
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { TextInput, Text } from 'react-native';
 import { KeyflowAvoidingView, useKeyflow } from 'react-native-keyflow';
-import type {
-  KeyflowKeyboardFrame,
-  KeyflowThemeOverrides,
-} from 'react-native-keyflow';
+import type { KeyflowThemeOverrides } from 'react-native-keyflow';
 
 const keyflowTheme = {
   keyboard: { background: '#F4F0FF' },
@@ -63,25 +60,20 @@ const keyflowTheme = {
 } satisfies KeyflowThemeOverrides;
 
 export function Composer() {
-  const [frame, setFrame] = useState<KeyflowKeyboardFrame | null>(null);
   const [text, setText] = useState('');
-  const inputRef = useRef<TextInput>(null);
-  const bindings = useKeyflow(inputRef, {
+  const { keyflowInputProps } = useKeyflow({
     keyflowTheme,
     keyboardMode: 'custom',
     hapticsEnabled: true,
-    onKeyboardFrameChange: setFrame,
   });
 
   return (
     <KeyflowAvoidingView
-      keyboardFrame={frame}
       style={{ flex: 1, justifyContent: 'flex-end', padding: 16 }}
     >
       <Text>Write the next chapter.</Text>
       <TextInput
-        {...bindings}
-        ref={inputRef}
+        {...keyflowInputProps}
         placeholder="Start typing…"
         value={text}
         accessibilityLabel="Message"
@@ -101,14 +93,13 @@ export function Composer() {
 }
 ```
 
-**Your app owns the input.** Pass its ref to `useKeyflow`, spread the returned bindings onto the same React Native `TextInput`, and attach the ref. This also works with your own input component when it forwards the ref and bindings to a native `TextInput`. Set `style`, `value`/`defaultValue`, placeholder, accessibility props, and text callbacks directly on your input. Keep larger keyboard styling in a reusable `keyflowTheme` constant; it styles Keyflow only.
+**Your app owns the input.** Call `useKeyflow(options)` and spread `keyflowInputProps` onto your React Native `TextInput`; these props include its ref and event bindings. This also works with your own input component when it forwards the ref and bindings to a native `TextInput`. Set `style`, `value`/`defaultValue`, placeholder, accessibility props, and text callbacks directly on your input. Keep larger keyboard styling in a reusable `keyflowTheme` constant; it styles Keyflow only.
 
 **Multiline inputs are supported on iOS and Android.** For larger editors, set `multiline` on your input and choose its height or `numberOfLines` yourself:
 
 ```tsx
 <TextInput
-  {...bindings}
-  ref={inputRef}
+  {...keyflowInputProps}
   multiline
   value={text}
   onChangeText={setText}
@@ -118,6 +109,21 @@ export function Composer() {
 
 On iOS, hold space to enter trackpad mode, then slide in any direction. A floating caret follows the finger freely across letters and blank space inside the input. On release, it snaps to the nearest valid insertion position, including wrapped lines. Android's space-slide gesture supports both directions too. The drag target stays independent of the snapped caret, so short lines do not discard its horizontal position. Return follows your input's React Native `submitBehavior`; multiline inputs insert a newline by default.
 
+The hook also exposes stable `focus()` and `blur()` methods. They safely do nothing while the input is unmounted. `inputRef` remains available for other native input methods:
+
+```tsx
+import { Button, TextInput } from 'react-native';
+
+const { keyflowInputProps, focus, blur, inputRef } = useKeyflow({
+  keyflowTheme,
+});
+
+<TextInput {...keyflowInputProps} style={styles.input} />;
+<Button title="Focus input" onPress={focus} />;
+<Button title="Dismiss input" onPress={blur} />;
+// Other native methods remain available, e.g. inputRef.current?.clear().
+```
+
 Call `useKeyflow` unconditionally with the component's other hooks. The input itself may render later, such as after a font or other asset loads; Keyflow attaches when that input receives focus. See [the input API](docs/api.md#input-api) for composing callbacks and [keyboard avoidance](docs/api.md#keyboard-avoidance) for navigation headers.
 
 ## Customization
@@ -126,7 +132,6 @@ Use small section objects. Shared settings live under `font` and `keyboard`; ove
 
 ```tsx
 import { TextInput } from 'react-native';
-import { useRef } from 'react';
 import { useKeyflow } from 'react-native-keyflow';
 import type { KeyflowThemeOverrides } from 'react-native-keyflow';
 
@@ -150,10 +155,11 @@ export const keyflowTheme = {
   selection: { background: '#E05B8D', color: '#FFFFFF' },
 } satisfies KeyflowThemeOverrides;
 
-const inputRef = useRef<TextInput>(null);
-const bindings = useKeyflow(inputRef, { keyflowTheme });
+const { keyflowInputProps } = useKeyflow({
+  keyflowTheme,
+});
 
-<TextInput {...bindings} ref={inputRef} style={styles.input} />;
+<TextInput {...keyflowInputProps} style={styles.input} />;
 ```
 
 | Section                   | Controls                                                          |
@@ -181,7 +187,7 @@ const transparentTheme = {
     keyOpacity: 0.7,
   },
 };
-const bindings = useKeyflow(inputRef, {
+const { keyflowInputProps } = useKeyflow({
   keyflowTheme: transparentTheme,
 });
 ```
@@ -194,7 +200,6 @@ Load the font before rendering the input. With `expo-font`, for example:
 
 ```tsx
 import { TextInput } from 'react-native';
-import { useRef } from 'react';
 import { useFonts } from 'expo-font';
 import { useKeyflow } from 'react-native-keyflow';
 
@@ -202,8 +207,7 @@ export function BrandedInput() {
   const [loaded, error] = useFonts({
     Quicksand: require('./assets/Quicksand_600SemiBold.ttf'),
   });
-  const inputRef = useRef<TextInput>(null);
-  const bindings = useKeyflow(inputRef, {
+  const { keyflowInputProps } = useKeyflow({
     keyflowTheme: {
       font: { family: 'Quicksand', weight: 'medium' },
       keys: { color: '#16324F' },
@@ -212,7 +216,7 @@ export function BrandedInput() {
   if (error) throw error;
   if (!loaded) return null;
 
-  return <TextInput {...bindings} ref={inputRef} style={{ height: 52 }} />;
+  return <TextInput {...keyflowInputProps} style={{ height: 52 }} />;
 }
 ```
 
@@ -300,8 +304,7 @@ The clips demonstrate the named interactions only. The other behaviors in the ta
 ## Layouts and languages
 
 ```tsx
-const inputRef = useRef<TextInput>(null);
-const bindings = useKeyflow(inputRef, {
+const { keyflowInputProps } = useKeyflow({
   keyboardType: 'decimal-pad',
   keyboardLanguages: [
     { language: 'en', layout: 'qwerty' },
@@ -310,8 +313,7 @@ const bindings = useKeyflow(inputRef, {
 });
 
 <TextInput
-  {...bindings}
-  ref={inputRef}
+  {...keyflowInputProps}
   keyboardType="decimal-pad"
   style={styles.input}
 />;
@@ -374,7 +376,7 @@ Use `keyboardMode: 'system'` for the installed keyboard and whatever features it
 
 ### Integration limits
 
-- `useKeyflow` attaches to one React Native `TextInput` ref. Single-line and multiline inputs are supported; arbitrary native editor implementations are not. Input props and controlled values belong to your input; Keyflow does not replace React Native’s editing/event pipeline.
+- `useKeyflow` creates a ref for one React Native `TextInput`. Single-line and multiline inputs are supported; arbitrary native editor implementations are not. Input props and controlled values belong to your input; Keyflow does not replace React Native’s editing/event pipeline.
 - Supported preview peers are Expo SDK 57, React Native 0.86.x (0.86.3+) and React 19.2.3+. Earlier combinations are not claimed as supported. A native build with Expo Modules is required; Expo Go is unsupported. On web, calling `useKeyflow` throws; provide your own [fallback](docs/api.md#web-fallback).
 - Keyflow is an **in-app keyboard library**, not a system-wide keyboard extension/IME that users can install for other apps.
 
