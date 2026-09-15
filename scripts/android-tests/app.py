@@ -123,7 +123,7 @@ class ExampleSuite:
         labels = {value for node in nodes for value in (node.get('text', ''), node.get('content-desc', ''))}
         anr = next((label for label in labels if label.endswith("isn't responding") or label.endswith('isn’t responding')), None)
         if anr:
-            return 'system_anr' if anr in ("System UI isn't responding", 'System UI isn’t responding') else 'app_anr'
+            return 'system_anr' if anr in ("System UI isn't responding", 'System UI isn’t responding', "Process system isn't responding", 'Process system isn’t responding') else 'app_anr'
         if 'Open React Native dev menu' in labels and 'Reload' in labels:
             return 'dev_menu'
         if 'Keyboard lab' in labels:
@@ -539,5 +539,16 @@ class ExampleSuite:
         assert failures == 0, f'{failures} React Native integration cases failed'
 
 
+def run_cli(serial, output):
+    awake = subprocess.Popen(['/usr/bin/caffeinate', '-d', '-i', '-w', str(os.getpid())],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) if sys.platform == 'darwin' else None
+    try:
+        ExampleSuite(serial, output).run()
+    finally:
+        if awake is not None:
+            awake.terminate()
+            awake.wait(timeout=5)
+
+
 if __name__ == '__main__':
-    ExampleSuite(os.environ['KEYFLOW_ANDROID_SERIAL'], sys.argv[1]).run()
+    run_cli(os.environ['KEYFLOW_ANDROID_SERIAL'], sys.argv[1])

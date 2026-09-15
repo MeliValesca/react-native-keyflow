@@ -173,6 +173,13 @@ final class KeyflowQwertyTests: XCTestCase {
     // stale accessibility keys that still exist below the visible screen.
     let result = XCTWaiter.wait(
       for: [XCTNSPredicateExpectation(predicate: ready, object: app)], timeout: 5)
+    if result != .completed {
+      let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+      screenshot.name = "keyboard-key-not-ready"
+      screenshot.lifetime = .keepAlways
+      add(screenshot)
+      print("KEYFLOW_KEY_NOT_READY labels=\(labels) sample=\(previous ?? "none") match=\(match?.debugDescription ?? "none")")
+    }
     XCTAssertEqual(
       result, .completed, "Keyboard key must be visible and hittable: \(labels)", file: file,
       line: line)
@@ -593,6 +600,20 @@ final class KeyflowQwertyTests: XCTestCase {
         waitForText("Q", context: "The selected keyboard must type into the remounted input")
       }
     }
+  }
+  func testMultilineRemountPreservesFocus() {
+    for _ in 0..<3 {
+      reset("Empty")
+      app.buttons["Reset Multiline"].tap()
+      let editor = app.textViews.firstMatch
+      XCTAssertTrue(editor.waitForExistence(timeout: 5))
+      center(key(["Return", "return", "newline"])).tap()
+      let inserted = NSPredicate { _, _ in editor.value as? String == "alpha\nbeta\ngamma\n" }
+      XCTAssertEqual(
+        XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: inserted, object: editor)], timeout: 5),
+        .completed, "Remounting a multiline input must preserve focus without another focus command")
+    }
+    capture("multiline-remount-focus")
   }
   func testKeyflowCoreInteractions() throws {
     reset("Empty")

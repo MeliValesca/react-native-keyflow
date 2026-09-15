@@ -264,40 +264,40 @@ These are **Keyflow**, not the actual system keyboards. The default-layout previ
 ### Opening, dismissal and keyboard avoidance
 
 <table>
-<tr><th>iPad · UIKit</th><th>Android phone · Kotlin</th></tr>
+<tr><th>iPhone · UIKit</th><th>Android phone · Kotlin</th></tr>
 <tr>
-<td><a href="docs/media/ios-transitions.mp4"><img src="docs/media/ios-transitions.gif" width="260" alt="iPad keyboard opening and dismissing while the composer moves above it" /></a></td>
+<td><a href="docs/media/ios-transitions.mp4"><img src="docs/media/ios-transitions.gif" width="260" alt="iPhone keyboard opening and dismissing while the composer moves above it" /></a></td>
 <td><a href="docs/media/android-transitions.mp4"><img src="docs/media/android-transitions.gif" width="260" alt="Android keyboard opening and dismissing with the composer following its frame" /></a></td>
 </tr>
 </table>
 
-Watch the MP4s: [iPad transitions](docs/media/ios-transitions.mp4) · [Android transitions](docs/media/android-transitions.mp4).
+Watch the MP4s: [iPhone transitions](docs/media/ios-transitions.mp4) · [Android transitions](docs/media/android-transitions.mp4).
 
 ### Long press and accent selection
 
 <table>
-<tr><th>iPad · Hold and slide between accents</th><th>Android phone · Hold and slide between accents</th></tr>
+<tr><th>iPhone · Hold and slide between accents</th><th>Android phone · Hold and slide between accents</th></tr>
 <tr>
-<td><a href="docs/media/ios-accents.mp4"><img src="docs/media/ios-accents.gif" width="420" alt="Slide between iPad accent choices with Story Studio’s rose selection highlight" /></a></td>
-<td><a href="docs/media/android-accents.mp4"><img src="docs/media/android-accents.gif" width="420" alt="Android accent highlight following a continuous drag across rows and columns" /></a></td>
+<td><a href="docs/media/ios-accents.mp4"><img src="docs/media/ios-accents.gif" width="420" alt="Slide between iPhone accent choices with Story Studio’s rose selection highlight" /></a></td>
+<td><a href="docs/media/android-accents.mp4"><img src="docs/media/android-accents.gif" width="420" alt="Android accent highlight following a continuous drag across accent choices" /></a></td>
 </tr>
 </table>
 
-Watch the MP4s: [iPad accent selection](docs/media/ios-accents.mp4) · [Android long press](docs/media/android-accents.mp4).
+Watch the MP4s: [iPhone accent selection](docs/media/ios-accents.mp4) · [Android long press](docs/media/android-accents.mp4).
 
 ### Space-bar trackpad
 
 <table>
-<tr><th>iPad · Hold space, then move</th><th>Android phone · Slide on space</th></tr>
+<tr><th>iPhone · Hold space, then move</th><th>Android phone · Slide on space</th></tr>
 <tr>
-<td><a href="docs/media/ios-trackpad.mp4"><img src="docs/media/ios-trackpad.gif" width="420" alt="iPad key labels fading during space-bar cursor movement and returning on release" /></a></td>
-<td><a href="docs/media/android-trackpad.mp4"><img src="docs/media/android-trackpad.gif" width="420" alt="Android space retaining its pressed color while the cursor moves left and right" /></a></td>
+<td><a href="docs/media/ios-trackpad.mp4"><img src="docs/media/ios-trackpad.gif" width="420" alt="iPhone multiline cursor movement on both axes while space is held" /></a></td>
+<td><a href="docs/media/android-trackpad.mp4"><img src="docs/media/android-trackpad.gif" width="420" alt="Android multiline cursor movement on both axes while space is held" /></a></td>
 </tr>
 </table>
 
-Watch the MP4s: [iPad trackpad](docs/media/ios-trackpad.mp4) · [Android trackpad](docs/media/android-trackpad.mp4).
+Watch the MP4s: [iPhone multiline trackpad](docs/media/ios-trackpad.mp4) · [Android multiline trackpad](docs/media/android-trackpad.mp4).
 
-The Android accent and trackpad GIFs use 50 fps; the iOS versions use 25 fps; the transition previews use 10 fps. The MP4s retain the recordings’ timing. These recordings illustrate the named interactions, not native-parity or physical-device performance benchmarks. The trackpad clips predate continuous two-axis multiline movement; try “Multiline notes” in the example app for the updated behavior.
+Accent and trackpad GIFs use 25 fps; transition previews use 12 fps. The MP4s retain the recordings’ timing. Both trackpad clips demonstrate continuous horizontal and vertical movement in a multiline input. These recordings illustrate the named interactions, not native-parity or physical-device performance benchmarks.
 
 The clips demonstrate the named interactions only. The other behaviors in the table are covered by the relevant [native and app test suites](docs/coverage.md), with device-review limits documented there.
 

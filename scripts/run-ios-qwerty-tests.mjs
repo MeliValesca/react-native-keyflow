@@ -12,9 +12,13 @@ const prebuilt = process.env.KEYFLOW_IOS_XCTESTRUN;
 if (prebuilt && !existsSync(prebuilt))
   throw new Error('Missing shared XCTest bundle');
 // Simulator input synthesis cannot progress while the local Mac is asleep.
-const awake = spawn('/usr/bin/caffeinate', ['-i', '-w', String(process.pid)], {
-  stdio: 'ignore',
-});
+const awake = spawn(
+  '/usr/bin/caffeinate',
+  ['-d', '-i', '-w', String(process.pid)],
+  {
+    stdio: 'ignore',
+  },
+);
 awake.unref();
 process.on('exit', () => awake.kill('SIGTERM'));
 if (!prebuilt)

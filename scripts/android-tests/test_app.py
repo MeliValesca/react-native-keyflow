@@ -6,10 +6,29 @@ import tempfile
 from unittest.mock import patch
 from pathlib import Path
 import xml.etree.ElementTree as ET
-from app import ExampleSuite
+from app import ExampleSuite, run_cli
 
 
 class AppHarnessTests(unittest.TestCase):
+    def test_local_sleep_assertion_is_released_after_success_and_failure(self):
+        for error in (None, AssertionError('device failure')):
+            with patch('app.sys.platform', 'darwin'), patch('app.subprocess.Popen') as process, patch('app.ExampleSuite') as suite:
+                suite.return_value.run.side_effect = error
+                if error is None:
+                    run_cli('owned-device', 'output')
+                else:
+                    with self.assertRaisesRegex(AssertionError, 'device failure'):
+                        run_cli('owned-device', 'output')
+                self.assertEqual(process.call_args.args[0][1:3], ['-d', '-i'])
+                process.return_value.terminate.assert_called_once()
+                process.return_value.wait.assert_called_once_with(timeout=5)
+
+    def test_ci_android_runner_does_not_spawn_macos_power_tool(self):
+        with patch('app.sys.platform', 'linux'), patch('app.subprocess.Popen') as process, patch('app.ExampleSuite') as suite:
+            run_cli('owned-device', 'output')
+            suite.return_value.run.assert_called_once()
+            process.assert_not_called()
+
     def test_ci_core_profile_runs_real_required_case_and_local_default_retains_full_inventory(self):
         self.assertEqual(ExampleSuite.SMOKE_CASES, ('core',))
         self.assertEqual(set(ExampleSuite.CASES), {'editing','multiline','pages_and_accents','handoff','system_editor','submit','transitions','customization','transparency','layouts'})
@@ -115,6 +134,8 @@ class AppHarnessTests(unittest.TestCase):
         menu = ET.fromstring('<node text="Open React Native dev menu"/>')
         reload = ET.fromstring('<node text="Reload"/>')
         self.assertEqual(ExampleSuite.startup_state([lab, system]), 'system_anr')
+        for label in ("Process system isn't responding", 'Process system isn’t responding'):
+            self.assertEqual(ExampleSuite.startup_state([lab, ET.Element('node', text=label)]), 'system_anr')
         self.assertEqual(ExampleSuite.startup_state([lab, app]), 'app_anr')
         self.assertEqual(ExampleSuite.startup_state([lab, menu, reload]), 'dev_menu')
         self.assertEqual(ExampleSuite.startup_state([lab]), 'ready')

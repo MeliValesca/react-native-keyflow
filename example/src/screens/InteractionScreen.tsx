@@ -1,7 +1,7 @@
 import { ExampleTextInput } from '../components/common/ExampleTextInput';
 import { settledKeyboardMode } from '../testing/settledKeyboardMode';
 import { getKeyboardMetrics } from 'react-native-keyflow/testing';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Platform, Pressable, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
@@ -34,9 +34,6 @@ export function InteractionScreen() {
     keyboardMode: mode,
     keyboardAppearance: 'light',
   });
-  useEffect(() => {
-    input.current?.focus();
-  }, [input, revision]);
   useFocusEffect(
     useCallback(() => {
       alive.current = true;
@@ -222,6 +219,7 @@ export function InteractionScreen() {
         <View style={{ flex: 1 }} />
         <ExampleTextInput
           {...bindings}
+          autoFocus
           key={revision}
           testID={`interaction-input-${revision}`}
           value={text}
