@@ -346,7 +346,7 @@ corepack yarn check
 python3 -m unittest discover -s scripts/android-tests -p 'test_*.py' -v
 ```
 
-CI builds the app and test binaries once per platform, then shares them with parallel phone/tablet test jobs. It also runs library checks. Platform filtering avoids unrelated native jobs; extra device profiles run weekly. The retained suite covers native rendering, press/hold behavior and layouts, plus iOS example customization, transparency and transition diagnostics. Android example-level lifecycle and performance automation are not included.
+CI builds the app and test binaries once per platform, then shares them with parallel phone/tablet test jobs. It also runs library checks. Platform filtering avoids unrelated native jobs; extra device profiles run weekly. Both platforms run native rendering/interaction tests and the actual React Native example. Android phone and tablet also cover multiline editing, trackpad movement, system handoffs, avoidance transitions, customization, transparency, and portrait/landscape layouts.
 
 See [test commands](docs/testing.md), [coverage and limits](docs/coverage.md), and [visual comparisons](docs/visual-feature-tests.md). Passing these checks does not certify every native visual detail, complete VoiceOver/TalkBack navigation, or real-device smoothness.
 

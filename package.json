@@ -47,6 +47,7 @@
     "test:visual:qwerty": "node scripts/compare-qwerty-defaults.mjs",
     "test:device:ios": "node scripts/run-ios-qwerty-tests.mjs",
     "test:device:android": "node scripts/compare-native-interactions.mjs android",
+    "test:device:android:app": "python3 scripts/android-tests/app.py artifacts/android-app",
     "test:visual:accents": "node scripts/capture-accent-contrast.mjs",
     "test:features": "node scripts/visual/run.mjs",
     "test:features:report": "node scripts/visual/report.mjs",

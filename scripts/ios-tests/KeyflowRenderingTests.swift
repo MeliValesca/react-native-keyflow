@@ -35,6 +35,31 @@ final class KeyflowRenderingTests: XCTestCase {
   func testPhonePadRaisedLargeSquareFits() { assertFits("phone-pad", "raised", 32.0, 0.0) }
   func testPhonePadRaisedLargeRoundedFits() { assertFits("phone-pad", "raised", 32.0, 24.0) }
 
+  func testPanelMaskLayoutDoesNotStartImplicitAnimations() throws {
+    let keyboard = KeyflowKeyboardView()
+    let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+    let window = scene.map { UIWindow(windowScene: $0) } ?? UIWindow(frame: UIScreen.main.bounds)
+    let controller = UIViewController()
+    window.rootViewController = controller
+    window.makeKeyAndVisible()
+    defer { window.isHidden = true }
+    controller.view.addSubview(keyboard)
+    keyboard.frame = CGRect(x: 0, y: 100, width: 390, height: keyboard.intrinsicContentSize.height)
+    keyboard.layoutIfNeeded()
+    let mask = try XCTUnwrap(keyboard.subviews.compactMap { $0.layer.mask }.first)
+    CATransaction.flush()
+    // UIKit lays the accessory out during an animated keyboard presentation.
+    // Static clipping geometry must not add another animation on every layout.
+    CATransaction.begin()
+    CATransaction.setAnimationDuration(10)
+    keyboard.frame.size.width += 1
+    keyboard.setNeedsLayout()
+    keyboard.layoutIfNeeded()
+    CATransaction.commit()
+    CATransaction.flush()
+    XCTAssertEqual(mask.animationKeys() ?? [], [], "Static mask animations can keep XCTest waiting for the app to idle")
+  }
+
   func testPanelCoversBottomCornersWithoutExtraOpacity() throws {
     for color in ["#163B50", "#163B5080"] {
       let keyboard = KeyflowKeyboardView()

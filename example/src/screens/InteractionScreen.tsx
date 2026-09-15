@@ -28,6 +28,7 @@ export function InteractionScreen() {
   const [running, setRunning] = useState(false);
   const alive = useRef(true);
   const request = useRef(0);
+  const diagnosticRequest = useRef(0);
   const header = useHeaderHeight();
   const { inputRef: input, keyflowInputProps: bindings } = useKeyflow({
     keyboardMode: mode,
@@ -53,6 +54,7 @@ export function InteractionScreen() {
     if (alive.current && id === request.current) input.current?.focus();
   };
   const reset = async (name: keyof typeof cases) => {
+    diagnosticRequest.current++;
     await input.current?.blur();
     setText(cases[name]);
     setMultiline(name === 'Multiline');
@@ -60,12 +62,18 @@ export function InteractionScreen() {
     setRevision((value) => value + 1);
   };
   const inspect = async () => {
+    const id = ++diagnosticRequest.current;
+    setDiagnostic('');
     const metrics = await getKeyboardMetrics(input);
-    setDiagnostic(JSON.stringify(metrics));
+    if (alive.current && id === diagnosticRequest.current) {
+      setDiagnostic(JSON.stringify({ ...metrics, diagnosticRequest: id }));
+    }
     console.info('KEYFLOW_INTERACTION_STATE', JSON.stringify(metrics));
   };
   const run = async () => {
     if (running) return;
+    diagnosticRequest.current++;
+    setDiagnostic('');
     setRunning(true);
     const results: object[] = [];
     try {
@@ -114,11 +122,22 @@ export function InteractionScreen() {
       }
       const result = { result: 'PASS', checks: results.length, results };
       console.info('KEYFLOW_SWITCH_TEST', JSON.stringify(result));
-      setDiagnostic(JSON.stringify(result));
+      setDiagnostic(
+        JSON.stringify({
+          ...result,
+          diagnosticRequest: diagnosticRequest.current,
+        }),
+      );
     } catch (error) {
       const result = { result: 'FAIL', error: String(error), results };
       console.info('KEYFLOW_SWITCH_TEST', JSON.stringify(result));
-      if (alive.current) setDiagnostic(JSON.stringify(result));
+      if (alive.current)
+        setDiagnostic(
+          JSON.stringify({
+            ...result,
+            diagnosticRequest: diagnosticRequest.current,
+          }),
+        );
     } finally {
       if (alive.current) setRunning(false);
     }

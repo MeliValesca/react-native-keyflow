@@ -13,12 +13,26 @@ The example home groups manual checks into Behavior, Layouts and Appearance. The
 
 Device scripts require a running example and the appropriate device/session arguments; see [visual feature checks](visual-feature-tests.md), [layout customization](customization-layout-tests.md) and [language checks](languages.md).
 
+## Android React Native app suite
+
+Start and launch the current example with Stim from `example/`. Use the normal docked software keyboard for native comparisons; dismiss input tutorials and turn off handwriting-only or floating modes on local AVDs. CI uses a clean emulator image. Then, from the repository root, use the owned device serial reported by Stim:
+
+```sh
+KEYFLOW_ANDROID_SERIAL=emulator-XXXX corepack yarn test:device:android:app
+```
+
+The suite navigates the actual example and runs every integration group on either phone or tablet. It uses reported key geometry rather than fixed coordinates. Reports, screenshots, UI hierarchies, and logcat are saved under `artifacts/android-app/`. CI installs the shared example APK, starts Metro, warms the Android bundle once, and runs this suite after native instrumentation. Either suite failing fails the device job.
+
+## Local iOS rotation checks
+
+Landscape cases require the simulator home screen to rotate as well as the app. If XCTest reports a landscape sensor orientation while SpringBoard and the app both retain portrait bounds, restart only the owned simulator before rerunning. The rotation helper waits for stable app bounds and captures the orientation and screenshot on failure; it does not replay the rotation or skip the case. CI starts isolated simulator instances.
+
 ## Continuous integration
 
 The repository includes two automatic GitHub Actions workflows and an optional manual comparison workflow:
 
 - **Library checks** runs formatting, both TypeScript projects, Jest, visual-helper unit tests, source-integrity checks, and package generation on pull requests and pushes to `main` with code changes.
-- **Native builds and device tests** builds the Android example/test APKs and iOS app/XCTest bundles once, then shares them with parallel phone and tablet jobs. Device jobs install those artifacts and run the recorded baseline test inventory without compiling again. Focused Android glyph and cross-platform modifier-state regressions supplement that inventory; see [coverage](coverage.md) for the exact retained suite. There is no optional expanded suite. Platform filtering avoids unrelated work; weekly runs add larger iOS devices and an older Android API. The seven protected check names stay unchanged.
+- **Native builds and device tests** builds the Android example/test APKs and iOS app/XCTest bundles once, then shares them with parallel phone and tablet jobs. Device jobs install those artifacts and run native tests plus the actual React Native example without compiling again. Focused Android glyph and cross-platform modifier-state regressions supplement that inventory; see [coverage](coverage.md) for the exact retained suite. There is no optional expanded suite. Platform filtering avoids unrelated work; weekly runs add larger iOS devices and an older Android API. The seven protected check names stay unchanged.
 - **Native keyboard regression** is a manual workflow for the real simulator/emulator comparisons. It builds and launches the current checkout, runs the phone feature suites, optionally runs both tablet matrices, and uploads screenshots, videos, metrics, reports, and Stim logs for 30 days.
 
 CI uses isolated GitHub-hosted runners for each job. Android device jobs run on
@@ -107,27 +121,8 @@ without installing dependencies, building binaries, or launching a simulator.
 
 PR workflows fingerprint the merged file contents (including file modes), excluding
 Markdown and documentation media. The PR base commit and title are also included.
-Within the same PR and workflow, a successful run with identical inputs can be
-reused. If it is still running, the new scope job waits up to 130 minutes for its
-successful completion. The scope summary links to the original evidence.
+Within the same PR and workflow, a completed successful run with identical inputs can be reused. The scope summary links to its original evidence. Queued or running jobs are never awaited for reuse.
 
-Missing or expired evidence, API errors, failures, cancellation, and timeout all
-fall back to running tests. Fingerprint artifacts expire after seven days; lookup
-is limited to the most recent 100 PR runs of the workflow. Manual, scheduled, and
-main runs do not reuse results. Changes to code, dependencies, tests, CI, or the PR
-base invalidate reuse. Reuse currently applies to the whole workflow, not separate
-platform results. Required checks retain their names on the latest commit.
+Missing or expired evidence, API errors, failures, or cancellation fall back to running tests. Fingerprint artifacts expire after seven days; lookup is limited to the most recent 100 PR runs of the workflow. Manual, scheduled, and main runs do not reuse results. Changes to code, dependencies, tests, CI, or the PR base invalidate reuse. Reuse currently applies to the whole workflow, not separate platform results. Required checks retain their names on the latest commit.
 
-Each PR run has its own concurrency group so a documentation update cannot cancel
-the checks it needs to await. Superseded code runs also finish; automatic cancellation
-of those runs is not currently implemented. This avoids restarting builds for
-README/GIF updates once a matching run has published its input fingerprint.
-
-Every `main` push has its own concurrency group in both workflows. Newer pushes
-cannot cancel or replace older running or pending pipelines. They may execute
-in parallel or wait for available GitHub runners; completion order is not guaranteed.
-Manual and scheduled runs also have separate groups.
-
-This deliberately avoids GitHub’s default single-pending-run concurrency queue,
-which can replace an older pending run even with `cancel-in-progress: false`.
-See [GitHub’s concurrency documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#concurrency).
+Automatic workflows use a concurrency group per workflow and PR or branch, with cancellation enabled. A newer revision cancels superseded runs. Android and iOS build jobs within the latest run remain parallel; each device job waits only for its own platform's shared build. Runner capacity can still queue a job. The separate manual native comparison workflow retains its device-lab concurrency policy.

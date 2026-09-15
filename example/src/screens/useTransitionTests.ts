@@ -1,4 +1,7 @@
-import { getKeyboardMetrics } from 'react-native-keyflow/testing';
+import {
+  getKeyboardMetrics,
+  getSystemKeyboardFrame,
+} from 'react-native-keyflow/testing';
 import { launchTest, testPlatform, testMaterial } from '../testing/launch';
 import { studioTheme } from '../themes/studio';
 import {
@@ -29,6 +32,7 @@ export function useTransitionTests() {
   const presentations = useRef<{ duration: number; easing: string }[]>([]);
   const dismissals = useRef<{ duration: number; easing: string }[]>([]);
   const frames = useRef<KeyflowKeyboardFrame[]>([]);
+  const baselineError = useRef<unknown>(null);
   const [status, setStatus] = useState(
     'Ready: checks show, hide, switching, and layout restoration.',
   );
@@ -58,7 +62,37 @@ export function useTransitionTests() {
     };
   }, [input]);
   useEffect(() => {
-    if (Platform.OS === 'android' && engine !== 'baseline') return;
+    if (Platform.OS === 'android') {
+      if (engine !== 'baseline') return;
+      // RN can emit a negative height before the IME insets arrive and never
+      // correct it. Observe the OS directly, without attaching Keyflow here.
+      let cancelled = false;
+      let pending = false;
+      let previous = '';
+      baselineError.current = null;
+      const poll = async () => {
+        if (pending || cancelled) return;
+        pending = true;
+        try {
+          const next = await getSystemKeyboardFrame();
+          if (cancelled) return;
+          const signature = JSON.stringify(next);
+          if (signature !== previous || !frames.current.length) {
+            previous = signature;
+            record(next);
+          }
+        } catch (error) {
+          if (!cancelled) baselineError.current = error;
+        } finally {
+          pending = false;
+        }
+      };
+      const interval = setInterval(() => void poll(), 50);
+      return () => {
+        cancelled = true;
+        clearInterval(interval);
+      };
+    }
     const willShow = Keyboard.addListener('keyboardWillShow', (event) => {
       presentations.current.push({
         duration: event.duration,
@@ -72,24 +106,9 @@ export function useTransitionTests() {
       });
     });
     const show = Keyboard.addListener('keyboardDidShow', (e) => {
-      // ReactRootView can announce visibility before IME insets arrive, then
-      // subtract the navigation bar from zero. That is not a visible baseline.
-      // Keep Keyflow's own frame stream unfiltered for the motion assertions.
-      if (
-        Platform.OS === 'android' &&
-        engine === 'baseline' &&
-        e.endCoordinates.height <= 0
-      ) {
-        console.info(
-          'KEYFLOW_BASELINE_PENDING_FRAME',
-          JSON.stringify(e.endCoordinates),
-        );
-        return;
-      }
       record({
         ...e.endCoordinates,
-        windowOffsetY:
-          Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0,
+        windowOffsetY: 0,
         visible: true,
         source: 'system',
       });
@@ -99,8 +118,7 @@ export function useTransitionTests() {
         ...e.endCoordinates,
         height: 0,
         visible: false,
-        windowOffsetY:
-          Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0,
+        windowOffsetY: 0,
         source: 'system',
       }),
     );
@@ -140,6 +158,9 @@ export function useTransitionTests() {
     let stableSince = Date.now();
     let previous = '';
     while (Date.now() < deadline) {
+      if (target === 'baseline' && baselineError.current) {
+        throw baselineError.current;
+      }
       const value = currentFrame();
       const signature = `${value?.visible}:${value?.screenY}`;
       if (signature !== previous || !value?.visible || value.height <= 0)

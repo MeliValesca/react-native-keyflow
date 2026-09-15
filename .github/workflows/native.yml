@@ -146,6 +146,9 @@ jobs:
           sudo udevadm settle
           sudo chmod 0666 /dev/kvm
           test -r /dev/kvm && test -w /dev/kvm
+      - name: Install Stim for Metro
+        if: ${{ needs.android.result == 'success' }}
+        run: npm install --global stim@1.2.0 --registry=https://registry.npmjs.org
       - name: Run native and example UI suites without rebuilding
         if: ${{ needs.android.result == 'success' }}
         uses: reactivecircus/android-emulator-runner@v2

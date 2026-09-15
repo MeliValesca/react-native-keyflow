@@ -110,6 +110,27 @@ test('prebuilt runners cannot fall back to compiling missing artifacts', () => {
   );
 });
 
+test('Android phone and tablet run both native and real React Native app suites', () => {
+  const runner = readFileSync(
+    'scripts/android-tests/run-prebuilt-ci.sh',
+    'utf8',
+  );
+  assert.match(runner, /install -r "\$keyflow_build\/example\.apk"/);
+  assert.match(runner, /stim start --json/);
+  assert.match(runner, /startup\.py "\$keyflow_port" android/);
+  assert.match(runner, /scripts\/android-tests\/instrumentation\.py/);
+  assert.match(runner, /scripts\/android-tests\/app\.py/);
+  assert.match(
+    runner,
+    /keyflow_native_status.*== 0 &&.*keyflow_app_status.*== 0/,
+  );
+  assert.ok(
+    jobs['android-interactions'].steps.some((step) =>
+      step.run?.includes('stim@1.2.0'),
+    ),
+  );
+});
+
 test('device coverage has no optional mode or hidden filters', () => {
   assert.equal(workflow.on.workflow_dispatch, null);
   assert.equal(workflow.env?.KEYFLOW_TEST_SUITE, undefined);
@@ -156,6 +177,7 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
       group === 'iosRendering'
         ? [
             'testPanelCoversBottomCornersWithoutExtraOpacity',
+            'testPanelMaskLayoutDoesNotStartImplicitAnimations',
             'testTrackpadCaretFloatsBetweenCharactersAndRestoresOnRelease',
             'testMultilineCursorMovesAcrossVisualLinesAndEmoji',
             'testTrackpadEmitsBothCursorAxes',
@@ -177,7 +199,10 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
             'testTabletCapsLockClearsManualShift',
             'testTabletShiftTurnsCapsLockOff',
           ]
-        : ['testMultilineEditorSupportsReturnAndVerticalTrackpad'];
+        : [
+            'testMultilineEditorSupportsReturnAndVerticalTrackpad',
+            'testRemountedInputUsesTheSelectedKeyboardBeforeTyping',
+          ];
     assert.deepEqual(
       actual.sort(),
       [...baseline[group], ...regressions].sort(),

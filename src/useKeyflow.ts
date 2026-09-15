@@ -86,7 +86,7 @@ type KeyflowNativeModule = {
     name: Name,
     listener: KeyflowEvents[Name],
   ): { remove(): void };
-  attachInput(id: string, tag: number): Promise<void>;
+  attachInput(id: string, tag: number): Promise<boolean | void>;
   configure(
     id: string,
     mode: string,
@@ -120,6 +120,7 @@ export function useKeyflow(options: KeyflowOptions = {}): KeyflowResult {
   const blur = useCallback(() => inputRef.current?.blur(), []);
   const colorScheme = useColorScheme();
   const mounted = useRef(true);
+  const attachmentAllowed = useRef(true);
   const [error, setError] = useState<Error | null>(null);
   const [panelHeight, setPanelHeight] = useState(0);
   const {
@@ -159,13 +160,46 @@ export function useKeyflow(options: KeyflowOptions = {}): KeyflowResult {
         );
       }
       if (required || inputRef.current?.isFocused?.()) claimKeyflowFrame(id);
-      await KeyflowNative.attachInput(id, tag);
+      const target = inputRef.current;
+      for (let attempt = 0; attempt < 8; attempt++) {
+        if (
+          !mounted.current ||
+          !attachmentAllowed.current ||
+          inputRef.current !== target
+        )
+          return;
+        if ((await KeyflowNative.attachInput(id, tag)) !== false) return;
+        // Wait for another mount frame only when Android reports “not ready”.
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => resolve()),
+        );
+      }
+      if (
+        mounted.current &&
+        attachmentAllowed.current &&
+        inputRef.current === target
+      ) {
+        throw new Error('Keyflow TextInput did not finish its native mount.');
+      }
     },
     [id, inputRef],
   );
 
+  // Keep teardown in the same phase, before configuration setup. A passive
+  // cleanup during Fast Refresh can otherwise destroy the newly configured id.
   useLayoutEffect(() => {
     mounted.current = true;
+    return () => {
+      mounted.current = false;
+      attachmentAllowed.current = false;
+      clearKeyflowFrame(id);
+      void KeyflowNative.destroy(id);
+    };
+  }, [id]);
+
+  useLayoutEffect(() => {
+    mounted.current = true;
+    attachmentAllowed.current = enabled;
     if (!enabled) {
       clearKeyflowFrame(id);
       setPanelHeight(0);
@@ -184,7 +218,9 @@ export function useKeyflow(options: KeyflowOptions = {}): KeyflowResult {
       hapticsEnabled,
       showSecondaryKeyLabels,
     )
-      .then(() => attachInput(false))
+      .then(() => {
+        if (active) return attachInput(false);
+      })
       .catch((cause: Error) => {
         if (active) setError(cause);
       });
@@ -204,15 +240,6 @@ export function useKeyflow(options: KeyflowOptions = {}): KeyflowResult {
     showSecondaryKeyLabels,
     themeJSON,
   ]);
-
-  useEffect(
-    () => () => {
-      mounted.current = false;
-      clearKeyflowFrame(id);
-      void KeyflowNative.destroy(id);
-    },
-    [id],
-  );
 
   useEffect(() => {
     const subscriptions = [

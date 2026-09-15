@@ -4,20 +4,21 @@
 
 The device suite retains the pre-release test inventory recorded in
 [`baseline-tests.json`](../scripts/ci/baseline-tests.json),
-plus four Android regressions for disappearing glyphs, eight for Android modifier states, five for iOS modifier states, three iOS held-delete cases, and nine space/trackpad feedback cases and one iPad stationary currency-hold case. The tests run against the
-current keyboard implementation. There is no optional expanded suite or runtime
-filter hiding additional cases.
+plus regressions for glyph rendering, modifier states, held-delete lifecycle,
+space/trackpad feedback, multiline editing, panel clipping, and input remounts.
+Every required device runs its full suite against the current implementation;
+platform-specific assumptions remain explicit skips.
 
-| Device         | Required cases before platform-specific skips                 |
-| -------------- | ------------------------------------------------------------- |
-| Android phone  | 48 original + 4 glyph + 8 Shift + 3 trackpad regressions = 63 |
-| Android tablet | 48 original + 4 glyph + 8 Shift + 3 trackpad regressions = 63 |
-| iPhone         | 50 rendering + 60 interaction cases                           |
-| iPad           | 50 rendering + 60 interaction cases                           |
+| Device         | Required cases before platform-specific skips |
+| -------------- | --------------------------------------------- |
+| Android phone  | 64 native + 10 React Native app groups        |
+| Android tablet | 64 native + 10 React Native app groups        |
+| iPhone         | 57 rendering + 63 interaction cases           |
+| iPad           | 57 rendering + 63 interaction cases           |
 
 `scripts/ci/baseline-tests.json` records the original inventory for verification.
-A fast workflow test checks that the actual device sources contain precisely that
-inventory plus the seventeen retained glyph/modifier cases plus three held-delete lifecycle cases and nine space/trackpad feedback cases and one iPad stationary currency-hold case. It does not select or skip tests.
+A fast workflow test verifies the original inventory plus the explicitly recorded
+regressions. It does not select or skip tests.
 
 iOS coverage includes typing, symbol pages, long presses, accent selection,
 number pads, tablet layouts, customization, transparency and transition diagnostics.
@@ -27,10 +28,19 @@ raised materials, both at rest and while pressed. Shift regressions check left/r
 
 Space/trackpad regressions verify iOS touch-down fill contrast, normal release and custom-color cancellation, legend and key-face fading, restoration during an interrupted fade, and restoration after cursor dragging. Android tests compare rendered space-bar pixels during cursor movement in flat and raised materials, and verify that release or cancellation restores the resting color without inserting a space.
 
-The newer Android React Native app automation, additional accessibility/window
-suites and iOS allocation/performance/background cases were removed. Android
-example-level lifecycle, transparency and transition performance are therefore
-not automated PR guarantees. The example screens remain available for manual testing.
+Android also exercises the actual React Native example on both phone and tablet:
+
+- All letters, combined-emoji deletion, and held-delete release.
+- Controlled multiline Return, vertical and horizontal trackpad editing, and automatic avoidance.
+- Number/symbol page changes, accent commits, and cancelled letters.
+- System/custom handoffs preserving text and selection across six switches for single-line and multiline inputs.
+- System-editor typing and multiline Return, followed by restoration to Keyflow.
+- Single-line Return dismisses and blurs without changing text, with Keyflow and the system editor.
+- Flat and raised transition diagnostics: native baseline, show/hide, handoffs, layout restoration, and interruptions. The Android plain-editor baseline reads real OS IME insets through a read-only diagnostic, without attaching Keyflow.
+- The same customization matrix and independent transparency checks used by iOS.
+- QWERTY, number, decimal, and phone pads in portrait and landscape, including actual text insertion and editor clearance.
+
+The integration categories run on both platforms; platform-specific native behavior remains different. iOS comparisons use Apple’s keyboard. Android’s system-editor baseline sends Android editor events with the installed IME active; it does not assume a particular Gboard version or compare its pixels. Allocation/performance/background stress tests remain outside the required suite on both platforms.
 
 Fast unit regressions remain for input readiness, rotation/frame ordering, stable
 keyboard geometry and mode handoffs. CI helper tests reject incomplete native test
@@ -44,9 +54,7 @@ same run. Device jobs contain no Gradle, CocoaPods or native compilation. Missin
 or mismatched artifacts fail instead of silently rebuilding. iOS also verifies
 the Xcode version and uses `test-without-building`.
 
-Android runs the installed native instrumentation APK and emits individual JUnit
-results. It needs no Metro server. iOS uses Stim for Metro and installs the shared
-app with simulator tools. Local development continues to use Stim normally.
+Android runs the installed native instrumentation APK and the shared React Native example APK, emitting separate JUnit reports. Both platforms use Stim for Metro and warm the exact platform bundle once. Android app tests save per-group screenshots and UI hierarchies, JSON results, and logcat; incomplete or failed checks fail the job. Local development continues to use Stim normally.
 
 Library formatting, lint, types, unit tests, package checks and native build checks
 remain required. The seven protected check names and platform change filtering
@@ -85,3 +93,24 @@ or a concrete failure warrants it. Evidence is saved under `artifacts/` and is n
 published with the library.
 
 The iPad dollar UI comparison explicitly slides into the currency popup before release: Apple's stationary dollar hold can show a highlighted choice yet commit nothing on CI. The non-empty native result and exact Keyflow output comparison remain required. A separate rendering regression preserves coverage of Keyflow's stationary dollar hold and release.
+
+## Timing and readiness
+
+iOS gesture tests wait for native attachment, mode and focus after input remounts.
+They select accessibility keys from the requested keyboard and observe sustained
+key/editor geometry before freezing screen coordinates for a gesture. Page,
+mode, remount and viewport changes invalidate the settled geometry. Text-changing
+gestures wait for the actual edit; missed gestures remain failures.
+
+A rendering regression checks that animated accessory layout never starts implicit
+animations on the static clipping mask. Keyboard presentation and trackpad fades
+remain enabled. The remount integration regression types through repeated
+system/custom switches into new inputs.
+
+Android held-delete checks require repeated deletion and release without assuming
+a fixed callback count within a timed hold. Pad insertion follows the editor's
+reported selection, including a caret in the middle. Neither platform replays a
+failed editing gesture to turn it into a pass. Android inspection results carry
+request IDs so stale snapshots, switching reports and pending empty results cannot
+be mistaken for a completed metric read. Hook lifecycle cleanup runs before new
+native configuration, including effect remounts and Fast Refresh.

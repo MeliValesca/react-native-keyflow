@@ -64,6 +64,7 @@ export function TransparencyScreen() {
   );
   const check = async () => {
     setRunning(true);
+    setResult('');
     try {
       await input.current?.focus();
       const metrics = await settledKeyboard(async () => ({

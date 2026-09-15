@@ -1,2 +1,2 @@
-export { getKeyboardMetrics } from './diagnostics';
+export { getKeyboardMetrics, getSystemKeyboardFrame } from './diagnostics';
 export type { KeyflowKeyboardMetrics } from './diagnostics';

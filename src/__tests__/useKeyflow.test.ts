@@ -1,4 +1,4 @@
-import { createElement, useState } from 'react';
+import { createElement, StrictMode, useState } from 'react';
 import type { ReactElement } from 'react';
 import { act, create } from 'react-test-renderer';
 import type { ReactTestRenderer } from 'react-test-renderer';
@@ -47,17 +47,20 @@ beforeEach(() => {
 
 function HookInput({
   mounted = true,
+  enabled = true,
   replacement = false,
   onFrame,
   frameOverride,
 }: {
   mounted?: boolean;
+  enabled?: boolean;
   replacement?: boolean;
   onFrame?: jest.Mock;
   frameOverride?: KeyflowKeyboardFrame | null;
 }) {
   const [value, setValue] = useState('App owns this');
   const { keyflowInputProps, inputRef, focus, blur } = useKeyflow({
+    enabled,
     keyboardMode: 'custom',
     keyflowTheme: { keyboard: { background: '#123456' } },
     hapticsEnabled: true,
@@ -228,5 +231,127 @@ test('focus controls and bindings target delayed and replacement inputs', async 
   expect(mockNative.updateInputContext).toHaveBeenCalledWith(
     expect.any(String),
   );
+  await act(async () => renderer.unmount());
+});
+
+test('waits for the native mount without turning a temporary missing tag into a render error', async () => {
+  const frames: Array<(timestamp: number) => void> = [];
+  const previous = globalThis.requestAnimationFrame;
+  Object.assign(globalThis, {
+    requestAnimationFrame: (callback: (timestamp: number) => void) => {
+      frames.push(callback);
+      return frames.length;
+    },
+  });
+  mockNative.attachInput
+    .mockResolvedValueOnce(false)
+    .mockResolvedValueOnce(true);
+  let renderer!: ReactTestRenderer;
+  try {
+    await act(async () => {
+      renderer = create(createElement(HookInput), { createNodeMock });
+    });
+    expect(mockNative.attachInput).toHaveBeenCalledTimes(1);
+    expect(frames).toHaveLength(1);
+    await act(async () => frames.shift()!(16));
+    expect(mockNative.attachInput).toHaveBeenCalledTimes(2);
+    expect(renderer.root.findByProps({ testID: 'initial' }).props.value).toBe(
+      'App owns this',
+    );
+  } finally {
+    await act(async () => renderer.unmount());
+    Object.assign(globalThis, { requestAnimationFrame: previous });
+  }
+});
+
+test('does not retry a pending native mount after its input unmounts', async () => {
+  const frames: Array<(timestamp: number) => void> = [];
+  const previous = globalThis.requestAnimationFrame;
+  Object.assign(globalThis, {
+    requestAnimationFrame: (callback: (timestamp: number) => void) => {
+      frames.push(callback);
+      return frames.length;
+    },
+  });
+  mockNative.attachInput.mockResolvedValueOnce(false);
+  let renderer!: ReactTestRenderer;
+  try {
+    await act(async () => {
+      renderer = create(createElement(HookInput), { createNodeMock });
+    });
+    expect(frames).toHaveLength(1);
+    await act(async () => renderer.unmount());
+    await act(async () => frames.shift()!(16));
+    expect(mockNative.attachInput).toHaveBeenCalledTimes(1);
+  } finally {
+    Object.assign(globalThis, { requestAnimationFrame: previous });
+  }
+});
+
+test('does not attach after configuration completes for an unmounted hook', async () => {
+  let complete!: () => void;
+  mockNative.configure.mockReturnValueOnce(
+    new Promise<void>((resolve) => {
+      complete = resolve;
+    }),
+  );
+  let renderer!: ReactTestRenderer;
+  await act(async () => {
+    renderer = create(createElement(HookInput), { createNodeMock });
+  });
+  await act(async () => renderer.unmount());
+  await act(async () => complete());
+  expect(mockNative.attachInput).not.toHaveBeenCalled();
+});
+
+test('does not recreate a native controller when attachment is disabled during a pending mount', async () => {
+  const frames: Array<(timestamp: number) => void> = [];
+  const previous = globalThis.requestAnimationFrame;
+  Object.assign(globalThis, {
+    requestAnimationFrame: (callback: (timestamp: number) => void) => {
+      frames.push(callback);
+      return frames.length;
+    },
+  });
+  mockNative.attachInput.mockResolvedValueOnce(false);
+  let renderer!: ReactTestRenderer;
+  try {
+    await act(async () => {
+      renderer = create(createElement(HookInput), { createNodeMock });
+    });
+    expect(frames).toHaveLength(1);
+    await act(async () =>
+      renderer.update(createElement(HookInput, { enabled: false })),
+    );
+    expect(mockNative.destroy).toHaveBeenCalledTimes(1);
+    await act(async () => frames.shift()!(16));
+    expect(mockNative.attachInput).toHaveBeenCalledTimes(1);
+    expect(
+      renderer.root.findByProps({ testID: 'initial' }).props
+        .showSoftInputOnFocus,
+    ).toBe(true);
+  } finally {
+    await act(async () => renderer.unmount());
+    Object.assign(globalThis, { requestAnimationFrame: previous });
+  }
+});
+
+test('keeps the native controller configured and focusable after a StrictMode effect remount', async () => {
+  let renderer!: ReactTestRenderer;
+  await act(async () => {
+    renderer = create(
+      createElement(StrictMode, null, createElement(HookInput)),
+      { createNodeMock },
+    );
+  });
+  expect(mockNative.destroy).toHaveBeenCalled();
+  expect(mockNative.configure.mock.invocationCallOrder.at(-1)).toBeGreaterThan(
+    mockNative.destroy.mock.invocationCallOrder.at(-1)!,
+  );
+  const before = mockNative.attachInput.mock.calls.length;
+  await act(async () =>
+    renderer.root.findByProps({ testID: 'initial' }).props.onFocus(),
+  );
+  expect(mockNative.attachInput).toHaveBeenCalledTimes(before + 1);
   await act(async () => renderer.unmount());
 });

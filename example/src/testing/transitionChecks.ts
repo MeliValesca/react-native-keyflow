@@ -43,8 +43,8 @@ export function assertKeyboardTransition(
   platform: string,
   engine: 'baseline' | 'custom' | 'system',
 ) {
-  // Android system mode exposes IME insets; the RN baseline exposes visibility
-  // notifications. Neither is a guarantee of one monotonic opening sequence.
+  // Android system mode exposes IME events; the plain RN baseline reads
+  // OS-inset snapshots. Neither guarantees one monotonic opening sequence.
   // Require valid, settled geometry for both, and retain strict motion checks
   // for our custom keyboard and the iOS baseline timing reference.
   if (

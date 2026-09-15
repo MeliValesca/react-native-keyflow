@@ -147,6 +147,10 @@ final class KeyflowKeyboardView: UIView {
     panelBackground.isUserInteractionEnabled = false
     panelBackground.isOpaque = false
     panelBottom.isOpaque = false
+    // Unlike a UIView-backed layer, the standalone mask has default Core
+    // Animation actions. Layout must not start bounds/position/path animations
+    // that keep an accessory presentation (and XCTest quiescence) active.
+    panelMask.actions = ["bounds": NSNull(), "position": NSNull(), "path": NSNull()]
     panelBackground.layer.mask = panelMask
     panelBackground.addSubview(panelBottom)
     translatesAutoresizingMaskIntoConstraints = false
