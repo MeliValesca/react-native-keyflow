@@ -145,7 +145,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
   private val editor: EditText
     get() = checkNotNull(attachedEditor) { "Keyflow input is not attached" }
 
-  private var savedSoftInputOnFocus = true
+  private val softInputPolicy = KeyflowSoftInputPolicy()
   private val providedTextWatcher =
     object : TextWatcher {
       override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -190,10 +190,10 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
       detachInput()
       attachedEditor = field
       cursorNavigator.reset()
-      savedSoftInputOnFocus = field.showSoftInputOnFocus
+      softInputPolicy.remember(field, field is ReactEditText)
       field.addTextChangedListener(providedTextWatcher)
     }
-    field.showSoftInputOnFocus = mode == "system"
+    softInputPolicy.apply(field, mode == "system")
     updateInputContext()
     if (changed && field.hasFocus()) requestKeyboard()
   }
@@ -203,7 +203,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     removeCallbacks(showRequest)
     hideKeyboard(animated = false)
     field.removeTextChangedListener(providedTextWatcher)
-    field.showSoftInputOnFocus = savedSoftInputOnFocus
+    softInputPolicy.restore(field)
     attachedEditor = null
   }
 
@@ -367,7 +367,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     updateInputContext()
     lastSpace = 0
     if (attachedEditor == null) return
-    editor.showSoftInputOnFocus = value == "system"
+    softInputPolicy.apply(editor, value == "system")
     // Refresh the existing editor connection when changing its IME policy.
     // Dismissing the popup can temporarily take window focus away from it.
     (context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).restartInput(

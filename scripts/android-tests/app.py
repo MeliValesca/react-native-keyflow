@@ -83,6 +83,60 @@ class ExampleSuite:
             self.adb('shell', 'input', 'swipe', (x1+x2)//2, int(y1+(y2-y1)*.8), (x1+x2)//2, int(y1+(y2-y1)*.3), 300)
         raise AssertionError(f'Missing lab card: {label}')
 
+    @staticmethod
+    def startup_state(nodes):
+        labels = {value for node in nodes for value in (node.get('text', ''), node.get('content-desc', ''))}
+        anr = next((label for label in labels if label.endswith("isn't responding") or label.endswith('isn’t responding')), None)
+        if anr:
+            return 'system_anr' if anr in ("System UI isn't responding", 'System UI isn’t responding') else 'app_anr'
+        if 'Open React Native dev menu' in labels and 'Reload' in labels:
+            return 'dev_menu'
+        if 'Keyboard lab' in labels:
+            return 'ready'
+        return 'waiting'
+
+    def startup_capture(self, name):
+        self.output.joinpath(name+'.xml').write_bytes(getattr(self, 'xml', b''))
+        self.output.joinpath(name+'.png').write_bytes(self.artifact_read('screenshot', 'exec-out', 'screencap', '-p'))
+
+    def prepare(self):
+        # Cold AVDs can leave a System UI ANR dialog or Expo's first-launch
+        # developer menu over the loaded app. Setup is bounded and recorded;
+        # application ANRs fail, and no test gesture is ever replayed.
+        deadline = time.monotonic() + 45
+        recovered_system = False
+        dismissed_menu = False
+        navigated_home = False
+        while time.monotonic() < deadline:
+            nodes = self.nodes()
+            state = self.startup_state(nodes)
+            if state == 'app_anr':
+                raise AssertionError('Application ANR during startup')
+            if state == 'system_anr' and not recovered_system:
+                self.startup_capture('startup-system-ui-anr')
+                wait = next((node for node in nodes if node.get('text') == 'Wait'), None)
+                assert wait is not None, 'System UI ANR has no Wait action'
+                self.adb('shell', 'input', 'tap', *self.center(wait))
+                recovered_system = True
+            elif state == 'dev_menu' and not dismissed_menu:
+                self.startup_capture('startup-expo-menu')
+                self.adb('shell', 'input', 'keyevent', 'KEYCODE_BACK')
+                dismissed_menu = True
+            elif state == 'ready':
+                self.startup_capture('startup-ready')
+                return
+            elif state == 'waiting' and not navigated_home:
+                back = next((node for node in nodes if node.get('content-desc') == 'Navigate up'), None)
+                if back is not None:
+                    self.adb('shell', 'input', 'tap', *self.center(back))
+                    navigated_home = True
+            time.sleep(.15)
+        raise AssertionError('App startup did not clear its overlays within 45 seconds')
+
+    @staticmethod
+    def landscape_for_rotation(width, height, rotation):
+        return (width > height) != bool(rotation % 2)
+
     def text(self):
         node = self.find('interaction-text')
         return node.get('content-desc', '').removeprefix('Test text: ') if node is not None else None
@@ -306,6 +360,8 @@ class ExampleSuite:
 
     def layouts(self):
         self.open('Compare layouts & rotation')
+        size = self.adb('shell', 'wm', 'size').decode()
+        natural_width, natural_height = map(int, re.findall(r'size: (\d+)x(\d+)', size)[-1])
         rotation = self.adb('shell', 'settings', 'get', 'system', 'user_rotation').decode().strip()
         automatic = self.adb('shell', 'settings', 'get', 'system', 'accelerometer_rotation').decode().strip()
         try:
@@ -320,7 +376,7 @@ class ExampleSuite:
                         node = self.find('check-layout')
                         label = node.get('content-desc', '') if node is not None else ''
                         return json.loads(label[label.index('{'):]) if '{' in label else None
-                    report = self.wait(outcome, lambda value: value is not None and value['expectedType'] == keyboard_type and value['expectedLandscape'] == bool(orientation))
+                    report = self.wait(outcome, lambda value: value is not None and value['expectedType'] == keyboard_type and value['expectedLandscape'] == self.landscape_for_rotation(natural_width, natural_height, orientation))
                     assert not report['failures'] and report['focused'], report
                     assert report['editorBottom'] <= report['screenY'] + 1, report
                     before = self.wait(lambda: self.find('Layout input')).get('text', '')
@@ -336,23 +392,38 @@ class ExampleSuite:
                 args = ('delete', 'system', key) if original == 'null' else ('put', 'system', key, original)
                 self.adb('shell', 'settings', *args)
 
-    def save_log(self):
-        # Logd/adb can close a completed dump transiently (exit 255). Retry only
-        # this read-only artifact collection; never rerun any input gesture.
+    def artifact_read(self, name, *args):
+        # Retry read-only capture, never input events or a failed app check.
         for attempt in range(3):
             try:
-                self.output.joinpath('app.log').write_bytes(self.adb('logcat', '-d', '-t', '5000', '-v', 'threadtime'))
-                return
+                return self.adb(*args)
             except subprocess.CalledProcessError as error:
-                self.output.joinpath(f'logcat-error-{attempt+1}.txt').write_text(str(error))
-                self.output.joinpath(f'logcat-partial-{attempt+1}.log').write_bytes(error.output or b'')
+                self.output.joinpath(f'{name}-error-{attempt+1}.txt').write_text(str(error))
+                if error.output:
+                    self.output.joinpath(f'{name}-partial-{attempt+1}.log').write_bytes(error.output)
                 if attempt == 2:
                     raise
                 time.sleep(.2)
 
+    def save_log(self):
+        self.output.joinpath('app.log').write_bytes(
+            self.artifact_read('logcat', 'logcat', '-d', '-t', '5000', '-v', 'threadtime'))
+
     def run(self):
         suite = ET.Element('testsuite', name='Android React Native example')
         failures = 0
+        try:
+            self.prepare()
+        except Exception as error:
+            self.startup_capture('startup-failed')
+            case = ET.SubElement(suite, 'testcase', classname='KeyflowExample', name='startup')
+            ET.SubElement(case, 'failure', message=str(error))
+            suite.set('tests', '1')
+            suite.set('failures', '1')
+            ET.ElementTree(suite).write(self.output/'app-tests.xml', encoding='utf-8', xml_declaration=True)
+            (self.output/'app-tests.json').write_text(json.dumps([{'test': 'startup', 'result': 'FAIL', 'error': str(error)}]))
+            self.save_log()
+            raise
         for name in ['editing', 'multiline', 'pages_and_accents', 'handoff', 'system_editor', 'submit', 'transitions', 'customization', 'transparency', 'layouts']:
             case = ET.SubElement(suite, 'testcase', classname='KeyflowExample', name=name)
             started = time.monotonic()
@@ -367,7 +438,7 @@ class ExampleSuite:
             finally:
                 case.set('time', str(round(time.monotonic()-started, 3)))
                 self.output.joinpath(f'{name}.xml').write_bytes(getattr(self, 'xml', b''))
-                self.output.joinpath(f'{name}.png').write_bytes(self.adb('exec-out', 'screencap', '-p'))
+                self.output.joinpath(f'{name}.png').write_bytes(self.artifact_read('screenshot', 'exec-out', 'screencap', '-p'))
                 print(json.dumps(self.results[-1]), flush=True)
         suite.set('tests', str(len(self.results)))
         suite.set('failures', str(failures))

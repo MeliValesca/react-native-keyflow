@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { parse } from 'yaml';
+import { interactionShards } from './ios-interaction-shards.mjs';
 const workflow = parse(readFileSync('.github/workflows/native.yml', 'utf8'));
 const jobs = workflow.jobs;
 
@@ -55,6 +56,39 @@ test('each device consumes the artifact from its required single platform produc
   }
 });
 
+test('iPad shards partition every interaction case and share one required gate', () => {
+  const source = readFileSync(
+    'scripts/ios-tests/KeyflowQwertyTests.swift',
+    'utf8',
+  );
+  const shards = interactionShards(source);
+  const all = [...source.matchAll(/func (test\w+)\(/g)].map(
+    (match) => match[1],
+  );
+  assert.equal(new Set(shards.flat()).size, all.length);
+  assert.deepEqual(shards.flat().sort(), all.sort());
+  assert.ok(Math.abs(shards[0].length - shards[1].length) <= 1);
+  assert.throws(() => interactionShards(''), /Missing/);
+  assert.throws(
+    () => interactionShards('func testA() {} func testA() {}'),
+    /duplicate/,
+  );
+  assert.ok(jobs['ios-ipad'].needs.includes('ios-ipad-suites'));
+  assert.ok(jobs['ios-ipad-suites'].needs.includes('ios'));
+  assert.ok(
+    jobs['ios-ipad-suites'].steps.some(
+      (step) =>
+        step.uses?.startsWith('actions/download-artifact') &&
+        step.with.name === 'ios-test-build',
+    ),
+  );
+  assert.equal(jobs['ios-ipad-suites'].strategy['fail-fast'], false);
+  assert.ok(jobs['ios-ipad'].steps[0].run.includes('= success'));
+  assert.ok(
+    jobs['ios-ipad-suites'].steps.some((step) => step.run?.includes('--shard')),
+  );
+});
+
 test('all protected build and device check names remain present', () => {
   const names = [jobs.android.name, jobs.ios.name];
   for (const platform of ['android', 'ios']) {
@@ -67,6 +101,7 @@ test('all protected build and device check names remain present', () => {
       ),
     );
   }
+  names.push(jobs['ios-ipad'].name.replace('${{ matrix.label }}', 'iPad'));
   assert.deepEqual(
     names.sort(),
     [
@@ -237,7 +272,12 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
   ].map((name) => `com.keyflow.KeyflowPressFeedbackTest#${name}`);
   assert.deepEqual(
     actual.sort(),
-    [...baseline.androidInstrumentation, ...regressions].sort(),
+    [
+      ...baseline.androidInstrumentation,
+      ...regressions,
+      'com.keyflow.KeyflowRenderingTest#reactOwnedSoftInputFlagSurvivesModeChangesAndDetach',
+      'com.keyflow.KeyflowRenderingTest#nativeEditorSoftInputFlagRestoresItsOriginalValue',
+    ].sort(),
   );
 });
 

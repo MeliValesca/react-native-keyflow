@@ -27,12 +27,12 @@ final class KeyflowQwertyTests: XCTestCase {
     // use. Warm up and dismiss that UI before measuring any native gesture.
     if !Self.preparedSystemKeyboard {
       mode(true)
-      reset("Empty")
       let introduction = app.buttons["Continue"]
       if introduction.waitForExistence(timeout: 5) {
         introduction.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
       }
+      reset("Empty")
       do {
         // A fresh system keyboard can type the base character on its first hold
         // without presenting alternatives. Initialize that native path during
@@ -66,6 +66,11 @@ final class KeyflowQwertyTests: XCTestCase {
     }
     entry.tap()
     XCTAssertTrue(app.buttons["Reset Empty"].waitForExistence(timeout: 10))
+    // Controls appear before the auto-focused editor and its first keyboard
+    // presentation settle. Do not remount during that outgoing presentation.
+    expectsSystemKeyboard = false
+    settledKeyboardGeometry = nil
+    _ = key(["Q"])
   }
   func mode(_ native: Bool) {
     expectsSystemKeyboard = native
@@ -86,6 +91,9 @@ final class KeyflowQwertyTests: XCTestCase {
         XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: selected, object: element)], timeout: 5),
         .completed, "Keyboard mode did not finish switching")
     }
+    // The JS tab can select before UIKit finishes presenting the requested
+    // keyboard. Do not cancel that presentation with an immediate reset.
+    if Self.preparedSystemKeyboard { _ = key(["space", " "]) }
   }
   func reset(_ name: String) {
     settledKeyboardGeometry = nil
@@ -98,10 +106,11 @@ final class KeyflowQwertyTests: XCTestCase {
     XCTAssertEqual(
       XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: resetFinished, object: nil)], timeout: 5),
       .completed, "Reset \(name) did not remount the input with \(expected)")
-    // The JS tab and ref can update before native configuration/focus. Inspect
-    // that state without replaying focus, reset, or the measured gesture.
+    // Wait for the remounted editor's presentation before requesting metrics.
+    // Polling must not start a new async request and erase the previous result.
+    _ = key(["Q", "q"])
+    center(app.buttons["Inspect keyboard state"]).tap()
     let nativeReady = NSPredicate { [self] _, _ in
-      app.buttons["Inspect keyboard state"].tap()
       let label = app.staticTexts["interaction-state"].label
       guard label.hasPrefix("Diagnostic state: {"),
         let data = label.replacingOccurrences(of: "Diagnostic state: ", with: "").data(using: .utf8),
@@ -203,7 +212,7 @@ final class KeyflowQwertyTests: XCTestCase {
   ) {
     let item = key(labels, file: file, line: line)
     let targetFrame = item.frame
-    item.tap()
+    center(item).tap()
     waitForText(
       expected, context: "\(context); tapped \(labels) at \(targetFrame)", file: file, line: line)
   }
@@ -253,7 +262,7 @@ final class KeyflowQwertyTests: XCTestCase {
       guard globe.exists, (globe.value as? String) == "한국어" else {
         throw XCTSkip("Enable Korean (2-Set) beside English in the simulator keyboard settings")
       }
-      globe.tap()
+      center(globe).tap()
     }
     XCTAssertTrue(app.keys["ㄱ"].waitForExistence(timeout: 5))
     tapKey(["ㄱ"], expecting: "ㄱ", context: "Initial Korean consonant was not inserted")
@@ -264,7 +273,7 @@ final class KeyflowQwertyTests: XCTestCase {
     tapKey([" "], expecting: "가 ", context: "Space did not commit the Korean composition")
     let committed = text
     XCTAssertTrue(globe.exists)
-    globe.tap()
+    center(globe).tap()
     XCTAssertTrue(app.keys["q"].waitForExistence(timeout: 5))
     tapKey(["q"], expecting: committed + "q", context: "English input after language switch failed")
     capture("system-language-switch-preserves-text")
@@ -275,11 +284,12 @@ final class KeyflowQwertyTests: XCTestCase {
   // iPhone can share one launch safely. On iPad, a held key can leave the app
   // animated for XCTest's 60-second idle window, so each case gets a relaunch.
   func testPhoneAccentCataloguesFit() throws {
+    reset("Cursor")
     for base in ["a", "e", "i", "o", "u", "c", "n", "s", "y", "z", "l", "d", "r", "t", "g", "h", "k", "w"] {
-      try assertAccentCatalogue(base, uppercase: false)
+      try assertAccentCatalogue(base, uppercase: false, resetInput: false)
     }
-    try assertAccentCatalogue("i", uppercase: true)
-    try assertAccentCatalogue("s", uppercase: true)
+    try assertAccentCatalogue("i", uppercase: true, resetInput: false)
+    try assertAccentCatalogue("s", uppercase: true, resetInput: false)
   }
   func testTabletAccentCatalogueAFits() throws { try assertAccentCatalogue("a", uppercase: false) }
   func testTabletAccentCatalogueEFits() throws { try assertAccentCatalogue("e", uppercase: false) }
@@ -301,14 +311,14 @@ final class KeyflowQwertyTests: XCTestCase {
   func testTabletAccentCatalogueWFits() throws { try assertAccentCatalogue("w", uppercase: false) }
   func testTabletAccentCatalogueUppercaseIFits() throws { try assertAccentCatalogue("i", uppercase: true) }
   func testTabletAccentCatalogueUppercaseSFits() throws { try assertAccentCatalogue("s", uppercase: true) }
-  private func assertAccentCatalogue(_ base: String, uppercase: Bool) throws {
+  private func assertAccentCatalogue(_ base: String, uppercase: Bool, resetInput: Bool = true) throws {
     let reference = UIDevice.current.userInterfaceIdiom == .pad ? "apple-tablet-letter-reference" : "apple-letter-reference"
     let url = Bundle(for: Self.self).url(forResource: reference, withExtension: "json")!
     let fixture = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as! [String: Any]
     let letterCase = uppercase ? "uppercase" : "lowercase"
     let rows = fixture[letterCase] as! [String: String]
-    reset("Cursor")
-    if uppercase { key(["Shift"]).tap() }
+    if resetInput { reset("Cursor") }
+    if uppercase { center(key(["Shift"])).tap() }
     pressKey([uppercase ? base.uppercased() : base], duration: 0.7)
     app.buttons["Inspect keyboard state"].tap()
     let state = try readInteractionState()
@@ -319,7 +329,7 @@ final class KeyflowQwertyTests: XCTestCase {
     for native in [true, false] {
       mode(native); reset("Cursor")
       let submit = key(["return"])
-      submit.tap()
+      center(submit).tap()
       XCTAssertTrue(submit.waitForNonExistence(timeout: 5), "Return must dismiss the keyboard")
       XCTAssertEqual(text, "alpha beta")
       app.buttons["Inspect keyboard state"].tap()
@@ -369,12 +379,12 @@ final class KeyflowQwertyTests: XCTestCase {
   func testSymbolPagesMatchApple() {
     for native in [true, false] {
       mode(native); reset("Cursor")
-      key(["numbers", "123"]).tap()
+      center(key(["numbers", "123"])).tap()
       capture(native ? "apple-numbers" : "keyflow-numbers")
-      key(["symbols", "#+="]).tap()
+      center(key(["symbols", "#+="])).tap()
       capture(native ? "apple-symbols" : "keyflow-symbols")
       tapKey(["["], expecting: "alpha beta[", context: "Opening bracket was not inserted")
-      key(["ABC", "letters"]).tap()
+      center(key(["ABC", "letters"])).tap()
       tapKey(["q"], expecting: "alpha beta[q", context: "Letter after symbol page was not inserted")
       capture(native ? "apple-symbols-return" : "keyflow-symbols-return")
     }
@@ -382,7 +392,7 @@ final class KeyflowQwertyTests: XCTestCase {
   func testEveryNumberKeyAndPageTransitionMatchesApple() {
     for native in [true, false] {
       mode(native); reset("Empty")
-      key(["numbers", "123"]).tap()
+      center(key(["numbers", "123"])).tap()
       XCTAssertTrue(key(["1"]).exists, "123 tap must leave the number page open")
       var expected = ""
       for digit in "1234567890" {
@@ -392,11 +402,11 @@ final class KeyflowQwertyTests: XCTestCase {
           context: "\(native ? "Apple" : "Keyflow") digit \(digit) was not inserted")
       }
       XCTAssertEqual(text, expected)
-      key(["symbols", "#+="]).tap()
+      center(key(["symbols", "#+="])).tap()
       XCTAssertTrue(key(["["]).exists)
       expected.append("[")
       tapKey(["["], expecting: expected, context: "Opening bracket was not inserted")
-      key(["ABC", "letters"]).tap()
+      center(key(["ABC", "letters"])).tap()
       XCTAssertTrue(key(["q", "Q"]).exists, "ABC tap must restore letters")
       expected.append("q")
       tapKey(["q", "Q"], expecting: expected, context: "Letter after number page was not inserted")
@@ -413,7 +423,7 @@ final class KeyflowQwertyTests: XCTestCase {
     }
     let more = app.keys.matching(identifier: "more").allElementsBoundByIndex.first!
     XCTAssertTrue(more.exists)
-    more.tap()
+    center(more).tap()
     capture("ipad-apple-symbols")
     for item in app.keys.allElementsBoundByIndex where item.frame.midY >= app.frame.height * 0.42 {
       print("KEYFLOW_AUDIT_NATIVE_SYMBOL label=\(item.label.debugDescription) value=\(String(describing: item.value)) frame=\(item.frame)")
@@ -425,7 +435,7 @@ final class KeyflowQwertyTests: XCTestCase {
     capture("ipad-keyflow-letters")
     let expectedLetters = ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", "Z", "X", "C", "V", "B", "N", "M"]
     for label in expectedLetters { XCTAssertTrue(key([label]).exists, "Missing \(label)") }
-    key(["123", "numbers"]).tap()
+    center(key(["123", "numbers"])).tap()
     capture("ipad-keyflow-symbols")
     let trailing = app.frame.width > app.frame.height ? [",", "."] : ["!", "?"]
     for label in ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "@", "#", "$", "&", "*", "(", ")", "'", "\"", "%", "-", "+", "=", "/", ";", ":"] + trailing {
@@ -435,7 +445,7 @@ final class KeyflowQwertyTests: XCTestCase {
   func testTabletCapsLockDoesNotSelectShiftKeys() throws {
     guard max(app.frame.width, app.frame.height) >= 1000 else { throw XCTSkip("iPad audit") }
     mode(false); reset("Empty")
-    key(["Caps Lock"]).tap()
+    center(key(["Caps Lock"])).tap()
     let caps = app.descendants(matching: .any).matching(identifier: "Caps Lock").firstMatch
     XCTAssertEqual(caps.value as? String, "On", "Caps Lock must be the only locked action")
     let shifts = app.descendants(matching: .any).matching(identifier: "Shift").allElementsBoundByIndex.filter {
@@ -455,8 +465,8 @@ final class KeyflowQwertyTests: XCTestCase {
   private func assertTabletPageHasBothReturnKeys(symbols: Bool, orientation: UIDeviceOrientation) throws {
     guard max(app.frame.width, app.frame.height) >= 1000 else { throw XCTSkip("iPad audit") }
     setOrientation(orientation)
-    mode(false); reset("Empty"); key(["123", "numbers"]).tap()
-    if symbols { key(["#+=", "symbols"]).tap() }
+    mode(false); reset("Empty"); center(key(["123", "numbers"])).tap()
+    if symbols { center(key(["#+=", "symbols"])).tap() }
     let predicate = NSPredicate(format: "identifier == 'return' OR identifier == 'keyflow-key-return' OR label == 'return'")
     let returns = app.descendants(matching: .any).matching(predicate).allElementsBoundByIndex.filter {
       $0.frame.midY >= app.frame.height * 0.42 && $0.frame.width > 0
@@ -480,7 +490,7 @@ final class KeyflowQwertyTests: XCTestCase {
       mode(native); reset("Cursor")
       // Reset's autoFocus presents the remounted input. Waiting for its keys
       // avoids tapping an already-focused caret and opening UIKit's edit menu.
-      key(["numbers", "123"]).tap()
+      center(key(["numbers", "123"])).tap()
       let editMenu = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Select All' OR label == 'AutoFill'")).firstMatch
       XCTAssertFalse(editMenu.exists && editMenu.isHittable, "Punctuation hold must start without an edit menu")
       let source = key([symbol])
@@ -527,7 +537,7 @@ final class KeyflowQwertyTests: XCTestCase {
       let destination = center(key(["numbers", "123"]))
       origin.press(forDuration: 0.7, thenDragTo: destination, withVelocity: .slow, thenHoldForDuration: 0.1)
       XCTAssertEqual(text, "alpha beta", "Moving the cursor must not insert spaces")
-      key(["x", "X"]).tap()
+      center(key(["x", "X"])).tap()
       if native {
         let inserted = NSPredicate { [self] _, _ in ["xalpha beta", "Xalpha beta"].contains(text) }
         XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: inserted, object: nil)], timeout: 5), .completed, "Apple trackpad must place the caret before the first letter")
@@ -614,13 +624,13 @@ final class KeyflowQwertyTests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: applied, object: editor)], timeout: 5), .completed)
       }
       waitForValue("alpha\nbeta\ngamma")
-      key(["Return", "return", "newline"]).tap()
+      center(key(["Return", "return", "newline"])).tap()
       waitForValue("alpha\nbeta\ngamma\n")
       if !native {
         let space = key(["space"])
         let origin = center(space)
         origin.press(forDuration: 0.7, thenDragTo: origin.withOffset(CGVector(dx: 0, dy: -24)), withVelocity: .slow, thenHoldForDuration: 0.1)
-        key(["Delete", "delete"]).tap()
+        center(key(["Delete", "delete"])).tap()
         waitForValue("alpha\nbetagamma\n")
         capture("multiline-vertical-trackpad")
       }
@@ -648,10 +658,8 @@ final class KeyflowQwertyTests: XCTestCase {
   }
 
   func openLayouts() {
-    app.navigationBars.buttons.firstMatch.tap()
-    XCTAssertTrue(app.buttons["Compare layouts & rotation"].waitForExistence(timeout: 5))
-    app.buttons["Compare layouts & rotation"].tap()
-    XCTAssertTrue(app.buttons["Check layout"].waitForExistence(timeout: 5))
+    openLab("Compare layouts & rotation")
+    XCTAssertTrue(app.buttons["Check layout"].waitForExistence(timeout: 10))
   }
 
   func testTabletNativeNumberPadInventory() throws { try assertTabletNativeInventory("Number") }
@@ -728,7 +736,7 @@ final class KeyflowQwertyTests: XCTestCase {
         let item = key([String(digit)])
         let targetFrame = item.frame
         if !custom { nativeFrames[String(digit)] = targetFrame }
-        item.tap()
+        center(item).tap()
         expected.append(digit)
         // Observe this tap before issuing another. Never replay a missed key.
         let applied = NSPredicate { [self] _, _ in text == expected }
@@ -756,16 +764,58 @@ final class KeyflowQwertyTests: XCTestCase {
   func openLab(_ label: String) {
     let back = app.navigationBars.buttons["Keyflow"]
     XCTAssertTrue(back.waitForExistence(timeout: 5))
-    back.tap()
+    center(back).tap()
+    let hidden = NSPredicate { [self] _, _ in
+      let firstKey = app.keys.firstMatch
+      return !firstKey.exists || !firstKey.isHittable
+    }
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: hidden, object: nil)], timeout: 10),
+      .completed, "Keyboard must dismiss before navigating the lab")
     let card = app.buttons[label]
-    for _ in 0..<8 where !card.isHittable { app.swipeUp() }
-    XCTAssertTrue(card.waitForExistence(timeout: 5), "Missing lab card: \(label)")
-    card.tap()
+    func viewport() -> CGRect { app.scrollViews.firstMatch.frame.intersection(app.frame) }
+    func visible() -> Bool {
+      card.exists && card.isHittable && !card.frame.isEmpty && viewport().contains(card.frame)
+    }
+    for _ in 0..<8 {
+      if visible() { break }
+      let region = viewport()
+      let targetDelta = card.exists ? region.midY - card.frame.midY : -region.height * 0.35
+      let movement = max(-region.height * 0.35, min(region.height * 0.35, targetDelta))
+      let origin = app.coordinate(withNormalizedOffset: .zero).withOffset(
+        CGVector(dx: region.midX - app.frame.minX, dy: region.midY - app.frame.minY))
+      origin.press(
+        forDuration: 0.05, thenDragTo: origin.withOffset(CGVector(dx: 0, dy: movement)),
+        withVelocity: .slow, thenHoldForDuration: 0)
+    }
+    var previous = CGRect.null
+    var stableSince = ProcessInfo.processInfo.systemUptime
+    let ready = NSPredicate { _, _ in
+      guard visible() else { return false }
+      let frame = card.frame
+      let now = ProcessInfo.processInfo.systemUptime
+      if frame != previous {
+        previous = frame
+        stableSince = now
+        return false
+      }
+      return now - stableSince >= 0.3
+    }
+    let outcome = XCTWaiter.wait(
+      for: [XCTNSPredicateExpectation(predicate: ready, object: nil)], timeout: 10)
+    if outcome != .completed { capture("lab-card-not-ready") }
+    XCTAssertEqual(outcome, .completed, "Lab card must settle fully inside its viewport: \(label)")
+    // A partly visible card can be 'hittable' while its midpoint lies outside
+    // the scroll viewport. Freeze the fully visible target after deceleration.
+    center(card).tap()
   }
   func testTransitionDiagnosticsPass() {
     openLab("Test keyboard transitions")
     let run = app.buttons["Run transition tests"]
-    XCTAssertTrue(run.waitForExistence(timeout: 10)); run.tap()
+    let opened = run.waitForExistence(timeout: 10)
+    if !opened { capture("transition-navigation-not-ready") }
+    XCTAssertTrue(opened, "Transition screen did not open after its lab card tap")
+    center(run).tap()
     let result = app.staticTexts["transition-result"]
     let passed = NSPredicate(format: "label BEGINSWITH 'PASS:' OR value BEGINSWITH 'PASS:'")
     expectation(for: passed, evaluatedWith: result)

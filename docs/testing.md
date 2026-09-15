@@ -15,7 +15,7 @@ Device scripts require a running example and the appropriate device/session argu
 
 ## Android React Native app suite
 
-Start and launch the current example with Stim from `example/`. Use the normal docked software keyboard for native comparisons; dismiss input tutorials and turn off handwriting-only or floating modes on local AVDs. CI uses a clean emulator image. Then, from the repository root, use the owned device serial reported by Stim:
+Start and launch the current example with Stim from `example/`. Use the normal docked software keyboard for native comparisons; dismiss input tutorials and turn off handwriting-only or floating modes on local AVDs. CI uses a clean emulator image. The app runner records and closes Expo’s first-launch developer menu before testing. It can select Wait once for a startup System UI ANR, then requires the lab to appear; application ANRs remain failures. Layout expectations use the reported natural screen orientation, including landscape tablets. Then, from the repository root, use the owned device serial reported by Stim:
 
 ```sh
 KEYFLOW_ANDROID_SERIAL=emulator-XXXX corepack yarn test:device:android:app
@@ -126,3 +126,7 @@ Within the same PR and workflow, a completed successful run with identical input
 Missing or expired evidence, API errors, failures, or cancellation fall back to running tests. Fingerprint artifacts expire after seven days; lookup is limited to the most recent 100 PR runs of the workflow. Manual, scheduled, and main runs do not reuse results. Changes to code, dependencies, tests, CI, or the PR base invalidate reuse. Reuse currently applies to the whole workflow, not separate platform results. Required checks retain their names on the latest commit.
 
 Automatic workflows use a concurrency group per workflow and PR or branch, with cancellation enabled. A newer revision cancels superseded runs. Android and iOS build jobs within the latest run remain parallel; each device job waits only for its own platform's shared build. Runner capacity can still queue a job. The separate manual native comparison workflow retains its device-lab concurrency policy.
+
+The required iPad CI check combines two independent device jobs. They partition all interaction methods exactly once, each uses its own simulator and the shared compiled binaries, and both must pass. This bounds runtime without reducing coverage or replaying failures. Each job runs the rendering suite before its interaction shard.
+
+The iOS interaction runner holds a temporary idle-sleep assertion for its lifetime and has a 30-minute process deadline, followed by bounded artifact export. This prevents laptop sleep from suspending event synthesis and ensures a stuck XCTest process reports failure before the CI job timeout. The assertion ends with the runner; system power preferences are unchanged.

@@ -3,6 +3,13 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 keyflow_model="$1"
 shift
+if [[ "${1:-}" == "--shard" ]]; then
+  [[ "$#" == 2 ]]
+  keyflow_test_names=$(node scripts/ci/ios-interaction-shards.mjs "$2")
+  read -r -a keyflow_tests <<< "$keyflow_test_names"
+  [[ "${#keyflow_tests[@]}" -gt 0 ]]
+  set -- "${keyflow_tests[@]}"
+fi
 keyflow_build="${KEYFLOW_IOS_BUILD:-artifacts/ci/ios}"
 keyflow_output="artifacts/ios-ui"
 mkdir -p "$keyflow_output"

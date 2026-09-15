@@ -11,8 +11,8 @@ platform-specific assumptions remain explicit skips.
 
 | Device         | Required cases before platform-specific skips |
 | -------------- | --------------------------------------------- |
-| Android phone  | 64 native + 10 React Native app groups        |
-| Android tablet | 64 native + 10 React Native app groups        |
+| Android phone  | 66 native + 10 React Native app groups        |
+| Android tablet | 66 native + 10 React Native app groups        |
 | iPhone         | 57 rendering + 63 interaction cases           |
 | iPad           | 57 rendering + 63 interaction cases           |
 
@@ -27,6 +27,8 @@ styling. The four additional cases verify actual visible glyph pixels in flat an
 raised materials, both at rest and while pressed. Shift regressions check left/right activation, filled-arrow pixels, one-letter reset, independent Android Caps Lock/Shift activation, shifted punctuation output, and the separate automatic-capitalization state. iPad regressions verify its distinct modifier behavior and `! ?` punctuation, including accessibility labels and rendered attachments. Phone regressions check persistent uppercase and the distinct Caps Lock glyph on both platforms.
 
 Space/trackpad regressions verify iOS touch-down fill contrast, normal release and custom-color cancellation, legend and key-face fading, restoration during an interrupted fade, and restoration after cursor dragging. Android tests compare rendered space-bar pixels during cursor movement in flat and raised materials, and verify that release or cancellation restores the resting color without inserting a space.
+
+Android native IME-policy regressions verify that mode changes and cleanup preserve React-owned TextInput props, while temporary changes on plain native editors restore their original setting.
 
 Android also exercises the actual React Native example on both phone and tablet:
 
