@@ -116,8 +116,12 @@ export function useKeyflow(options: KeyflowOptions = {}): KeyflowResult {
     );
   const [id] = useState(() => `keyflow-${++nextKeyflowId}`);
   const inputRef = useRef<TextInput>(null);
-  const focus = useCallback(() => inputRef.current?.focus(), []);
-  const blur = useCallback(() => inputRef.current?.blur(), []);
+  const focusRequest = useRef(0);
+  const configurationReady = useRef<Promise<void>>(Promise.resolve());
+  const blur = useCallback(() => {
+    focusRequest.current += 1;
+    inputRef.current?.blur();
+  }, []);
   const colorScheme = useColorScheme();
   const mounted = useRef(true);
   const attachmentAllowed = useRef(true);
@@ -185,12 +189,40 @@ export function useKeyflow(options: KeyflowOptions = {}): KeyflowResult {
     [id, inputRef],
   );
 
+  const focus = useCallback(() => {
+    const target = inputRef.current;
+    if (!target || !mounted.current) return;
+    const request = ++focusRequest.current;
+    if (!attachmentAllowed.current) {
+      target.focus();
+      return;
+    }
+    const current = () =>
+      mounted.current &&
+      attachmentAllowed.current &&
+      inputRef.current === target &&
+      focusRequest.current === request;
+    void configurationReady.current
+      .then(async () => {
+        if (!current()) return;
+        await attachInput(false);
+        if (current()) {
+          claimKeyflowFrame(id);
+          target.focus();
+        }
+      })
+      .catch((cause: Error) => {
+        if (current()) setError(cause);
+      });
+  }, [attachInput, id]);
+
   // Keep teardown in the same phase, before configuration setup. A passive
   // cleanup during Fast Refresh can otherwise destroy the newly configured id.
   useLayoutEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
+      focusRequest.current += 1;
       attachmentAllowed.current = false;
       clearKeyflowFrame(id);
       void KeyflowNative.destroy(id);
@@ -201,6 +233,7 @@ export function useKeyflow(options: KeyflowOptions = {}): KeyflowResult {
     mounted.current = true;
     attachmentAllowed.current = enabled;
     if (!enabled) {
+      focusRequest.current += 1;
       clearKeyflowFrame(id);
       setPanelHeight(0);
       void KeyflowNative.destroy(id);
@@ -208,7 +241,7 @@ export function useKeyflow(options: KeyflowOptions = {}): KeyflowResult {
     }
     registerDiagnostics(inputRef, () => KeyflowNative.getKeyboardMetrics(id));
     let active = true;
-    void KeyflowNative.configure(
+    const configuring = KeyflowNative.configure(
       id,
       keyboardMode,
       keyboardType,
@@ -217,7 +250,9 @@ export function useKeyflow(options: KeyflowOptions = {}): KeyflowResult {
       languagesJSON,
       hapticsEnabled,
       showSecondaryKeyLabels,
-    )
+    );
+    configurationReady.current = configuring;
+    void configuring
       .then(() => {
         if (active) return attachInput(false);
       })
@@ -285,7 +320,10 @@ export function useKeyflow(options: KeyflowOptions = {}): KeyflowResult {
   const keyflowInputProps = useMemo<KeyflowInputProps>(
     () => ({
       ref: inputRef,
-      showSoftInputOnFocus: !enabled || keyboardMode === 'system',
+      // UIKit presents Keyflow as the inputView. Suppressing it here would
+      // make React Native install a competing empty inputView on iOS.
+      showSoftInputOnFocus:
+        Platform.OS === 'ios' || !enabled || keyboardMode === 'system',
       onFocus: () => {
         if (!enabled) return;
         attachInput().catch((cause: Error) => {

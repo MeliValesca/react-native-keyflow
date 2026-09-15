@@ -1,7 +1,9 @@
 import { ExampleTextInput } from '../components/common/ExampleTextInput';
 import { settledKeyboardMode } from '../testing/settledKeyboardMode';
 import { getKeyboardMetrics } from 'react-native-keyflow/testing';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { Routes } from '../App';
 import { Platform, Pressable, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
@@ -19,7 +21,9 @@ const cases = {
 };
 const pause = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
-export function InteractionScreen() {
+export function InteractionScreen({
+  navigation,
+}: NativeStackScreenProps<Routes, 'Interactions'>) {
   const [mode, setMode] = useState<'custom' | 'system'>('custom');
   const [revision, setRevision] = useState(0);
   const [text, setText] = useState('');
@@ -29,30 +33,52 @@ export function InteractionScreen() {
   const alive = useRef(true);
   const request = useRef(0);
   const diagnosticRequest = useRef(0);
+  const entered = useRef(false);
+  const mountedRevision = useRef<number | null>(null);
+  const focusedRevision = useRef<number | null>(null);
   const header = useHeaderHeight();
-  const { inputRef: input, keyflowInputProps: bindings } = useKeyflow({
+  const {
+    inputRef: input,
+    keyflowInputProps: bindings,
+    focus,
+    blur,
+  } = useKeyflow({
     keyboardMode: mode,
     keyboardAppearance: 'light',
   });
+  useEffect(
+    () =>
+      navigation.addListener('transitionEnd', (event) => {
+        if (event.data.closing) return;
+        entered.current = true;
+        if (mountedRevision.current === revision) {
+          focusedRevision.current = revision;
+          focus();
+        }
+      }),
+    [focus, navigation, revision],
+  );
   useFocusEffect(
     useCallback(() => {
       alive.current = true;
       return () => {
         alive.current = false;
+        entered.current = false;
+        focusedRevision.current = null;
         request.current++;
-        void input.current?.blur();
+        blur();
       };
-    }, [input]),
+    }, [blur]),
   );
   const switchMode = async (next: 'custom' | 'system') => {
     const id = ++request.current;
     setMode(next);
     await pause(0);
-    if (alive.current && id === request.current) input.current?.focus();
+    if (alive.current && id === request.current) focus();
   };
   const reset = async (name: keyof typeof cases) => {
     diagnosticRequest.current++;
-    await input.current?.blur();
+    blur();
     setText(cases[name]);
     setMultiline(name === 'Multiline');
     setDiagnostic('');
@@ -219,7 +245,13 @@ export function InteractionScreen() {
         <View style={{ flex: 1 }} />
         <ExampleTextInput
           {...bindings}
-          autoFocus
+          onLayout={() => {
+            mountedRevision.current = revision;
+            if (entered.current && focusedRevision.current !== revision) {
+              focusedRevision.current = revision;
+              focus();
+            }
+          }}
           key={revision}
           testID={`interaction-input-${revision}`}
           value={text}

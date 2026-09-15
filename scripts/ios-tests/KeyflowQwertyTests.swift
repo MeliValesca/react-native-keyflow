@@ -126,7 +126,22 @@ final class KeyflowQwertyTests: XCTestCase {
     var match: XCUIElement?
     var previous: String?
     var stableSince: TimeInterval?
+    var dismissedIntroduction = false
     let ready = NSPredicate { [self] _, _ in
+      // Apple can show this introduction again when the first editor remounts.
+      // Dismiss only this known system screen, once, before any typing action.
+      let introduction = app.buttons["Continue"]
+      let explanation = app.staticTexts[
+        "Speed up your typing by sliding your finger across the letters to compose a word."]
+      if expectsSystemKeyboard && !dismissedIntroduction
+        && introduction.exists && explanation.exists && introduction.isHittable
+      {
+        introduction.tap()
+        dismissedIntroduction = true
+        previous = nil
+        stableSince = nil
+        return false
+      }
       let bounds = app.frame
       let keyboardRegion = bounds.minY + bounds.height * 0.42
       for label in labels {
