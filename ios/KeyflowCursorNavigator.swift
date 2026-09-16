@@ -71,17 +71,31 @@ final class KeyflowCursorNavigator {
     in input: UIView & UITextInput, to target: CGPoint
   ) -> UITextPosition? {
     guard let hit = input.closestPosition(to: target) else { return nil }
-    var candidates = [hit]
-    if let previous = input.position(from: hit, offset: -1) { candidates.append(previous) }
-    if let next = input.position(from: hit, offset: 1) { candidates.append(next) }
-    return candidates.min { left, right in
-      let leftCaret = input.caretRect(for: left)
-      let rightCaret = input.caretRect(for: right)
-      let leftDistance = hypot(leftCaret.midX - target.x, leftCaret.midY - target.y)
-      let rightDistance = hypot(rightCaret.midX - target.x, rightCaret.midY - target.y)
-      if abs(leftDistance - rightDistance) > 0.01 { return leftDistance < rightDistance }
-      return input.compare(left, to: right) == .orderedAscending
+    func distance(to position: UITextPosition) -> CGFloat {
+      let caret = input.caretRect(for: position)
+      return hypot(caret.midX - target.x, caret.midY - target.y)
     }
+    var best = hit
+    let hitDistance = distance(to: hit)
+    var bestDistance = hitDistance
+    for direction in [-1, 1] {
+      var current = hit
+      var currentDistance = hitDistance
+      while let candidate = input.position(from: current, offset: direction) {
+        let candidateDistance = distance(to: candidate)
+        guard candidateDistance <= currentDistance + 0.01 else { break }
+        if candidateDistance < bestDistance - 0.01
+          || (abs(candidateDistance - bestDistance) <= 0.01
+            && input.compare(candidate, to: best) == .orderedAscending)
+        {
+          best = candidate
+          bestDistance = candidateDistance
+        }
+        current = candidate
+        currentDistance = candidateDistance
+      }
+    }
+    return best
   }
 
   func move(_ input: UIView & UITextInput, translation: CGPoint) {

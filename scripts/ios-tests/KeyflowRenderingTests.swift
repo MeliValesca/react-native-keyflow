@@ -162,7 +162,7 @@ final class KeyflowRenderingTests: XCTestCase {
   func testTrackpadSnapsToTheVisuallyNearestCaretInsteadOfTheTrailingHit() throws {
     final class TrailingBiasedTextView: UITextView {
       override func closestPosition(to point: CGPoint) -> UITextPosition? {
-        super.closestPosition(to: CGPoint(x: point.x + 8, y: point.y))
+        super.closestPosition(to: CGPoint(x: point.x + 24, y: point.y))
       }
     }
     let view = TrailingBiasedTextView(frame: CGRect(x: 0, y: 0, width: 240, height: 100))
@@ -181,6 +181,36 @@ final class KeyflowRenderingTests: XCTestCase {
       view.selectedRange.location, 2,
       "A trailing-biased UIKit hit must not move past the visually nearest caret")
     XCTAssertEqual(cursor.floatingCaret.frame.midX, targetX, accuracy: 0.01)
+  }
+
+  func testTrackpadSelectsTheExactVisibleBoundaryWhenDraggingBackward() throws {
+    let field = UITextField(frame: CGRect(x: 0, y: 0, width: 280, height: 48))
+    field.font = UIFont.systemFont(ofSize: 20)
+    field.text = "beta alpha"
+    let view = UITextView(frame: CGRect(x: 0, y: 0, width: 280, height: 100))
+    view.font = UIFont.systemFont(ofSize: 20)
+    view.text = "beta alpha"
+    let editors: [UIView & UITextInput] = [
+      field,
+      view,
+    ]
+    for editor in editors {
+      editor.layoutIfNeeded()
+      let end = editor.endOfDocument
+      editor.selectedTextRange = editor.textRange(from: end, to: end)
+      let startCaret = editor.caretRect(for: end)
+      let afterB = try XCTUnwrap(editor.position(from: editor.beginningOfDocument, offset: 1))
+      let target = editor.caretRect(for: afterB)
+      let navigator = KeyflowCursorNavigator()
+      navigator.begin(editor)
+      navigator.move(
+        editor,
+        translation: CGPoint(x: target.midX - startCaret.midX, y: target.midY - startCaret.midY)
+      )
+      let selected = try XCTUnwrap(editor.selectedTextRange)
+      XCTAssertEqual(editor.offset(from: editor.beginningOfDocument, to: selected.start), 1)
+      XCTAssertEqual(navigator.floatingCaret.frame.midX, target.midX, accuracy: 0.01)
+    }
   }
 
   func testMultilineCursorMovesAcrossVisualLinesAndEmoji() throws {
