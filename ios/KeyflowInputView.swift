@@ -59,7 +59,7 @@ final class KeyflowInputView: ExpoView {
         ])
     }
     if attachedEditor !== field {
-      detachInput()
+      detachInput(resigningFocus: attachedEditor?.isFirstResponder == true)
       attachedEditor = field
       savedInputView = field.inputView
       savedAccessoryView = field.inputAccessoryView
