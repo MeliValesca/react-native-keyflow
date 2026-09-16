@@ -195,7 +195,9 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     }
     softInputPolicy.apply(field, mode == "system")
     updateInputContext()
-    if (changed && field.hasFocus()) requestKeyboard()
+    // Refocusing an already-focused editor does not emit another focus change.
+    // Attachment is also used by the hook's focus(), so restore its panel here.
+    if (field.hasFocus()) requestKeyboard()
   }
 
   private fun detachInput(animated: Boolean = false, resigningFocus: Boolean = false) {
