@@ -67,11 +67,28 @@ final class KeyflowCursorNavigator {
     origin = CGPoint(x: caret.midX, y: caret.midY)
   }
 
+  private func nearestCaretPosition(
+    in input: UIView & UITextInput, to target: CGPoint
+  ) -> UITextPosition? {
+    guard let hit = input.closestPosition(to: target) else { return nil }
+    var candidates = [hit]
+    if let previous = input.position(from: hit, offset: -1) { candidates.append(previous) }
+    if let next = input.position(from: hit, offset: 1) { candidates.append(next) }
+    return candidates.min { left, right in
+      let leftCaret = input.caretRect(for: left)
+      let rightCaret = input.caretRect(for: right)
+      let leftDistance = hypot(leftCaret.midX - target.x, leftCaret.midY - target.y)
+      let rightDistance = hypot(rightCaret.midX - target.x, rightCaret.midY - target.y)
+      if abs(leftDistance - rightDistance) > 0.01 { return leftDistance < rightDistance }
+      return input.compare(left, to: right) == .orderedAscending
+    }
+  }
+
   func move(_ input: UIView & UITextInput, translation: CGPoint) {
     if origin == nil { begin(input) }
     guard let origin else { return }
     let target = CGPoint(x: origin.x + translation.x, y: origin.y + translation.y)
-    guard let position = input.closestPosition(to: target) else { return }
+    guard let position = nearestCaretPosition(in: input, to: target) else { return }
     let before = input.caretRect(for: position)
     if editor == nil {
       editor = input

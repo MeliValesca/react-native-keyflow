@@ -159,6 +159,30 @@ final class KeyflowRenderingTests: XCTestCase {
     XCTAssertEqual(view.selectedRange.location, view.text.count)
   }
 
+  func testTrackpadSnapsToTheVisuallyNearestCaretInsteadOfTheTrailingHit() throws {
+    final class TrailingBiasedTextView: UITextView {
+      override func closestPosition(to point: CGPoint) -> UITextPosition? {
+        super.closestPosition(to: CGPoint(x: point.x + 8, y: point.y))
+      }
+    }
+    let view = TrailingBiasedTextView(frame: CGRect(x: 0, y: 0, width: 240, height: 100))
+    view.font = UIFont.monospacedSystemFont(ofSize: 20, weight: .regular)
+    view.text = "abcdef"
+    view.selectedRange = NSRange(location: 2, length: 0)
+    view.layoutIfNeeded()
+    let start = view.caretRect(for: try XCTUnwrap(view.selectedTextRange).start)
+    let nextPosition = try XCTUnwrap(view.position(from: view.beginningOfDocument, offset: 3))
+    let next = view.caretRect(for: nextPosition)
+    let targetX = start.midX + (next.midX - start.midX) * 0.4
+    let cursor = KeyflowCursorNavigator()
+    cursor.begin(view)
+    cursor.move(view, translation: CGPoint(x: targetX - start.midX, y: 0))
+    XCTAssertEqual(
+      view.selectedRange.location, 2,
+      "A trailing-biased UIKit hit must not move past the visually nearest caret")
+    XCTAssertEqual(cursor.floatingCaret.frame.midX, targetX, accuracy: 0.01)
+  }
+
   func testMultilineCursorMovesAcrossVisualLinesAndEmoji() throws {
     let view = UITextView(frame: CGRect(x: 0, y: 0, width: 150, height: 220))
     view.font = UIFont.monospacedSystemFont(ofSize: 18, weight: .regular)
