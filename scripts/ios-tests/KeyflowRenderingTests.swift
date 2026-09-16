@@ -2,6 +2,22 @@ import XCTest
 import UIKit
 
 final class KeyflowRenderingTests: XCTestCase {
+  func testReturnKeySupportsCustomTextAndPortableIcons() throws {
+    let keyboard = KeyflowKeyboardView()
+    let submit = try XCTUnwrap(
+      keyboard.subviews.compactMap { $0 as? KeyflowKey }.first { $0.action == .submit })
+    var theme = keyboard.theme
+    theme.returnKeyContent = KeyflowReturnKeyContent(text: "Send", icon: nil)
+    keyboard.theme = theme
+    XCTAssertEqual(submit.caption, "Send")
+    XCTAssertNil(submit.displayedSymbol)
+
+    theme.returnKeyContent = KeyflowReturnKeyContent(text: nil, icon: "arrow-right")
+    keyboard.theme = theme
+    XCTAssertEqual(submit.displayedSymbol, "arrow.right")
+    XCTAssertEqual(submit.accessibilityLabel, "return")
+  }
+
   func testTeardownResignsBeforeRestoringInputViews() {
     let field = TeardownField()
     let original = UIView()

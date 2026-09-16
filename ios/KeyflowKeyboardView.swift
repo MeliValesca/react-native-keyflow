@@ -335,7 +335,22 @@ final class KeyflowKeyboardView: UIView {
     }
     backgroundColor = .clear
     panelBottom.backgroundColor = UIColor(keyflowHex: theme.background)
-    for key in rows.flatMap({ $0 }) { key.theme = theme }
+    for key in rows.flatMap({ $0 }) {
+      if key.action == .submit {
+        let fallback = language.base == "fr" ? "retour" : "return"
+        if let text = theme.returnKeyContent?.text {
+          key.setActionContent(text, symbol: nil)
+        } else {
+          let name = theme.returnKeyContent?.icon ?? "return"
+          let symbols = [
+            "return": "return", "arrow-right": "arrow.right", "checkmark": "checkmark",
+            "send": "paperplane", "search": "magnifyingglass",
+          ]
+          key.setActionContent(fallback, symbol: symbols[name] ?? "return")
+        }
+      }
+      key.theme = theme
+    }
     setNeedsLayout()
   }
 

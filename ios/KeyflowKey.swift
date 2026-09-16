@@ -46,6 +46,7 @@ final class KeyflowKey: UIView {
     }
   }
   private let icon = UIImageView()
+  private(set) var displayedSymbol: String?
   private let preview = UILabel()
   private let previewCallout = KeyflowCallout()
   var hidesLegend = false {
@@ -109,6 +110,7 @@ final class KeyflowKey: UIView {
   required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
 
   func setSymbol(_ name: String) {
+    displayedSymbol = name
     if name == "keyflow.symbols" {
       // The native page switch uses an upright number sign, not the slanted
       // text glyph. Draw the three marks as one template, just like other icons.
@@ -136,6 +138,15 @@ final class KeyflowKey: UIView {
         withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .regular))
     }
     label.isHidden = true
+  }
+
+  func setActionContent(_ value: String, symbol: String?) {
+    caption = value
+    icon.image = nil
+    displayedSymbol = nil
+    label.isHidden = false
+    if let symbol { setSymbol(symbol) }
+    setNeedsLayout()
   }
 
   private var sectionName: String {

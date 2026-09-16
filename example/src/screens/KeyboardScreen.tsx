@@ -65,6 +65,7 @@ export const KeyboardScreen = observer(function KeyboardScreenContent({
     keyboardMode: mode,
     keyboardAppearance: dark ? 'dark' : 'light',
     keyflowTheme: game ? studioTheme : undefined,
+    returnKeyContent: game ? { icon: 'send' } : undefined,
     hapticsEnabled: haptics,
     onKeyboardModeChange: setMode,
     onKeyboardFrameChange: (next) => {

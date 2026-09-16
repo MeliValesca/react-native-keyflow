@@ -36,6 +36,17 @@ export type KeyflowKeyboardType =
   | 'decimal-pad'
   | 'phone-pad';
 
+export type KeyflowReturnKeyIcon =
+  | 'return'
+  | 'arrow-right'
+  | 'checkmark'
+  | 'send'
+  | 'search';
+
+export type KeyflowReturnKeyContent =
+  | Readonly<{ text: string; icon?: never }>
+  | Readonly<{ icon: KeyflowReturnKeyIcon; text?: never }>;
+
 export type KeyflowOptions = {
   /** Disable native attachment while retaining stable hook order. Default true. */
   enabled?: boolean;
@@ -47,6 +58,8 @@ export type KeyflowOptions = {
   keyboardMode?: 'custom' | 'system';
   keyboardType?: KeyflowKeyboardType;
   keyboardAppearance?: 'light' | 'dark';
+  /** Content displayed by Keyflow's submit key. This does not change submit behavior. */
+  returnKeyContent?: KeyflowReturnKeyContent;
   keyflowTheme?: KeyflowThemeOverrides | KeyflowTheme;
   /** Omit to discover supported device languages. Explicit entries also choose layout. */
   keyboardLanguages?: readonly KeyflowLanguage[];
@@ -136,6 +149,7 @@ export function useKeyflow(options: KeyflowOptions = {}): KeyflowResult {
     keyboardMode = 'custom',
     keyboardType = 'default',
     keyboardAppearance,
+    returnKeyContent,
     keyflowTheme,
     keyboardLanguages,
     hapticsEnabled = false,
@@ -155,6 +169,7 @@ export function useKeyflow(options: KeyflowOptions = {}): KeyflowResult {
       keyflowTheme,
       Platform.OS === 'ios' && Platform.constants.interfaceIdiom === 'pad',
     ),
+    returnKeyContent,
   );
   const languagesJSON = serializeKeyboardLanguages(keyboardLanguages);
 

@@ -159,6 +159,7 @@ export const keyflowTheme = {
 
 const { keyflowInputProps } = useKeyflow({
   keyflowTheme,
+  returnKeyContent: { icon: 'send' },
 });
 
 <TextInput {...keyflowInputProps} style={styles.input} />;
@@ -176,6 +177,22 @@ const { keyflowInputProps } = useKeyflow({
 | `toolbar`                 | Android clipboard and dismiss controls                            |
 
 Sections support colors, pressed colors, borders, corner radius, fonts, and icon sizing where applicable. `color` supplies the icon and pressed foreground unless explicitly overridden. If you set `iconColor`, remember to give selected states a contrasting icon color too.
+
+Set the custom return key to app-owned text or a portable native icon:
+
+```tsx
+const { keyflowInputProps } = useKeyflow({
+  returnKeyContent: { icon: 'send' },
+});
+
+<TextInput
+  {...keyflowInputProps}
+  submitBehavior="submit"
+  onSubmitEditing={sendMessage}
+/>;
+```
+
+Use `{ text: 'Post' }` for app-owned text. Available icons are `return`, `arrow-right`, `checkmark`, `send`, and `search`. This changes only Keyflow's presentation; use the `TextInput`'s `submitBehavior` and `onSubmitEditing` for behavior. A multiline input with `submitBehavior="newline"` inserts `\n`.
 
 On iOS, the long-press accent popup and its choices omit borders. The selected accent uses the regular keys’ corner radius.
 

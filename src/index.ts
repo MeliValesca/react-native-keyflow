@@ -20,6 +20,8 @@ export type { KeyflowLanguage } from './languages';
 export { useKeyflow } from './useKeyflow';
 export type {
   KeyflowKeyboardType,
+  KeyflowReturnKeyContent,
+  KeyflowReturnKeyIcon,
   KeyflowOptions,
   KeyflowInputProps,
   KeyflowResult,

@@ -80,6 +80,7 @@ export function Input() {
 | `keyboardMode`             | `custom` (default) or `system`                                                                                                       |
 | `keyboardAppearance`       | `light` or `dark`; otherwise follows device appearance                                                                               |
 | `keyboardType`             | `default`, `number-pad`, `decimal-pad`, `phone-pad`                                                                                  |
+| `returnKeyContent`         | Custom text or a portable native icon for Keyflow's submit key                                                                       |
 | `keyflowTheme`             | Partial overrides or a resolved theme                                                                                                |
 | `keyboardLanguages`        | English/French language and QWERTY/AZERTY template entries                                                                           |
 | `hapticsEnabled`           | Optional key feedback, off by default                                                                                                |
@@ -90,6 +91,25 @@ export function Input() {
 | `onKeyboardHeightChange`   | Android custom panel height; prefer the frame callback for new integrations                                                          |
 
 The app owns its editor and text. Use ordinary React Native `TextInput` props such as `value`, `defaultValue`, `onChangeText`, `onSubmitEditing`, `placeholderTextColor`, `accessibilityLabel`, `editable`, and `submitBehavior` directly on the input. Keyflow adds no input height, padding, border, color, or font. `onSubmitEditing` receives the standard React Native event, not a string.
+
+Customize Keyflow's return key independently from submission behavior:
+
+```tsx
+const { keyflowInputProps } = useKeyflow({
+  returnKeyContent: { icon: 'send' },
+});
+
+<TextInput
+  {...keyflowInputProps}
+  submitBehavior="submit"
+  onSubmitEditing={sendMessage}
+/>;
+
+// A multiline editor can use the same key to insert a newline.
+<TextInput {...keyflowInputProps} multiline submitBehavior="newline" />;
+```
+
+The portable icon names are `return`, `arrow-right`, `checkmark`, `send`, and `search`. Choose either `text` or `icon`. The option affects only the custom keyboard; the system keyboard continues to follow the platform's `returnKeyType` and `enterKeyHint` behavior.
 
 The hook returns:
 

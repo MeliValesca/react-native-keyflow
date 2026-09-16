@@ -14,6 +14,18 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class KeyflowRenderingTest {
   @Test
+  fun returnKeySupportsCustomText() = withKeyboard { activity, keys ->
+    activity.keyboard.theme =
+      KeyflowTheme(
+        JSONObject().apply { put("returnKeyContent", JSONObject().apply { put("text", "Send") }) }
+      )
+    val submit = keys().first { it.action == "submit" }
+    assertEquals("Send", submit.label)
+    assertEquals("Send", submit.text.toString())
+    assertEquals("Send", submit.contentDescription)
+  }
+
+  @Test
   fun reactOwnedSoftInputFlagSurvivesModeChangesAndDetach() {
     ActivityScenario.launch(KeyflowTestActivity::class.java).use { scenario ->
       scenario.onActivity { activity ->

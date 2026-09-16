@@ -253,6 +253,7 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
             'testAccentPresentationRespectsHapticsSetting',
             'testWideAccentUsesOnlyPopupSelectionHighlight',
             'testTeardownResignsBeforeRestoringInputViews',
+            'testReturnKeySupportsCustomTextAndPortableIcons',
             'testAccentPopupOmitsBordersAndUsesKeyRadius',
             'testPhoneDoubleShiftLocksCaseAndShowsLockGlyph',
             'testSpacePressChangesDefaultFillAndRestoresOnRelease',
@@ -319,6 +320,7 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
       ...regressions,
       'com.keyflow.KeyflowRenderingTest#reactOwnedSoftInputFlagSurvivesModeChangesAndDetach',
       'com.keyflow.KeyflowRenderingTest#nativeEditorSoftInputFlagRestoresItsOriginalValue',
+      'com.keyflow.KeyflowRenderingTest#returnKeySupportsCustomText',
     ].sort(),
   );
 });
