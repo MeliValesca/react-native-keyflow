@@ -4,6 +4,7 @@ import UIKit
 final class KeyflowQwertyTests: XCTestCase {
   let app = XCUIApplication(bundleIdentifier: "com.keyflow.example")
   private static var preparedSystemKeyboard = false
+  private static var preparedNativeGestures = false
   private var expectsSystemKeyboard = false
   private var settledKeyboardGeometry: String?
   override func setUpWithError() throws {
@@ -23,14 +24,15 @@ final class KeyflowQwertyTests: XCTestCase {
     }
     // A fresh simulator presents Apple's slide-to-type introduction on first
     // use. Warm up and dismiss that UI before measuring any native gesture.
-    if !Self.preparedSystemKeyboard {
+    let needsNativeGestures = !name.contains("testKeyflowCoreInteractions")
+    if !Self.preparedSystemKeyboard || (needsNativeGestures && !Self.preparedNativeGestures) {
       mode(true)
       let introduction = app.buttons["Continue"]
       if introduction.waitForExistence(timeout: 5) {
         introduction.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
       }
-      if !name.contains("testKeyflowCoreInteractions") {
+      if needsNativeGestures && !Self.preparedNativeGestures {
         reset("Empty")
         // A fresh system keyboard can type the base character on its first hold
         // without presenting alternatives. Initialize that native path during
@@ -40,6 +42,7 @@ final class KeyflowQwertyTests: XCTestCase {
         // committing text. Preparation does not compare editing behavior;
         // the actual reference cases still assert their intended non-empty edit.
         if text.isEmpty { capture("native-warmup-without-insertion") }
+        Self.preparedNativeGestures = true
       }
       // The introduction creates and dismisses system keyboard windows. End
       // that warm-up session so its responder/AX state cannot leak into the
@@ -126,7 +129,22 @@ final class KeyflowQwertyTests: XCTestCase {
     var match: XCUIElement?
     var previous: String?
     var stableSince: TimeInterval?
+    var dismissedIntroduction = false
     let ready = NSPredicate { [self] _, _ in
+      // Apple can show this introduction again when the first editor remounts.
+      // Dismiss only this known system screen, once, before any typing action.
+      let introduction = app.buttons["Continue"]
+      let explanation = app.staticTexts[
+        "Speed up your typing by sliding your finger across the letters to compose a word."]
+      if expectsSystemKeyboard && !dismissedIntroduction
+        && introduction.exists && explanation.exists && introduction.isHittable
+      {
+        introduction.tap()
+        dismissedIntroduction = true
+        previous = nil
+        stableSince = nil
+        return false
+      }
       let bounds = app.frame
       let keyboardRegion = bounds.minY + bounds.height * 0.42
       for label in labels {
@@ -173,6 +191,13 @@ final class KeyflowQwertyTests: XCTestCase {
     // stale accessibility keys that still exist below the visible screen.
     let result = XCTWaiter.wait(
       for: [XCTNSPredicateExpectation(predicate: ready, object: app)], timeout: 5)
+    if result != .completed {
+      let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+      screenshot.name = "keyboard-key-not-ready"
+      screenshot.lifetime = .keepAlways
+      add(screenshot)
+      print("KEYFLOW_KEY_NOT_READY labels=\(labels) sample=\(previous ?? "none") match=\(match?.debugDescription ?? "none")")
+    }
     XCTAssertEqual(
       result, .completed, "Keyboard key must be visible and hittable: \(labels)", file: file,
       line: line)
@@ -593,6 +618,20 @@ final class KeyflowQwertyTests: XCTestCase {
         waitForText("Q", context: "The selected keyboard must type into the remounted input")
       }
     }
+  }
+  func testMultilineRemountPreservesFocus() {
+    for _ in 0..<3 {
+      reset("Empty")
+      app.buttons["Reset Multiline"].tap()
+      let editor = app.textViews.firstMatch
+      XCTAssertTrue(editor.waitForExistence(timeout: 5))
+      center(key(["Return", "return", "newline"])).tap()
+      let inserted = NSPredicate { _, _ in editor.value as? String == "alpha\nbeta\ngamma\n" }
+      XCTAssertEqual(
+        XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: inserted, object: editor)], timeout: 5),
+        .completed, "Remounting a multiline input must preserve focus without another focus command")
+    }
+    capture("multiline-remount-focus")
   }
   func testKeyflowCoreInteractions() throws {
     reset("Empty")

@@ -6,10 +6,49 @@ import tempfile
 from unittest.mock import patch
 from pathlib import Path
 import xml.etree.ElementTree as ET
-from app import ExampleSuite
+from app import ExampleSuite, run_cli
 
 
 class AppHarnessTests(unittest.TestCase):
+    def test_local_sleep_assertion_is_released_after_success_and_failure(self):
+        for error in (None, AssertionError('device failure')):
+            with patch('app.sys.platform', 'darwin'), patch('app.subprocess.Popen') as process, patch('app.ExampleSuite') as suite:
+                suite.return_value.run.side_effect = error
+                if error is None:
+                    run_cli('owned-device', 'output')
+                else:
+                    with self.assertRaisesRegex(AssertionError, 'device failure'):
+                        run_cli('owned-device', 'output')
+                self.assertEqual(process.call_args.args[0][1:5], ['-d', '-i', '-s', '-u'])
+                process.return_value.terminate.assert_called_once()
+                process.return_value.wait.assert_called_once_with(timeout=5)
+
+    def test_reset_rejects_focused_popup_before_screen_coordinates_are_ready(self):
+        state = {'focused': True, 'text': '', 'keyboardMode': 'custom',
+                 'popupVisible': True, 'systemKeyboardVisible': False,
+                 'screenY': 600, 'height': 290, 'width': 412,
+                 'keyFrames': [{'x': 0, 'y': 0, 'width': 40, 'height': 58}]}
+        self.assertFalse(ExampleSuite.reset_metrics_ready(state, '', 'custom'))
+        state['keyFrames'][0].update(x=2, y=650)
+        self.assertTrue(ExampleSuite.reset_metrics_ready(state, '', 'custom'))
+        state['popupVisible'] = False
+        self.assertFalse(ExampleSuite.reset_metrics_ready(state, '', 'custom'))
+
+    def test_reset_requires_selected_mode_text_and_actual_ime_visibility(self):
+        state = {'focused': True, 'text': 'alpha', 'keyboardMode': 'system',
+                 'systemKeyboardVisible': True, 'popupVisible': False, 'keyFrames': []}
+        self.assertTrue(ExampleSuite.reset_metrics_ready(state, 'alpha', 'system'))
+        self.assertFalse(ExampleSuite.reset_metrics_ready(state, '', 'system'))
+        self.assertFalse(ExampleSuite.reset_metrics_ready(state, 'alpha', 'custom'))
+        state['systemKeyboardVisible'] = False
+        self.assertFalse(ExampleSuite.reset_metrics_ready(state, 'alpha', 'system'))
+
+    def test_ci_android_runner_does_not_spawn_macos_power_tool(self):
+        with patch('app.sys.platform', 'linux'), patch('app.subprocess.Popen') as process, patch('app.ExampleSuite') as suite:
+            run_cli('owned-device', 'output')
+            suite.return_value.run.assert_called_once()
+            process.assert_not_called()
+
     def test_ci_core_profile_runs_real_required_case_and_local_default_retains_full_inventory(self):
         self.assertEqual(ExampleSuite.SMOKE_CASES, ('core',))
         self.assertEqual(set(ExampleSuite.CASES), {'editing','multiline','pages_and_accents','handoff','system_editor','submit','transitions','customization','transparency','layouts'})
@@ -115,6 +154,9 @@ class AppHarnessTests(unittest.TestCase):
         menu = ET.fromstring('<node text="Open React Native dev menu"/>')
         reload = ET.fromstring('<node text="Reload"/>')
         self.assertEqual(ExampleSuite.startup_state([lab, system]), 'system_anr')
+        for name in ('Process system', 'Quickstep', 'Pixel Launcher'):
+            for suffix in (" isn't responding", ' isn’t responding'):
+                self.assertEqual(ExampleSuite.startup_state([lab, ET.Element('node', text=name + suffix)]), 'system_anr' if name == 'Process system' else 'launcher_anr')
         self.assertEqual(ExampleSuite.startup_state([lab, app]), 'app_anr')
         self.assertEqual(ExampleSuite.startup_state([lab, menu, reload]), 'dev_menu')
         self.assertEqual(ExampleSuite.startup_state([lab]), 'ready')
@@ -136,6 +178,19 @@ class AppHarnessTests(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError, 'Application ANR'):
             suite.prepare()
         self.assertEqual(len(actions), 2, 'Application failures must not be dismissed')
+
+    def test_launcher_startup_dialog_is_closed_once_before_tests(self):
+        for name in ('Quickstep', 'Pixel Launcher'):
+            suite = ExampleSuite.__new__(ExampleSuite)
+            overlay = [ET.Element('node', text=name + " isn't responding"), ET.Element('node', text='Close app', bounds='[10,20][30,40]'), ET.Element('node', text='Wait', bounds='[40,20][60,40]')]
+            snapshots = iter([overlay, overlay, [ET.Element('node', text='Keyboard lab')]])
+            suite.nodes = lambda: next(snapshots)
+            actions, captures = [], []
+            suite.adb = lambda *args: actions.append(args)
+            suite.startup_capture = lambda value: captures.append(value)
+            suite.prepare()
+            self.assertEqual(actions, [('shell', 'input', 'tap', 20, 30)])
+            self.assertEqual(captures, ['startup-launcher-anr', 'startup-ready'])
 
     def test_rotation_respects_portrait_and_landscape_natural_displays(self):
         for width, height, expected in [(1080, 2400, False), (2560, 1800, True)]:

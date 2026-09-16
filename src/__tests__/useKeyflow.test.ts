@@ -49,19 +49,21 @@ function HookInput({
   mounted = true,
   enabled = true,
   replacement = false,
+  keyboardMode = 'custom',
   onFrame,
   frameOverride,
 }: {
   mounted?: boolean;
   enabled?: boolean;
   replacement?: boolean;
+  keyboardMode?: 'custom' | 'system';
   onFrame?: jest.Mock;
   frameOverride?: KeyflowKeyboardFrame | null;
 }) {
   const [value, setValue] = useState('App owns this');
   const { keyflowInputProps, inputRef, focus, blur } = useKeyflow({
     enabled,
-    keyboardMode: 'custom',
+    keyboardMode,
     keyflowTheme: { keyboard: { background: '#123456' } },
     hapticsEnabled: true,
     onKeyboardFrameChange: onFrame,
@@ -104,7 +106,7 @@ test('owns the ref and automatically avoids the active keyboard without consumer
   const input = renderer.root.findByProps({ testID: 'initial' });
   expect(input.props.value).toBe('App owns this');
   expect(input.props.style).toEqual({ color: 'purple', fontSize: 27 });
-  expect(input.props.showSoftInputOnFocus).toBe(false);
+  expect(input.props.showSoftInputOnFocus).toBe(true);
   expect(mockNative.configure).toHaveBeenCalledWith(
     expect.stringMatching(/^keyflow-/),
     'custom',
@@ -127,7 +129,7 @@ test('owns the ref and automatically avoids the active keyboard without consumer
       nativeEvent: { layout: { y: 0, height: 800 } },
     }),
   );
-  controls.focus();
+  await act(async () => controls.focus());
   controls.blur();
   expect(controls.inputRef.current.focus).toHaveBeenCalledTimes(1);
   expect(controls.inputRef.current.blur).toHaveBeenCalledTimes(1);
@@ -199,6 +201,40 @@ test('owns the ref and automatically avoids the active keyboard without consumer
   }).not.toThrow();
 });
 
+test.each(['ios', 'android'])(
+  '%s preserves native input presentation across custom, system, and disabled modes',
+  async (os) => {
+    const platform = jest.requireMock('react-native').Platform as {
+      OS: string;
+    };
+    const previousOS = platform.OS;
+    platform.OS = os;
+    let renderer: ReactTestRenderer | undefined;
+    try {
+      await act(async () => {
+        renderer = create(createElement(HookInput), { createNodeMock });
+      });
+      const presentation = () =>
+        renderer!.root.findByProps({ testID: 'initial' }).props
+          .showSoftInputOnFocus;
+      expect(presentation()).toBe(os === 'ios');
+      await act(async () =>
+        renderer!.update(createElement(HookInput, { keyboardMode: 'system' })),
+      );
+      expect(presentation()).toBe(true);
+      await act(async () =>
+        renderer!.update(createElement(HookInput, { enabled: false })),
+      );
+      expect(presentation()).toBe(true);
+      await act(async () => renderer!.update(createElement(HookInput)));
+      expect(presentation()).toBe(os === 'ios');
+    } finally {
+      if (renderer) await act(async () => renderer!.unmount());
+      platform.OS = previousOS;
+    }
+  },
+);
+
 test('focus controls and bindings target delayed and replacement inputs', async () => {
   let renderer!: ReactTestRenderer;
   await act(async () => {
@@ -222,7 +258,7 @@ test('focus controls and bindings target delayed and replacement inputs', async 
     expect.any(String),
     22,
   );
-  controls.focus();
+  await act(async () => controls.focus());
   controls.blur();
   expect(controls.inputRef.current.tag).toBe(22);
   expect(controls.inputRef.current.focus).toHaveBeenCalledTimes(1);
@@ -233,6 +269,47 @@ test('focus controls and bindings target delayed and replacement inputs', async 
   );
   await act(async () => renderer.unmount());
 });
+
+test.each([
+  ['configuration', false],
+  ['configuration', true],
+  ['attachment', false],
+  ['attachment', true],
+] as const)(
+  'waits for native %s before focusing and supports cancellation=%s',
+  async (phase, cancel) => {
+    let complete!: () => void;
+    if (phase === 'configuration') {
+      mockNative.configure.mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            complete = resolve;
+          }),
+      );
+    }
+    let renderer!: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(createElement(HookInput), { createNodeMock });
+    });
+    if (phase === 'attachment') {
+      mockNative.attachInput.mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            complete = resolve;
+          }),
+      );
+    }
+    const controls = renderer.root.findByProps({ testID: 'controls' }).props;
+    await act(async () => controls.focus());
+    expect(controls.inputRef.current.focus).not.toHaveBeenCalled();
+    if (cancel) controls.blur();
+    await act(async () => complete());
+    expect(controls.inputRef.current.focus).toHaveBeenCalledTimes(
+      cancel ? 0 : 1,
+    );
+    await act(async () => renderer.unmount());
+  },
+);
 
 test('waits for the native mount without turning a temporary missing tag into a render error', async () => {
   const frames: Array<(timestamp: number) => void> = [];

@@ -125,7 +125,7 @@ Compose your own focus/selection callbacks with the bindings:
 
 The hook option `keyboardType` chooses the custom layout. Set `keyboardType` on your input too when you want a matching system keyboard. Your input's `keyboardAppearance` controls system mode; the hook option controls the custom keyboard. Single-line and multiline inputs are supported. Focusing a replacement input attached to the same ref reattaches its keyboard.
 
-The hook returns stable `focus()` and `blur()` methods that act on the currently mounted input and safely do nothing when it is absent. It also exposes `inputRef`, a normal React Native `TextInput` ref, for other native methods. Change the controlled `keyboardMode` option to switch between custom and system keyboards. A mode change preserves text and selection, cancels active holds, and resets the custom keyboard page.
+The hook returns stable `focus()` and `blur()` methods that act on the currently mounted input and safely do nothing when it is absent. `focus()` prepares the native attachment before focusing; `blur()` cancels any pending focus request. It also exposes `inputRef`, a normal React Native `TextInput` ref, for other native methods. Change the controlled `keyboardMode` option to switch between custom and system keyboards. A mode change preserves text and selection, cancels active holds, and resets the custom keyboard page.
 
 System mode delegates layout, languages, composition and settings to the user’s installed keyboard. Its visibility and floating/hardware-keyboard configuration remain controlled by the OS and IME. Keyflow’s colors and fonts cannot reskin that system keyboard.
 
