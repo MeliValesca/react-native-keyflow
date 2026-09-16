@@ -998,9 +998,15 @@ final class KeyflowQwertyTests: XCTestCase {
     let input = app.textFields["Teardown preview input"]
     XCTAssertTrue(input.waitForExistence(timeout: 10))
     expectsSystemKeyboard = false
-    _ = key(["Q", "q"])
+    let customKey = key(["Q", "q"])
+    let close = app.buttons["Close preview"]
+    let panel = app.otherElements["teardown-preview-panel"]
+    XCTAssertTrue(panel.waitForExistence(timeout: 5))
+    XCTAssertLessThanOrEqual(
+      panel.frame.maxY, customKey.frame.minY + 1,
+      "KeyflowAvoidingView must move the complete composer above Keyflow")
     capture("focused-hook-before-close")
-    app.buttons["Close preview"].tap()
+    close.tap()
     XCTAssertTrue(avoidingView.waitForNonExistence(timeout: 5))
     XCTAssertTrue(input.waitForNonExistence(timeout: 5))
     let dismissed = NSPredicate { [self] _, _ in

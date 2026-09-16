@@ -1,5 +1,6 @@
 import { createElement, StrictMode, useState } from 'react';
 import type { ReactElement } from 'react';
+import type { MeasureInWindowOnSuccessCallback } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import type { ReactTestRenderer } from 'react-test-renderer';
 import { useKeyflow } from '../useKeyflow';
@@ -91,12 +92,16 @@ function HookInput({
   );
 }
 
-const createNodeMock = (element: ReactElement) => ({
-  focus: jest.fn(),
-  blur: jest.fn(),
-  tag:
-    (element.props as { testID?: string }).testID === 'replacement' ? 22 : 11,
-});
+const createNodeMock = (element: ReactElement) => {
+  const testID = (element.props as { testID?: string }).testID;
+  return {
+    focus: jest.fn(),
+    blur: jest.fn(),
+    tag: testID === 'replacement' ? 22 : 11,
+    measureInWindow: (callback: MeasureInWindowOnSuccessCallback) =>
+      callback(0, 100, 400, 700),
+  };
+};
 
 test('owns the ref and automatically avoids the active keyboard without consumer frame props', async () => {
   const onFrame = jest.fn();
@@ -129,7 +134,9 @@ test('owns the ref and automatically avoids the active keyboard without consumer
     );
   await act(async () =>
     surface().props.onLayout({
-      nativeEvent: { layout: { y: 0, height: 800 } },
+      // The surface is nested 100 points below its parent. Avoidance must use
+      // the measured window bottom (800), not this local bottom (700).
+      nativeEvent: { layout: { y: 0, height: 700 } },
     }),
   );
   await act(async () => controls.focus());

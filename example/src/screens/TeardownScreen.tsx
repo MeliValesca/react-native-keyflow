@@ -11,18 +11,36 @@ import { KeyflowAvoidingView, useKeyflow } from 'react-native-keyflow';
 import { studioTheme } from '../themes/studio';
 
 function Preview({ onClose }: { onClose: () => void }) {
+  const [text, setText] = useState('Draft message');
   const { keyflowInputProps } = useKeyflow({
     autoFocus: true,
     keyflowTheme: studioTheme,
   });
   return (
-    <KeyflowAvoidingView testID="teardown-avoiding-view" style={{ gap: 16 }}>
-      <TextInput
-        {...keyflowInputProps}
-        accessibilityLabel="Teardown preview input"
-        style={{ height: 54, padding: 12, borderWidth: 1, borderRadius: 12 }}
-      />
-      <Button title="Close preview" onPress={onClose} />
+    <KeyflowAvoidingView
+      testID="teardown-avoiding-view"
+      style={{ flex: 1, justifyContent: 'flex-end', gap: 16 }}
+    >
+      <View
+        testID="teardown-preview-panel"
+        style={{ gap: 12, padding: 16, borderWidth: 1, borderRadius: 12 }}
+      >
+        <Text style={{ fontSize: 18, fontWeight: '600' }}>
+          Focused composer
+        </Text>
+        <Text>The whole composer must stay visible while Keyflow is open.</Text>
+        <TextInput
+          {...keyflowInputProps}
+          accessibilityLabel="Teardown preview input"
+          value={text}
+          onChangeText={setText}
+          style={{ height: 54, padding: 12, borderWidth: 1, borderRadius: 12 }}
+        />
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <Button title="Clear draft" onPress={() => setText('')} />
+          <Button title="Close preview" onPress={onClose} />
+        </View>
+      </View>
     </KeyflowAvoidingView>
   );
 }

@@ -77,12 +77,13 @@ export function KeyflowAvoidingView({
     return (
       <View
         {...props}
+        ref={container}
+        collapsable={false}
         style={[style, { paddingBottom: overlap }]}
         onLayout={(event) => {
-          // Match RN's keyboardVerticalOffset convention: parent-relative layout
-          // plus the caller's offset is compared with the screen keyboard frame.
-          const { y, height } = event.nativeEvent.layout;
-          setBottom(y + height);
+          // Keyboard frames use screen coordinates. A nested avoiding view's
+          // onLayout position is parent-relative, so measure its window bottom.
+          measure();
           onLayout?.(event);
         }}
       >
