@@ -1,6 +1,7 @@
 import UIKit
 
 struct KeyflowTheme: Decodable, Equatable {
+  var returnKeyContent: KeyflowReturnKeyContent?
   var sections: [String: KeyflowSectionStyle]?
   var sectionOverrides: [String: KeyflowSectionOverrides]?
   var strokeColor: String?
@@ -55,6 +56,11 @@ struct KeyflowTheme: Decodable, Equatable {
     }
     return system
   }
+}
+
+struct KeyflowReturnKeyContent: Decodable, Equatable {
+  var text: String?
+  var icon: String?
 }
 
 extension UIColor {

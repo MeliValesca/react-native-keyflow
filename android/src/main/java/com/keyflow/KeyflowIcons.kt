@@ -79,6 +79,20 @@ internal object KeyflowIcons {
         path(18f, 9f, 12f, 15f)
       }
       "submit" -> path(4f, 12f, 9f, 17f, 20f, 6f)
+      "return" -> path(20f, 5f, 20f, 12f, 7f, 12f, 11f, 8f, 7f, 12f, 11f, 16f)
+      "arrow-right" -> {
+        path(4f, 12f, 20f, 12f)
+        path(14f, 6f, 20f, 12f, 14f, 18f)
+      }
+      "checkmark" -> path(4f, 12f, 9f, 17f, 20f, 6f)
+      "send" -> {
+        path(3f, 4f, 21f, 12f, 3f, 20f, 7f, 12f, close = true)
+        path(7f, 12f, 21f, 12f)
+      }
+      "search" -> {
+        canvas.drawCircle(10f, 10f, 6f, p)
+        path(14.5f, 14.5f, 20f, 20f)
+      }
       "paste" -> {
         canvas.drawRoundRect(RectF(5f, 4f, 19f, 22f), 1f, 1f, p)
         canvas.drawRoundRect(RectF(9f, 2f, 15f, 6f), 1f, 1f, p)

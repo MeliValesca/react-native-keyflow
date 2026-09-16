@@ -39,6 +39,26 @@ const sections = [
         sample: '↑ · ↓',
         color: '#E9F6F1',
       },
+      {
+        route: 'Teardown',
+        accessibilityLabel: 'Test focused teardown',
+        eyebrow: 'Focus · close · unmount',
+        title: 'Focused teardown',
+        description:
+          'Close a focused preview and unmount its entire Keyflow hook.',
+        sample: '×',
+        color: '#EAF1FF',
+      },
+      {
+        route: 'ReturnActions',
+        accessibilityLabel: 'Test return key actions',
+        eyebrow: 'Submit · New line',
+        title: 'Return key actions',
+        description:
+          'Compare a custom send key with a multiline Return that inserts a new line.',
+        sample: '➤ ↵',
+        color: '#FFF2E8',
+      },
     ],
   },
   {

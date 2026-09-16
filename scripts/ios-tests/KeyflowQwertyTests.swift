@@ -18,6 +18,11 @@ final class KeyflowQwertyTests: XCTestCase {
     // Set the sensor before launch so a previous landscape test cannot leave a
     // portrait scene racing with a late orientation notification after launch.
     XCUIDevice.shared.orientation = .portrait
+    if name.contains("testFocusedHookUnmountDoesNotShowSystemKeyboard") {
+      app.launch()
+      XCTAssertTrue(app.scrollViews.firstMatch.waitForExistence(timeout: 30))
+      return
+    }
     launchInteractionScreen()
     if UIDevice.current.userInterfaceIdiom == .pad {
       setOrientation(.portrait)
@@ -94,14 +99,22 @@ final class KeyflowQwertyTests: XCTestCase {
     }
     // The JS tab can select before UIKit finishes presenting the requested
     // keyboard. Do not cancel that presentation with an immediate reset.
-    if Self.preparedSystemKeyboard { _ = key(["space", " "]) }
+    if Self.preparedSystemKeyboard {
+      if native {
+        let editor = app.textFields.firstMatch.exists
+          ? app.textFields.firstMatch : app.textViews.firstMatch
+        center(editor).tap()
+      }
+      _ = key(["space", " "])
+    }
   }
   func reset(_ name: String) {
     settledKeyboardGeometry = nil
     let previousEditor = app.textViews.firstMatch.exists ? app.textViews.firstMatch : app.textFields.firstMatch
     let previousInputIdentifier = previousEditor.identifier
     app.buttons["Reset \(name)"].tap()
-    let expected = name == "Empty" ? "" : "alpha beta"
+    let expected =
+      name == "Empty" ? "" : name == "Backward Cursor" ? "beta alpha" : "alpha beta"
     let resetFinished = NSPredicate { [self] _, _ in
       app.textFields.firstMatch.exists && app.textFields.firstMatch.identifier != previousInputIdentifier && text == expected
     }
@@ -571,6 +584,71 @@ final class KeyflowQwertyTests: XCTestCase {
       capture(native ? "apple-trackpad" : "keyflow-trackpad")
     }
   }
+
+  private func dragBackwardAndReadSelection(distance: CGFloat = -24) throws -> Int {
+    let previousState = try readInteractionState()
+    let previousRequest = previousState["diagnosticRequest"] as? Int ?? 0
+    let space = center(key(["space", " "]))
+    space.press(
+      forDuration: 0.7,
+      thenDragTo: space.withOffset(CGVector(dx: distance, dy: 0)),
+      withVelocity: .slow,
+      thenHoldForDuration: 0.1
+    )
+    center(app.buttons["Inspect keyboard state"]).tap()
+    var selection: Int?
+    let freshSelection = NSPredicate { [self] _, _ in
+      guard
+        let raw = app.staticTexts["interaction-state"].label
+          .replacingOccurrences(of: "Diagnostic state: ", with: "")
+          .data(using: .utf8),
+        let state = (try? JSONSerialization.jsonObject(with: raw)) as? [String: Any],
+        (state["diagnosticRequest"] as? Int ?? 0) > previousRequest
+      else { return false }
+      selection = state["selectionStart"] as? Int
+      return selection != nil && selection == state["selectionEnd"] as? Int
+    }
+    XCTAssertEqual(
+      XCTWaiter.wait(
+        for: [XCTNSPredicateExpectation(predicate: freshSelection, object: nil)], timeout: 5),
+      .completed,
+      "The released caret selection must be observable"
+    )
+    return try XCTUnwrap(selection)
+  }
+
+  func testKeyflowCoreInteractionsSpaceTrackpadCaretLandsBetweenAAndL() throws {
+    mode(false)
+    reset("Backward Cursor")
+    let selection = try dragBackwardAndReadSelection()
+    capture("keyflow-caret-between-a-and-l")
+    XCTAssertEqual(selection, 6, "The caret must land at beta a|lpha, not beta al|pha")
+  }
+
+  func testKeyflowCoreInteractionsSingleLineReleaseDoesNotSnapRight() throws {
+    mode(false)
+    reset("Backward Cursor")
+    let selection = try dragBackwardAndReadSelection(distance: -50)
+    capture("keyflow-single-line-release-between-b-and-e")
+    XCTAssertEqual(selection, 1, "The caret must land at b|eta alpha, not be|ta alpha")
+  }
+
+  func testTabletKeyflowCoreInteractionsSpaceTrackpadCaretLandingMatchesApple() throws {
+    var selections: [Int] = []
+    for native in [true, false] {
+      mode(native)
+      reset("Backward Cursor")
+      let offset = try dragBackwardAndReadSelection()
+      capture(native ? "apple-caret-inside-alpha" : "keyflow-caret-inside-alpha")
+      print("KEYFLOW_TRACKPAD_SELECTION mode=\(native ? "apple" : "keyflow") offset=\(offset)")
+      selections.append(offset)
+    }
+    XCTAssertEqual(
+      selections[1], selections[0],
+      "Keyflow must land at the same beta alpha caret boundary as Apple for the same drag"
+    )
+  }
+
   func testShiftDragMatchesApple() {
     var expected = ""
     for native in [true, false] {
@@ -672,6 +750,10 @@ final class KeyflowQwertyTests: XCTestCase {
     }
     XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: switched, object: nil)], timeout: 15), .completed)
     waitForText("alpha beta", context: "Switching must preserve the app's text")
+    // The diagnostic checks configuration, not the completed UIKit handoff.
+    // Wait for the custom keyboard's final geometry before asking it to rotate.
+    settledKeyboardGeometry = nil
+    _ = key(["H", "h"])
     setOrientation(.landscapeRight)
     // The developer-menu launcher can cover an edge key in phone landscape.
     // Check a center key, then inspect through the visible portrait controls.
@@ -856,10 +938,12 @@ final class KeyflowQwertyTests: XCTestCase {
       capture("ipad-\(orientation == .portrait ? "portrait" : "landscape")-\(type.lowercased())-\(custom ? "keyflow" : "apple")")
     }
   }
-  func openLab(_ label: String) {
+  func openLab(_ label: String, fromHome: Bool = false) {
     let back = app.navigationBars.buttons["Keyflow"]
-    XCTAssertTrue(back.waitForExistence(timeout: 5))
-    center(back).tap()
+    if !fromHome {
+      XCTAssertTrue(back.waitForExistence(timeout: 5))
+      center(back).tap()
+    }
     let hidden = NSPredicate { [self] _, _ in
       let firstKey = app.keys.firstMatch
       return !firstKey.exists || !firstKey.isHittable
@@ -868,7 +952,9 @@ final class KeyflowQwertyTests: XCTestCase {
       XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: hidden, object: nil)], timeout: 10),
       .completed, "Keyboard must dismiss before navigating the lab")
     let card = app.buttons[label]
-    func viewport() -> CGRect { app.scrollViews.firstMatch.frame.intersection(app.frame) }
+    let scroll = app.scrollViews.firstMatch
+    XCTAssertTrue(scroll.waitForExistence(timeout: 10), "Lab navigation must finish before measuring its scroll viewport")
+    func viewport() -> CGRect { scroll.frame.intersection(app.frame) }
     func visible() -> Bool {
       card.exists && card.isHittable && !card.frame.isEmpty && viewport().contains(card.frame)
     }
@@ -904,6 +990,36 @@ final class KeyflowQwertyTests: XCTestCase {
     // the scroll viewport. Freeze the fully visible target after deceleration.
     center(card).tap()
   }
+  func testFocusedHookUnmountDoesNotShowSystemKeyboard() {
+    openLab("Test focused teardown", fromHome: !app.navigationBars.buttons["Keyflow"].exists)
+    app.buttons["Open preview"].tap()
+    let avoidingView = app.otherElements["teardown-avoiding-view"]
+    XCTAssertTrue(avoidingView.waitForExistence(timeout: 10))
+    let input = app.textFields["Teardown preview input"]
+    XCTAssertTrue(input.waitForExistence(timeout: 10))
+    expectsSystemKeyboard = false
+    let customKey = key(["Q", "q"])
+    let close = app.buttons["Close preview"]
+    let panel = app.otherElements["teardown-preview-panel"]
+    XCTAssertTrue(panel.waitForExistence(timeout: 5))
+    XCTAssertLessThanOrEqual(
+      panel.frame.maxY, customKey.frame.minY + 1,
+      "KeyflowAvoidingView must move the complete composer above Keyflow")
+    capture("focused-hook-before-close")
+    close.tap()
+    XCTAssertTrue(avoidingView.waitForNonExistence(timeout: 5))
+    XCTAssertTrue(input.waitForNonExistence(timeout: 5))
+    let dismissed = NSPredicate { [self] _, _ in
+      let customKey = app.descendants(matching: .any).matching(identifier: "keyflow-key-q").firstMatch
+      return !customKey.exists && !app.keyboards.firstMatch.exists
+    }
+    XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: dismissed, object: nil)], timeout: 5), .completed)
+    let status = app.staticTexts["teardown-status"]
+    XCTAssertTrue(status.label.contains("Preview closed"))
+    XCTAssertTrue(status.label.contains("Unexpected keyboard shows: 0"))
+    capture("focused-hook-after-close")
+  }
+
   func testTransitionDiagnosticsPass() {
     openLab("Test keyboard transitions")
     let run = app.buttons["Run transition tests"]

@@ -2,6 +2,8 @@ import ExpoModulesCore
 import UIKit
 
 final class KeyflowInputView: ExpoView {
+  // Match the horizontal travel of Apple's space-trackpad gesture.
+  private static let horizontalCursorMovementScale: CGFloat = 1.5
   var onKeyflowModeChange: (([String: Any]) -> Void)?
   var onKeyflowFrameChange: (([String: Any]) -> Void)?
   private var lastKeyboardFrame: CGRect?
@@ -57,7 +59,7 @@ final class KeyflowInputView: ExpoView {
         ])
     }
     if attachedEditor !== field {
-      detachInput()
+      detachInput(resigningFocus: attachedEditor?.isFirstResponder == true)
       attachedEditor = field
       savedInputView = field.inputView
       savedAccessoryView = field.inputAccessoryView
@@ -90,7 +92,7 @@ final class KeyflowInputView: ExpoView {
     updateInputContext()
   }
 
-  private func detachInput() {
+  private func detachInput(resigningFocus: Bool = false) {
     guard let field = attachedEditor else { return }
     keyboard.cancelInteractions()
     if let control = field as? UITextField {
@@ -107,7 +109,8 @@ final class KeyflowInputView: ExpoView {
         self, name: UITextView.textDidEndEditingNotification, object: field)
     }
     cursorNavigator.reset()
-    field.keyflowSetInputViews(savedInputView, accessory: savedAccessoryView)
+    field.keyflowRestoreInputViews(
+      savedInputView, accessory: savedAccessoryView, resigningFocus: resigningFocus)
     field.keyflowSetCorrection(savedAutocorrection, spellChecking: savedSpellChecking)
     field.inputAssistantItem.leadingBarButtonGroups = savedLeadingBarButtonGroups
     field.inputAssistantItem.trailingBarButtonGroups = savedTrailingBarButtonGroups
@@ -297,7 +300,7 @@ final class KeyflowInputView: ExpoView {
   }
 
   func cleanup() {
-    detachInput()
+    detachInput(resigningFocus: true)
     removeFromSuperview()
   }
 
@@ -447,7 +450,7 @@ final class KeyflowInputView: ExpoView {
     case .beginCursorMovement:
       cursorNavigator.begin(textField)
     case .endCursorMovement:
-      cursorNavigator.reset()
+      cursorNavigator.end(textField)
     case .text(let value):
       cursorNavigator.reset()
       let now = CACurrentMediaTime()
@@ -464,19 +467,17 @@ final class KeyflowInputView: ExpoView {
         lastSpaceTime = value == " " ? now : 0
       }
     case .moveCursor(let translation):
-      cursorNavigator.move(textField, translation: translation)
+      cursorNavigator.move(
+        textField,
+        translation: CGPoint(
+          x: translation.x * Self.horizontalCursorMovementScale,
+          y: translation.y
+        ))
     case .delete:
       cursorNavigator.reset()
       textField.deleteBackward()
     case .submit:
-      // Keep React Native's submitBehavior and onSubmitEditing event pipeline.
-      if let field = textField as? UITextField {
-        if field.delegate?.textFieldShouldReturn?(field) ?? true { field.resignFirstResponder() }
-      } else {
-        // UIKit invokes React Native's text-view delegate for newline insertion,
-        // preserving submitBehavior, filters, and onSubmitEditing.
-        textField.insertText("\n")
-      }
+      dispatchKeyflowSubmit(textField)
     case .dismiss:
       textField.resignFirstResponder()
     case .nextLanguage:

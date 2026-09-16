@@ -50,8 +50,8 @@ class AppHarnessTests(unittest.TestCase):
             process.assert_not_called()
 
     def test_ci_core_profile_runs_real_required_case_and_local_default_retains_full_inventory(self):
-        self.assertEqual(ExampleSuite.SMOKE_CASES, ('core',))
-        self.assertEqual(set(ExampleSuite.CASES), {'editing','multiline','pages_and_accents','handoff','system_editor','submit','transitions','customization','transparency','layouts'})
+        self.assertEqual(ExampleSuite.SMOKE_CASES, ('core', 'teardown'))
+        self.assertEqual(set(ExampleSuite.CASES), {'editing','multiline','pages_and_accents','handoff','system_editor','submit','transitions','customization','transparency','layouts','teardown'})
         with tempfile.TemporaryDirectory() as output:
             suite = ExampleSuite.__new__(ExampleSuite)
             suite.output = Path(output)
@@ -61,10 +61,11 @@ class AppHarnessTests(unittest.TestCase):
             suite.save_log = lambda: None
             visited = []
             suite.core = lambda: visited.append('core')
+            suite.teardown = lambda: visited.append('teardown')
             with patch.dict('os.environ', {'KEYFLOW_CI_PROFILE':'smoke'}):
                 suite.run()
-            self.assertEqual(visited, ['core'])
-            self.assertEqual(suite.results, [{'test':'core','result':'PASS'}])
+            self.assertEqual(visited, ['core', 'teardown'])
+            self.assertEqual(suite.results, [{'test':'core','result':'PASS'}, {'test':'teardown','result':'PASS'}])
             with patch.dict('os.environ', {'KEYFLOW_CI_PROFILE':'typo'}):
                 with self.assertRaisesRegex(AssertionError, 'Invalid CI profile'):
                     suite.run()
@@ -82,8 +83,8 @@ class AppHarnessTests(unittest.TestCase):
         self.assertFalse(ExampleSuite.card_visible(visible, viewport))
 
     def test_priority_failures_stop_before_remaining_cases_and_keep_report(self):
-        self.assertEqual(len(ExampleSuite.CASES), 10)
-        self.assertEqual(len(set(ExampleSuite.CASES)), 10)
+        self.assertEqual(len(ExampleSuite.CASES), 11)
+        self.assertEqual(len(set(ExampleSuite.CASES)), 11)
         self.assertEqual(ExampleSuite.CASES[:3], ExampleSuite.PRIORITY_CASES)
         with tempfile.TemporaryDirectory() as output:
             suite = ExampleSuite.__new__(ExampleSuite)

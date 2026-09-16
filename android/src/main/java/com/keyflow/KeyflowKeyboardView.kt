@@ -559,7 +559,15 @@ internal class KeyflowKeyboardView(
 
   private fun styleKeys() {
     background = GradientDrawable().apply { setColor(theme.background) }
-    keys.forEach { it.applyTheme(theme) }
+    val content = theme.json.optJSONObject("returnKeyContent")
+    keys.forEach {
+      if (it.action == "submit") {
+        val text = content?.optString("text")?.takeIf(String::isNotEmpty)
+        val icon = content?.optString("icon")?.takeIf(String::isNotEmpty) ?: "checkmark"
+        it.setActionContent(text ?: "Submit", if (text == null) icon else null)
+      }
+      it.applyTheme(theme)
+    }
     updateToolbar()
   }
 

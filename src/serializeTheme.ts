@@ -1,4 +1,5 @@
 import type { KeyflowTheme } from './types';
+import type { KeyflowReturnKeyContent } from './useKeyflow';
 
 const surfaceColors = new Set([
   'background',
@@ -12,12 +13,38 @@ const surfaceColors = new Set([
   'borderColor',
   'keyShadow',
 ]);
+const returnKeyIcons = new Set([
+  'return',
+  'arrow-right',
+  'checkmark',
+  'send',
+  'search',
+]);
 
 /** Apply surface alpha once at the native boundary. The reusable theme keeps
  * its original colors, so repeated renders and partial updates cannot compound it. */
-export function serializeKeyflowTheme(theme: KeyflowTheme): string {
+export function serializeKeyflowTheme(
+  theme: KeyflowTheme,
+  returnKeyContent?: KeyflowReturnKeyContent,
+): string {
+  if (
+    returnKeyContent &&
+    'text' in returnKeyContent &&
+    (typeof returnKeyContent.text !== 'string' ||
+      !returnKeyContent.text.trim() ||
+      returnKeyContent.text.length > 32)
+  )
+    throw new TypeError('returnKeyContent.text must contain 1–32 characters');
+  if (
+    returnKeyContent &&
+    'icon' in returnKeyContent &&
+    (typeof returnKeyContent.icon !== 'string' ||
+      !returnKeyIcons.has(returnKeyContent.icon))
+  )
+    throw new TypeError('returnKeyContent.icon is invalid');
   const nativeTheme = {
     ...theme,
+    ...(returnKeyContent ? { returnKeyContent } : {}),
     material: theme.material.type,
     keyDepth: theme.material.type === 'raised' ? theme.material.depth : 0,
     keyShadow:

@@ -177,7 +177,10 @@ test('PRs require core device coverage while scheduled and manual runs retain fu
   );
   const ios = readFileSync('scripts/ci/run-ios.sh', 'utf8');
   assert.match(ios, /KEYFLOW_CI_PROFILE:-full/);
-  assert.match(ios, /set -- testKeyflowCoreInteractions/);
+  assert.match(
+    ios,
+    /set -- testKeyflowCoreInteractions testFocusedHookUnmountDoesNotShowSystemKeyboard/,
+  );
   assert.ok(
     ios.indexOf('node scripts/run-ios-qwerty-tests.mjs') <
       ios.indexOf('xcodebuild test-without-building'),
@@ -240,10 +243,19 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
             'testPanelCoversBottomCornersWithoutExtraOpacity',
             'testPanelMaskLayoutDoesNotStartImplicitAnimations',
             'testTrackpadCaretFloatsBetweenCharactersAndRestoresOnRelease',
+            'testTrackpadSnapsToTheVisuallyNearestCaretInsteadOfTheTrailingHit',
+            'testTrackpadReleaseCommitsTheVisibleCaretBoundary',
+            'testTrackpadReleaseDoesNotOverrideTheLastResolvedPosition',
+            'testTrackpadSelectsTheExactVisibleBoundaryWhenDraggingBackward',
             'testMultilineCursorMovesAcrossVisualLinesAndEmoji',
             'testTrackpadEmitsBothCursorAxes',
+            'testTrackpadReleaseKeepsTheLastVisibleCaretPosition',
             'testAccentPresentationRespectsHapticsSetting',
             'testWideAccentUsesOnlyPopupSelectionHighlight',
+            'testTeardownResignsBeforeRestoringInputViews',
+            'testReturnActionLetsReactNativeChooseSubmitOrNewline',
+            'testReturnKeySupportsCustomTextAndPortableIcons',
+            'testAccentPopupOmitsBordersAndUsesKeyRadius',
             'testPhoneDoubleShiftLocksCaseAndShowsLockGlyph',
             'testSpacePressChangesDefaultFillAndRestoresOnRelease',
             'testSpacePressRestoresCustomFillOnCancellation',
@@ -261,9 +273,13 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
             'testTabletShiftTurnsCapsLockOff',
           ]
         : [
+            'testFocusedHookUnmountDoesNotShowSystemKeyboard',
             'testMultilineEditorSupportsReturnAndVerticalTrackpad',
             'testRemountedInputUsesTheSelectedKeyboardBeforeTyping',
             'testKeyflowCoreInteractions',
+            'testKeyflowCoreInteractionsSpaceTrackpadCaretLandsBetweenAAndL',
+            'testKeyflowCoreInteractionsSingleLineReleaseDoesNotSnapRight',
+            'testTabletKeyflowCoreInteractionsSpaceTrackpadCaretLandingMatchesApple',
             'testMultilineRemountPreservesFocus',
           ];
     assert.deepEqual(
@@ -305,6 +321,8 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
       ...regressions,
       'com.keyflow.KeyflowRenderingTest#reactOwnedSoftInputFlagSurvivesModeChangesAndDetach',
       'com.keyflow.KeyflowRenderingTest#nativeEditorSoftInputFlagRestoresItsOriginalValue',
+      'com.keyflow.KeyflowRenderingTest#returnActionLetsReactNativeChooseSubmitOrNewline',
+      'com.keyflow.KeyflowRenderingTest#returnKeySupportsCustomText',
     ].sort(),
   );
 });

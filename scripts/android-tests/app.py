@@ -16,8 +16,8 @@ import xml.etree.ElementTree as ET
 
 class ExampleSuite:
     PRIORITY_CASES = ('transitions', 'transparency', 'layouts')
-    CASES = PRIORITY_CASES + ('editing', 'multiline', 'pages_and_accents', 'handoff', 'system_editor', 'submit', 'customization')
-    SMOKE_CASES = ('core',)
+    CASES = PRIORITY_CASES + ('editing', 'multiline', 'pages_and_accents', 'handoff', 'system_editor', 'submit', 'customization', 'teardown')
+    SMOKE_CASES = ('core', 'teardown')
     def __init__(self, serial, output):
         self.serial = serial
         self.output = Path(output)
@@ -287,6 +287,25 @@ class ExampleSuite:
         assert self.text() == remaining, 'Held deletion continued after release'
         self.key(metrics, 'a')
         self.wait(self.text, lambda text: text is not None and text.lower() == (remaining+'a').lower())
+
+    def teardown(self):
+        self.open('Test focused teardown')
+        self.tap('OPEN PREVIEW')
+        self.wait(lambda: self.find('Teardown preview input'), lambda node: node is not None and node.get('focused') == 'true')
+        def keyboard_visible():
+            # UIAutomator dumps only the active app window, not this non-focusable popup.
+            windows = self.adb('shell', 'dumpsys', 'window', 'windows').decode()
+            return any('PopupWindow:' in window.splitlines()[0]
+                       and 'package=com.keyflow.example ' in window
+                       and 'isVisible=true' in window
+                       for window in re.split(r'\n  Window #', windows)[1:])
+        self.wait(keyboard_visible)
+        self.output.joinpath('teardown-before.png').write_bytes(self.adb('exec-out', 'screencap', '-p'))
+        self.tap('CLOSE PREVIEW')
+        self.wait(lambda: self.find('Teardown preview input'), lambda node: node is None)
+        self.wait(keyboard_visible, lambda visible: not visible)
+        status = self.wait(lambda: self.find('Preview closed', prefix=True))
+        assert 'Unexpected keyboard shows: 0' in status.get('text', ''), status
 
     def core(self):
         self.open('Compare native interactions')

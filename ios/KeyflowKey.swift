@@ -46,6 +46,7 @@ final class KeyflowKey: UIView {
     }
   }
   private let icon = UIImageView()
+  private(set) var displayedSymbol: String?
   private let preview = UILabel()
   private let previewCallout = KeyflowCallout()
   var hidesLegend = false {
@@ -109,6 +110,7 @@ final class KeyflowKey: UIView {
   required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
 
   func setSymbol(_ name: String) {
+    displayedSymbol = name
     if name == "keyflow.symbols" {
       // The native page switch uses an upright number sign, not the slanted
       // text glyph. Draw the three marks as one template, just like other icons.
@@ -136,6 +138,15 @@ final class KeyflowKey: UIView {
         withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .regular))
     }
     label.isHidden = true
+  }
+
+  func setActionContent(_ value: String, symbol: String?) {
+    caption = value
+    icon.image = nil
+    displayedSymbol = nil
+    label.isHidden = false
+    if let symbol { setSymbol(symbol) }
+    setNeedsLayout()
   }
 
   private var sectionName: String {
@@ -359,7 +370,8 @@ final class KeyflowKey: UIView {
     face.backgroundColor =
       isSelectionChoice
       ? .clear : UIColor(keyflowHex: isPressed ? theme.pressedKeyBackground : fill)
-    face.layer.cornerRadius = CGFloat(theme.keyCornerRadius)
+    face.layer.cornerRadius = min(
+      max(0, CGFloat(theme.keyCornerRadius)), min(face.bounds.width, face.bounds.height) / 2)
     face.layer.shadowColor = UIColor.black.cgColor
     face.layer.shadowColor = UIColor(keyflowHex: theme.keyShadow).cgColor
     face.layer.shadowOpacity = theme.material == "raised" && !isSelectionChoice ? 1 : 0
@@ -382,7 +394,9 @@ final class KeyflowKey: UIView {
     face.layer.borderColor = sourceTheme.sections?[sectionName].map {
       UIColor(keyflowHex: $0.borderColor).cgColor
     }
-    face.layer.borderWidth = CGFloat(sourceTheme.sections?[sectionName]?.borderWidth ?? 0)
+    face.layer.borderWidth =
+      isSelectionChoice
+      ? 0 : CGFloat(sourceTheme.sections?[sectionName]?.borderWidth ?? 0)
     let size = isText && caption != "space" ? CGFloat(theme.fontSize) : 16
     label.font = theme.font(size: size, keyboard: true, character: caption)
     let previewTheme = sourceTheme.styled("preview")

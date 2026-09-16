@@ -6,7 +6,7 @@ FileUtils.rm_rf(output)
 FileUtils.mkdir_p(output)
 project = Xcodeproj::Project.new(File.join(output, 'RenderingTests.xcodeproj'))
 target = project.new_target(:unit_test_bundle, 'RenderingTests', :ios, '16.0')
-files = %w[KeyflowCursorNavigator.swift KeyflowCallout.swift KeyflowKey.swift KeyflowKeyboardView.swift KeyflowKeyboardLayout.swift KeyflowKeyRows.swift KeyflowLanguage.swift KeyflowTheme.swift KeyflowTabletAccents.swift]
+files = %w[KeyflowCursorNavigator.swift KeyflowCallout.swift KeyflowKey.swift KeyflowKeyboardView.swift KeyflowKeyboardLayout.swift KeyflowKeyRows.swift KeyflowLanguage.swift KeyflowSubmit.swift KeyflowTheme.swift KeyflowTabletAccents.swift]
 refs = files.map { |name| project.main_group.new_file(File.join(root, 'ios', name)) }
 refs << project.main_group.new_file(File.join(__dir__, 'KeyflowRenderingTests.swift'))
 target.add_file_references(refs)

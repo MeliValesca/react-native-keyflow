@@ -2,6 +2,90 @@ import XCTest
 import UIKit
 
 final class KeyflowRenderingTests: XCTestCase {
+  func testReturnActionLetsReactNativeChooseSubmitOrNewline() {
+    let field = UITextField()
+    field.text = "message"
+    let fieldDelegate = ReturnFieldDelegate()
+    field.delegate = fieldDelegate
+    dispatchKeyflowSubmit(field)
+    XCTAssertEqual(fieldDelegate.returnCount, 1)
+    XCTAssertEqual(field.text, "message", "A submit-only field must not insert a newline")
+
+    let textView = UITextView()
+    textView.text = "first line"
+    let newlineDelegate = ReturnTextViewDelegate(acceptsNewline: true)
+    textView.delegate = newlineDelegate
+    dispatchKeyflowSubmit(textView)
+    XCTAssertEqual(newlineDelegate.returnCount, 1)
+    XCTAssertEqual(textView.text, "first line\n")
+
+    let submitView = UITextView()
+    submitView.text = "send this"
+    let submitDelegate = ReturnTextViewDelegate(acceptsNewline: false)
+    submitView.delegate = submitDelegate
+    dispatchKeyflowSubmit(submitView)
+    XCTAssertEqual(submitDelegate.returnCount, 1)
+    XCTAssertEqual(
+      submitView.text,
+      "send this",
+      "A multiline submit must be able to reject newline"
+    )
+  }
+
+  func testReturnKeySupportsCustomTextAndPortableIcons() throws {
+    let keyboard = KeyflowKeyboardView()
+    let submit = try XCTUnwrap(
+      keyboard.subviews.compactMap { $0 as? KeyflowKey }.first { $0.action == .submit })
+    var theme = keyboard.theme
+    theme.returnKeyContent = KeyflowReturnKeyContent(text: "Send", icon: nil)
+    keyboard.theme = theme
+    XCTAssertEqual(submit.caption, "Send")
+    XCTAssertNil(submit.displayedSymbol)
+
+    theme.returnKeyContent = KeyflowReturnKeyContent(text: nil, icon: "arrow-right")
+    keyboard.theme = theme
+    XCTAssertEqual(submit.displayedSymbol, "arrow.right")
+    XCTAssertEqual(submit.accessibilityLabel, "return")
+  }
+
+  func testTeardownResignsBeforeRestoringInputViews() {
+    let field = TeardownField()
+    let original = UIView()
+    field.keyflowRestoreInputViews(original, accessory: nil, resigningFocus: true)
+    XCTAssertEqual(field.events, ["resign", "restore"])
+    XCTAssertFalse(field.isFirstResponder)
+    XCTAssertTrue(field.inputView === original)
+  }
+
+  func testAccentPopupOmitsBordersAndUsesKeyRadius() throws {
+    let style = KeyflowSectionStyle(
+      background: "#FFFF00", color: "#FFFFFF", placeholderColor: "#FFFFFF",
+      iconColor: "#FFFFFF", pressedBackground: "#FFFF00", pressedColor: "#FFFFFF",
+      borderColor: "#CC80FF", borderWidth: 4, cornerRadius: 3,
+      fontFamily: nil, fontSize: 22, fontWeight: "regular", iconSize: 22)
+    try withAccentPopup(selectionStyle: style) { keyboard, touch, choices, indicator in
+      let popup = try XCTUnwrap(keyboard.subviews.compactMap { $0 as? KeyflowCallout }.first { !$0.isHidden })
+      let outline = try XCTUnwrap(popup.layer.sublayers?.compactMap { $0 as? CAShapeLayer }.first)
+      XCTAssertEqual(outline.lineWidth, 0)
+      for choice in choices.prefix(3) {
+        touch.point = choice.center
+        keyboard.touchesMoved([touch], with: nil)
+        XCTAssertEqual(indicator.center, choice.center)
+        XCTAssertTrue(choice.frame.contains(indicator.frame))
+        XCTAssertEqual(indicator.bounds.height, UIDevice.current.userInterfaceIdiom == .pad ? 52 : choice.bounds.height)
+        XCTAssertEqual(choice.face.layer.borderWidth, 0)
+        XCTAssertEqual(indicator.layer.cornerRadius, min(indicator.bounds.width, indicator.bounds.height) / 2)
+      }
+      let attachment = XCTAttachment(image: UIGraphicsImageRenderer(bounds: keyboard.bounds.insetBy(dx: 0, dy: -160)).image { context in
+        context.cgContext.translateBy(x: 0, y: 160)
+        keyboard.layer.render(in: context.cgContext)
+      })
+      attachment.name = "borderless-accent-fill"
+      attachment.lifetime = .keepAlways
+      add(attachment)
+    }
+  }
+
   func testDefaultFlatSmallSquareFits() { assertFits("default", "flat", 12.0, 0.0) }
   func testDefaultFlatSmallRoundedFits() { assertFits("default", "flat", 12.0, 24.0) }
   func testDefaultFlatLargeSquareFits() { assertFits("default", "flat", 32.0, 0.0) }
@@ -121,6 +205,136 @@ final class KeyflowRenderingTests: XCTestCase {
     XCTAssertEqual(view.selectedRange.location, view.text.count)
   }
 
+  func testTrackpadSnapsToTheVisuallyNearestCaretInsteadOfTheTrailingHit() throws {
+    final class TrailingBiasedTextView: UITextView {
+      override func closestPosition(to point: CGPoint) -> UITextPosition? {
+        super.closestPosition(to: CGPoint(x: point.x + 24, y: point.y))
+      }
+    }
+    let view = TrailingBiasedTextView(frame: CGRect(x: 0, y: 0, width: 240, height: 100))
+    view.font = UIFont.monospacedSystemFont(ofSize: 20, weight: .regular)
+    view.text = "abcdef"
+    view.selectedRange = NSRange(location: 2, length: 0)
+    view.layoutIfNeeded()
+    let start = view.caretRect(for: try XCTUnwrap(view.selectedTextRange).start)
+    let nextPosition = try XCTUnwrap(view.position(from: view.beginningOfDocument, offset: 3))
+    let next = view.caretRect(for: nextPosition)
+    let targetX = start.midX + (next.midX - start.midX) * 0.4
+    let cursor = KeyflowCursorNavigator()
+    cursor.begin(view)
+    cursor.move(view, translation: CGPoint(x: targetX - start.midX, y: 0))
+    XCTAssertEqual(
+      view.selectedRange.location, 2,
+      "A trailing-biased UIKit hit must not move past the visually nearest caret")
+    XCTAssertEqual(cursor.floatingCaret.frame.midX, targetX, accuracy: 0.01)
+  }
+
+  func testTrackpadReleaseCommitsTheVisibleCaretBoundary() throws {
+    final class PaddedTextField: UITextField {
+      override func textRect(forBounds bounds: CGRect) -> CGRect {
+        super.textRect(forBounds: bounds).inset(
+          by: UIEdgeInsets(top: 0, left: 12, bottom: 0, right: 12))
+      }
+      override func editingRect(forBounds bounds: CGRect) -> CGRect {
+        textRect(forBounds: bounds)
+      }
+    }
+    let field = PaddedTextField(frame: CGRect(x: 0, y: 0, width: 280, height: 48))
+    field.font = UIFont.systemFont(ofSize: 20)
+    field.text = "beta alpha"
+    field.layoutIfNeeded()
+    let end = field.endOfDocument
+    field.selectedTextRange = field.textRange(from: end, to: end)
+    let cursor = KeyflowCursorNavigator()
+    cursor.begin(field)
+    let afterA = try XCTUnwrap(field.position(from: field.beginningOfDocument, offset: 6))
+    let target = field.caretRect(for: afterA)
+    let initial = field.caretRect(for: end)
+    cursor.move(
+      field,
+      translation: CGPoint(x: target.midX - initial.midX, y: target.midY - initial.midY)
+    )
+    let selectedBeforeRelease = try XCTUnwrap(field.selectedTextRange)
+    XCTAssertEqual(field.offset(from: field.beginningOfDocument, to: selectedBeforeRelease.start), 6)
+    XCTAssertEqual(
+      cursor.floatingCaret.frame.midX, target.midX + 12, accuracy: 0.01,
+      "A single-line floating caret must include React Native's horizontal text inset")
+    cursor.end(field)
+
+    XCTAssertEqual(
+      field.offset(from: field.beginningOfDocument, to: try XCTUnwrap(field.selectedTextRange).start),
+      6,
+      "Release must keep the caret at beta a|lpha when that is the visible boundary"
+    )
+  }
+
+  func testTrackpadReleaseDoesNotOverrideTheLastResolvedPosition() throws {
+    let field = UITextField(frame: CGRect(x: 0, y: 0, width: 280, height: 48))
+    field.font = UIFont.systemFont(ofSize: 20)
+    field.text = "beta alpha"
+    field.layoutIfNeeded()
+    let leading = try XCTUnwrap(field.position(from: field.beginningOfDocument, offset: 2))
+    let trailing = try XCTUnwrap(field.position(from: field.beginningOfDocument, offset: 3))
+    let leadingX = field.caretRect(for: leading).midX
+    let trailingX = field.caretRect(for: trailing).midX
+    let midpoint = (leadingX + trailingX) / 2
+
+    let backward = KeyflowCursorNavigator()
+    field.selectedTextRange = field.textRange(from: field.endOfDocument, to: field.endOfDocument)
+    backward.begin(field)
+    let endX = field.caretRect(for: field.endOfDocument).midX
+    backward.move(field, translation: CGPoint(x: midpoint - 0.5 - endX, y: 0))
+    backward.end(field)
+    XCTAssertEqual(
+      field.offset(from: field.beginningOfDocument, to: try XCTUnwrap(field.selectedTextRange).start),
+      2,
+      "Release must preserve the leading position resolved by the final move"
+    )
+
+    let forward = KeyflowCursorNavigator()
+    field.selectedTextRange = field.textRange(
+      from: field.beginningOfDocument, to: field.beginningOfDocument)
+    forward.begin(field)
+    let beginningX = field.caretRect(for: field.beginningOfDocument).midX
+    forward.move(field, translation: CGPoint(x: midpoint + 0.5 - beginningX, y: 0))
+    forward.end(field)
+    XCTAssertEqual(
+      field.offset(from: field.beginningOfDocument, to: try XCTUnwrap(field.selectedTextRange).start),
+      3,
+      "Release must preserve the trailing position resolved by the final move"
+    )
+  }
+
+  func testTrackpadSelectsTheExactVisibleBoundaryWhenDraggingBackward() throws {
+    let field = UITextField(frame: CGRect(x: 0, y: 0, width: 280, height: 48))
+    field.font = UIFont.systemFont(ofSize: 20)
+    field.text = "beta alpha"
+    let view = UITextView(frame: CGRect(x: 0, y: 0, width: 280, height: 100))
+    view.font = UIFont.systemFont(ofSize: 20)
+    view.text = "beta alpha"
+    let editors: [UIView & UITextInput] = [
+      field,
+      view,
+    ]
+    for editor in editors {
+      editor.layoutIfNeeded()
+      let end = editor.endOfDocument
+      editor.selectedTextRange = editor.textRange(from: end, to: end)
+      let startCaret = editor.caretRect(for: end)
+      let afterB = try XCTUnwrap(editor.position(from: editor.beginningOfDocument, offset: 1))
+      let target = editor.caretRect(for: afterB)
+      let navigator = KeyflowCursorNavigator()
+      navigator.begin(editor)
+      navigator.move(
+        editor,
+        translation: CGPoint(x: target.midX - startCaret.midX, y: target.midY - startCaret.midY)
+      )
+      let selected = try XCTUnwrap(editor.selectedTextRange)
+      XCTAssertEqual(editor.offset(from: editor.beginningOfDocument, to: selected.start), 1)
+      XCTAssertEqual(navigator.floatingCaret.frame.midX, target.midX, accuracy: 0.01)
+    }
+  }
+
   func testMultilineCursorMovesAcrossVisualLinesAndEmoji() throws {
     let view = UITextView(frame: CGRect(x: 0, y: 0, width: 150, height: 220))
     view.font = UIFont.monospacedSystemFont(ofSize: 18, weight: .regular)
@@ -163,6 +377,25 @@ final class KeyflowRenderingTests: XCTestCase {
       touch.point.y += 48
       keyboard.touchesMoved([touch], with: nil)
       XCTAssertEqual(moves.last, .moveCursor(CGPoint(x: 16.25, y: 48.5)))
+    }
+  }
+
+  func testTrackpadReleaseKeepsTheLastVisibleCaretPosition() throws {
+    try withTrackpad { keyboard, touch, _ in
+      var actions: [KeyflowAction] = []
+      keyboard.onAction = { actions.append($0) }
+      touch.point.x += 24
+      keyboard.touchesMoved([touch], with: nil)
+
+      // A finger commonly shifts as it lifts. Releasing must commit the last
+      // visible caret instead of performing a hidden move at this new point.
+      touch.point.x += 12
+      keyboard.touchesEnded([touch], with: nil)
+
+      XCTAssertEqual(
+        actions,
+        [.moveCursor(CGPoint(x: 24, y: 0)), .endCursorMovement]
+      )
     }
   }
 
@@ -545,8 +778,16 @@ final class KeyflowRenderingTests: XCTestCase {
     }
   }
 
-  private func withAccentPopup(value: String = "e", hapticsEnabled: Bool = false, feedback: (() -> Void)? = nil, _ check: (KeyflowKeyboardView, AccentTouch, [KeyflowKey], UIView) throws -> Void) throws {
+  private func withAccentPopup(value: String = "e", hapticsEnabled: Bool = false, feedback: (() -> Void)? = nil, selectionStyle: KeyflowSectionStyle? = nil, _ check: (KeyflowKeyboardView, AccentTouch, [KeyflowKey], UIView) throws -> Void) throws {
     let keyboard = KeyflowKeyboardView()
+    if let selectionStyle {
+      var theme = keyboard.theme
+      var keys = selectionStyle
+      keys.cornerRadius = 100
+      keys.background = "#163B50"
+      theme.sections = ["selection": selectionStyle, "keys": keys, "preview": keys]
+      keyboard.theme = theme
+    }
     keyboard.hapticsEnabled = hapticsEnabled
     if let feedback { keyboard.hapticFeedback = feedback }
     let screen = UIScreen.main.bounds.size
@@ -591,4 +832,44 @@ final class KeyflowRenderingTests: XCTestCase {
     XCTAssertTrue(violations.isEmpty, "\(type)/\(material)/\(fontSize)/\(radius): \(violations)")
     XCTAssertGreaterThan(metrics["keyCount"] as? Int ?? 0, 10)
   }
+}
+
+private final class ReturnFieldDelegate: NSObject, UITextFieldDelegate {
+  var returnCount = 0
+
+  func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+    returnCount += 1
+    return false
+  }
+}
+
+private final class ReturnTextViewDelegate: NSObject, UITextViewDelegate {
+  let acceptsNewline: Bool
+  var returnCount = 0
+
+  init(acceptsNewline: Bool) { self.acceptsNewline = acceptsNewline }
+
+  func textView(
+    _ textView: UITextView,
+    shouldChangeTextIn range: NSRange,
+    replacementText text: String
+  ) -> Bool {
+    if text == "\n" { returnCount += 1 }
+    return acceptsNewline
+  }
+}
+
+private final class TeardownField: UITextField {
+  var events: [String] = []
+  private var simulatedFocus = true
+  override var isFirstResponder: Bool { simulatedFocus }
+  override func resignFirstResponder() -> Bool {
+    events.append("resign")
+    simulatedFocus = false
+    return true
+  }
+  override var inputView: UIView? {
+    didSet { events.append("restore") }
+  }
+  override func reloadInputViews() { events.append("reload") }
 }

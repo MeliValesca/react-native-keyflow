@@ -75,10 +75,12 @@ export function Input() {
 
 | Option                     | Behavior                                                                                                                             |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `autoFocus`                | Focuses after native attachment; defaults to `false`. Use instead of TextInput’s `autoFocus` prop.                                   |
 | `enabled`                  | Enables native attachment; defaults to `true`                                                                                        |
 | `keyboardMode`             | `custom` (default) or `system`                                                                                                       |
 | `keyboardAppearance`       | `light` or `dark`; otherwise follows device appearance                                                                               |
 | `keyboardType`             | `default`, `number-pad`, `decimal-pad`, `phone-pad`                                                                                  |
+| `returnKeyContent`         | Custom text or a portable native icon for Keyflow's submit key                                                                       |
 | `keyflowTheme`             | Partial overrides or a resolved theme                                                                                                |
 | `keyboardLanguages`        | English/French language and QWERTY/AZERTY template entries                                                                           |
 | `hapticsEnabled`           | Optional key feedback, off by default                                                                                                |
@@ -89,6 +91,25 @@ export function Input() {
 | `onKeyboardHeightChange`   | Android custom panel height; prefer the frame callback for new integrations                                                          |
 
 The app owns its editor and text. Use ordinary React Native `TextInput` props such as `value`, `defaultValue`, `onChangeText`, `onSubmitEditing`, `placeholderTextColor`, `accessibilityLabel`, `editable`, and `submitBehavior` directly on the input. Keyflow adds no input height, padding, border, color, or font. `onSubmitEditing` receives the standard React Native event, not a string.
+
+Customize Keyflow's return key independently from submission behavior:
+
+```tsx
+const { keyflowInputProps } = useKeyflow({
+  returnKeyContent: { icon: 'send' },
+});
+
+<TextInput
+  {...keyflowInputProps}
+  submitBehavior="submit"
+  onSubmitEditing={sendMessage}
+/>;
+
+// A multiline editor can use the same key to insert a newline.
+<TextInput {...keyflowInputProps} multiline submitBehavior="newline" />;
+```
+
+The portable icon names are `return`, `arrow-right`, `checkmark`, `send`, and `search`. Choose either `text` or `icon`. The option affects only the custom keyboard; the system keyboard continues to follow the platform's `returnKeyType` and `enterKeyHint` behavior.
 
 The hook returns:
 
@@ -102,7 +123,7 @@ Text state, input appearance, and composer content remain app-controlled. There 
 
 Single-line and `multiline` inputs are supported. Set editor height, scrolling, and `numberOfLines` on the input. During trackpad movement, a floating caret follows continuous horizontal and vertical drag coordinates across text and blank space inside the input. The native editor resolves the insertion position through text hit testing, including soft wrapping; release removes the floating caret and restores the native caret at that position. The drag target is anchored at gesture start and remains independent of the snapped caret across short lines. Hold space on iOS, or use the space-slide gesture on Android. Return uses the native React Native editing pipeline and respects `submitBehavior`.
 
-Call `useKeyflow(options)` and spread `keyflowInputProps` onto your `TextInput`. The hook creates a stable ref and includes it with the `showSoftInputOnFocus`, `onFocus`, and `onSelectionChange` bindings. The ref allows native keyboard attachment; the callbacks keep focus and cursor context synchronized. For custom components, forward the ref and bindings to the underlying `TextInput`, not a surrounding `View`.
+Call `useKeyflow(options)` and spread `keyflowInputProps` onto your `TextInput`. The hook creates a stable ref and includes it with the `showSoftInputOnFocus`, `onFocus`, `onSelectionChange`, and `onLayout` bindings. The ref allows native keyboard attachment; the callbacks keep focus and cursor context synchronized and support automatic focus when an input mounts later. For custom components, forward the ref and bindings to the underlying `TextInput`, not a surrounding `View`. If you override `onLayout`, call `keyflowInputProps.onLayout?.(event)` from your handler too.
 
 Compose your own focus/selection callbacks with the bindings:
 

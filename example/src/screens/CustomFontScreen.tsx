@@ -30,6 +30,7 @@ export function CustomFontScreen() {
   const headerHeight = useHeaderHeight();
   const insets = useSafeAreaInsets();
   const { inputRef: input, keyflowInputProps: bindings } = useKeyflow({
+    autoFocus: true,
     keyboardAppearance: 'light',
     keyflowTheme: { font: { family: profile.family } },
   });
@@ -226,7 +227,6 @@ export function CustomFontScreen() {
       <View style={{ ...horizontal, paddingBottom: 12 }}>
         <ExampleTextInput
           {...bindings}
-          autoFocus
           placeholder="Try your app’s font…"
           accessibilityLabel="Custom font input"
           keyboardAppearance="light"

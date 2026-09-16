@@ -34,6 +34,8 @@ internal class KeyflowKeyView(
   var circular = false
   var themeSection: String? = null
   var iconSize = if (action in listOf("delete", "submit")) 26f else 24f
+  private var actionIcon: String? = null
+  private var actionUsesText = false
   var onSlide: ((Float, Float) -> Unit)? = null
   var onSlideStart: (() -> Unit)? = null
   var onSlideEnd: (() -> Unit)? = null
@@ -61,8 +63,19 @@ internal class KeyflowKeyView(
   private var sliding = false
   private val icon
     get() =
-      action in
-        listOf("shift", "capsLock", "tab", "delete", "submit", "paste", "hide", "nextLanguage")
+      actionIcon != null ||
+        (!actionUsesText &&
+          action in
+            listOf("shift", "capsLock", "tab", "delete", "submit", "paste", "hide", "nextLanguage"))
+
+  fun setActionContent(value: String, icon: String?) {
+    label = value
+    contentDescription = value
+    actionIcon = icon
+    actionUsesText = icon == null
+    text = if (icon == null) value else ""
+    invalidate()
+  }
 
   private var repeating = false
   private var preferredSize = 22f
@@ -327,7 +340,7 @@ internal class KeyflowKeyView(
           if (icon)
             KeyflowIcons.draw(
               canvas,
-              if (action == "shift" && isActivated) "shiftLocked" else action,
+              if (action == "shift" && isActivated) "shiftLocked" else actionIcon ?: action,
               bounds.exactCenterX(),
               bounds.exactCenterY() - keyDepth * density / 2,
               (sourceTheme.json

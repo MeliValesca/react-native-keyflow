@@ -6,6 +6,21 @@ import {
   transparentKeyflowTheme,
 } from '../theme';
 
+test('serializes custom return key text or a portable icon', () => {
+  const theme = createKeyflowTheme();
+  expect(
+    JSON.parse(serializeKeyflowTheme(theme, { text: 'Send' })).returnKeyContent,
+  ).toEqual({ text: 'Send' });
+  expect(
+    JSON.parse(serializeKeyflowTheme(theme, { icon: 'arrow-right' }))
+      .returnKeyContent,
+  ).toEqual({ icon: 'arrow-right' });
+  expect(() => serializeKeyflowTheme(theme, { text: ' ' })).toThrow(TypeError);
+  expect(() =>
+    serializeKeyflowTheme(theme, { icon: 'upload' } as never),
+  ).toThrow(TypeError);
+});
+
 test('translucent keys stay defined when customizing fonts', () => {
   const theme = createKeyflowTheme(
     { fontFamily: 'system-rounded', fontSize: 32 },

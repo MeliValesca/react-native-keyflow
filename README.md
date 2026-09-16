@@ -109,6 +109,8 @@ export function Composer() {
 
 On iOS, hold space to enter trackpad mode, then slide in any direction. A floating caret follows the finger freely across letters and blank space inside the input. On release, it snaps to the nearest valid insertion position, including wrapped lines. Android's space-slide gesture supports both directions too. The drag target stays independent of the snapped caret, so short lines do not discard its horizontal position. Return follows your input's React Native `submitBehavior`; multiline inputs insert a newline by default.
 
+For automatic focus, pass `autoFocus: true` to `useKeyflow()` instead of setting it on `TextInput`. Keyflow waits for native attachment before presenting the input.
+
 The hook also exposes stable `focus()` and `blur()` methods. They safely do nothing while the input is unmounted. `inputRef` remains available for other native input methods:
 
 ```tsx
@@ -157,6 +159,7 @@ export const keyflowTheme = {
 
 const { keyflowInputProps } = useKeyflow({
   keyflowTheme,
+  returnKeyContent: { icon: 'send' },
 });
 
 <TextInput {...keyflowInputProps} style={styles.input} />;
@@ -174,6 +177,52 @@ const { keyflowInputProps } = useKeyflow({
 | `toolbar`                 | Android clipboard and dismiss controls                            |
 
 Sections support colors, pressed colors, borders, corner radius, fonts, and icon sizing where applicable. `color` supplies the icon and pressed foreground unless explicitly overridden. If you set `iconColor`, remember to give selected states a contrasting icon color too.
+
+Set the custom return key to app-owned text or a portable native icon:
+
+```tsx
+const { keyflowInputProps } = useKeyflow({
+  returnKeyContent: { icon: 'send' },
+});
+
+<TextInput
+  {...keyflowInputProps}
+  submitBehavior="submit"
+  onSubmitEditing={sendMessage}
+/>;
+```
+
+Use `{ text: 'Post' }` for app-owned text. Available icons are `return`, `arrow-right`, `checkmark`, `send`, and `search`. This changes only Keyflow's presentation; use the `TextInput`'s `submitBehavior` and `onSubmitEditing` for behavior. A multiline input with `submitBehavior="newline"` inserts `\n`.
+
+For example, these two multiline inputs display different return keys and keep their normal React Native behavior:
+
+```tsx
+const { keyflowInputProps: sendInputProps } = useKeyflow({
+  returnKeyContent: { icon: 'send' },
+});
+const { keyflowInputProps: newlineInputProps } = useKeyflow({
+  returnKeyContent: { text: 'New line' },
+});
+
+// Displays a send icon and calls sendMessage.
+<TextInput
+  {...sendInputProps}
+  multiline
+  submitBehavior="submit"
+  onSubmitEditing={sendMessage}
+/>
+
+// Displays “New line” and inserts a newline.
+<TextInput
+  {...newlineInputProps}
+  multiline
+  submitBehavior="newline"
+/>
+```
+
+The example app has an interactive **Behavior → Return key actions** screen for testing both cases.
+
+On iOS, the long-press accent popup and its choices omit borders. The selected accent uses the regular keys’ corner radius.
 
 The API is shared across phone, tablet, portrait and landscape. Native layout determines the key geometry; customization does not define new rows or touch targets. [Full theme options and limits](docs/api.md#theme-reference).
 
@@ -278,8 +327,8 @@ Watch the MP4s: [iPhone transitions](docs/media/ios-transitions.mp4) · [Android
 <table>
 <tr><th>iPhone · Hold and slide between accents</th><th>Android phone · Hold and slide between accents</th></tr>
 <tr>
-<td><a href="docs/media/ios-accents.mp4"><img src="docs/media/ios-accents.gif" width="420" alt="Slide between iPhone accent choices with Story Studio’s rose selection highlight" /></a></td>
-<td><a href="docs/media/android-accents.mp4"><img src="docs/media/android-accents.gif" width="420" alt="Android accent highlight following a continuous drag across accent choices" /></a></td>
+<td><a href="docs/media/ios-accents.mp4"><img src="docs/media/ios-accents.gif" width="420" alt="Story Studio on iPhone opening the accent row, sliding its rose focus, and committing the focused accent" /></a></td>
+<td><a href="docs/media/android-accents.mp4"><img src="docs/media/android-accents.gif" width="420" alt="Story Studio on Android opening the accent grid, sliding its rose focus across both rows, and committing the focused accent" /></a></td>
 </tr>
 </table>
 
@@ -328,14 +377,14 @@ Need the user’s actual keyboard and its full feature set? Pass `keyboardMode: 
 
 ## Example app
 
-| Category    | Explore                                                                |
-| ----------- | ---------------------------------------------------------------------- |
-| Behavior    | Typing, long presses, deletion, cursor movement and native comparisons |
-| Multiline   | Notes with paragraphs, wrapped lines, Return and movement on both axes |
-| Transitions | Presentation, dismissal, mode handoffs and keyboard avoidance          |
-| Layouts     | Number pads, rotation, English/French switching                        |
-| Appearance  | Fonts, borders, sizes, focused accents and customization bounds        |
-| Showcases   | Platform defaults, Story Studio, Quicksand and transparency            |
+| Category    | Explore                                                                      |
+| ----------- | ---------------------------------------------------------------------------- |
+| Behavior    | Typing, long presses, return actions, cursor movement and native comparisons |
+| Multiline   | Notes with paragraphs, wrapped lines, Return and movement on both axes       |
+| Transitions | Presentation, dismissal, mode handoffs and keyboard avoidance                |
+| Layouts     | Number pads, rotation, English/French switching                              |
+| Appearance  | Fonts, borders, sizes, focused accents and customization bounds              |
+| Showcases   | Platform defaults, Story Studio, Quicksand and transparency                  |
 
 The example source lives in [`example/`](example). `corepack yarn example:export` also prepares a standalone example repository under `artifacts/keyflow-example-repo` with a bundled library package.
 

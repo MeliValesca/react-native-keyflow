@@ -37,6 +37,13 @@ extension UITextInput where Self: UIView {
       view.inputAccessoryView = accessory
     }
   }
+
+  func keyflowRestoreInputViews(
+    _ surface: UIView?, accessory: UIView?, resigningFocus: Bool
+  ) {
+    if resigningFocus { resignFirstResponder() }
+    keyflowSetInputViews(surface, accessory: accessory)
+  }
 }
 
 /// Keeps the unsnapped drag target independent of the resolved caret position.
@@ -60,11 +67,42 @@ final class KeyflowCursorNavigator {
     origin = CGPoint(x: caret.midX, y: caret.midY)
   }
 
+  private func nearestCaretPosition(
+    in input: UIView & UITextInput, to target: CGPoint
+  ) -> UITextPosition? {
+    guard let hit = input.closestPosition(to: target) else { return nil }
+    func distance(to position: UITextPosition) -> CGFloat {
+      let caret = input.caretRect(for: position)
+      return hypot(caret.midX - target.x, caret.midY - target.y)
+    }
+    var best = hit
+    let hitDistance = distance(to: hit)
+    var bestDistance = hitDistance
+    for direction in [-1, 1] {
+      var current = hit
+      var currentDistance = hitDistance
+      while let candidate = input.position(from: current, offset: direction) {
+        let candidateDistance = distance(to: candidate)
+        guard candidateDistance <= currentDistance + 0.01 else { break }
+        if candidateDistance < bestDistance - 0.01
+          || (abs(candidateDistance - bestDistance) <= 0.01
+            && input.compare(candidate, to: best) == .orderedAscending)
+        {
+          best = candidate
+          bestDistance = candidateDistance
+        }
+        current = candidate
+        currentDistance = candidateDistance
+      }
+    }
+    return best
+  }
+
   func move(_ input: UIView & UITextInput, translation: CGPoint) {
     if origin == nil { begin(input) }
     guard let origin else { return }
     let target = CGPoint(x: origin.x + translation.x, y: origin.y + translation.y)
-    guard let position = input.closestPosition(to: target) else { return }
+    guard let position = nearestCaretPosition(in: input, to: target) else { return }
     let before = input.caretRect(for: position)
     if editor == nil {
       editor = input
@@ -95,6 +133,22 @@ final class KeyflowCursorNavigator {
     let y = min(
       max(target.y + after.midY - before.midY, input.bounds.minY + height / 2),
       input.bounds.maxY - height / 2)
-    floatingCaret.frame = CGRect(x: x - width / 2, y: y - height / 2, width: width, height: height)
+    // React Native applies horizontal padding by overriding UITextField's
+    // editing rect, while UIKit's caretRect(for:) omits that inset. Draw the
+    // floating caret in the same visual coordinate space as the text.
+    let textInset =
+      (input as? UITextField).map { $0.editingRect(forBounds: $0.bounds).minX - $0.bounds.minX }
+      ?? 0
+    let visualX = min(
+      max(x + textInset, input.bounds.minX + width / 2), input.bounds.maxX - width / 2)
+    floatingCaret.frame = CGRect(
+      x: visualX - width / 2, y: y - height / 2, width: width, height: height)
+  }
+
+  func end(_: UIView & UITextInput) {
+    // Every move already resolves and applies the closest text position. Do
+    // not hit-test again on release: UITextField can choose the adjacent slot
+    // at a boundary even though the floating caret showed the correct one.
+    reset()
   }
 }

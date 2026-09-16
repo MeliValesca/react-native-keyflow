@@ -195,13 +195,16 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     }
     softInputPolicy.apply(field, mode == "system")
     updateInputContext()
-    if (changed && field.hasFocus()) requestKeyboard()
+    // Refocusing an already-focused editor does not emit another focus change.
+    // Attachment is also used by the hook's focus(), so restore its panel here.
+    if (field.hasFocus()) requestKeyboard()
   }
 
-  private fun detachInput() {
+  private fun detachInput(animated: Boolean = false, resigningFocus: Boolean = false) {
     val field = attachedEditor ?: return
     removeCallbacks(showRequest)
-    hideKeyboard(animated = false)
+    if (resigningFocus) field.clearFocus()
+    hideKeyboard(animated = animated)
     field.removeTextChangedListener(providedTextWatcher)
     softInputPolicy.restore(field)
     attachedEditor = null
@@ -217,6 +220,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
   private val keyboard = KeyflowKeyboardView(context) { action, text -> activate(action, text) }
   private var popup: PopupWindow? = null
   private var navigationScrim: ColorDrawable? = null
+  private var navigationScrimHost: View? = null
   private var previousLightNavigation: Boolean? = null
 
   private fun updateNavigationScrim() {
@@ -228,6 +232,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
       navigationScrim
         ?: ColorDrawable().also {
           navigationScrim = it
+          navigationScrimHost = rootView
           rootView.overlay.add(it)
           previousLightNavigation =
             ViewCompat.getWindowInsetsController(rootView)?.isAppearanceLightNavigationBars
@@ -240,12 +245,14 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
   }
 
   private fun clearNavigationScrim() {
-    navigationScrim?.let { rootView.overlay.remove(it) }
+    val host = navigationScrimHost ?: rootView
+    navigationScrim?.let { host.overlay.remove(it) }
     navigationScrim = null
     previousLightNavigation?.let {
-      ViewCompat.getWindowInsetsController(rootView)?.isAppearanceLightNavigationBars = it
+      ViewCompat.getWindowInsetsController(host)?.isAppearanceLightNavigationBars = it
     }
     previousLightNavigation = null
+    navigationScrimHost = null
   }
 
   private var lastSpace = 0L
@@ -468,15 +475,18 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     handoffHeight = 0f
     viewTreeObserver.removeOnGlobalLayoutListener(globalLayout)
     viewTreeObserver.removeOnGlobalFocusChangeListener(providedFocusListener)
-    detachInput()
+    val animated = navigationScrimHost?.isAttachedToWindow == true
+    detachInput(animated = animated, resigningFocus = true)
     ViewCompat.setWindowInsetsAnimationCallback(this, null)
     ViewCompat.setOnApplyWindowInsetsListener(this, null)
-    hideKeyboard(animated = false)
+    hideKeyboard(animated = animated)
     super.onDetachedFromWindow()
   }
 
   fun cleanup() {
-    detachInput()
+    onKeyflowHeightChange = null
+    onKeyflowFrameChange = null
+    detachInput(animated = navigationScrimHost?.isAttachedToWindow == true, resigningFocus = true)
     (parent as? ViewGroup)?.removeView(this)
   }
 
@@ -572,22 +582,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
   }
 
   private fun submit() {
-    // Keep React Native's submitBehavior and onSubmitEditing event pipeline.
-    if (editor.inputType and android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE != 0) {
-      // Send native Enter events so React Native decides between newline and
-      // submit/blur using its existing submitBehavior listener.
-      editor.dispatchKeyEvent(
-        android.view.KeyEvent(
-          android.view.KeyEvent.ACTION_DOWN,
-          android.view.KeyEvent.KEYCODE_ENTER,
-        )
-      )
-      editor.dispatchKeyEvent(
-        android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_ENTER)
-      )
-    } else {
-      editor.onEditorAction(EditorInfo.IME_ACTION_DONE)
-    }
+    dispatchKeyflowSubmit(editor)
   }
 
   private fun activate(action: String, text: String) {
@@ -658,5 +653,22 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
       "hide" -> blur()
       "submit" -> submit()
     }
+  }
+}
+
+/**
+ * Sends Return through Android's editor APIs so React Native remains responsible for
+ * `submitBehavior`, `onSubmitEditing`, newline insertion, and blur behavior.
+ */
+internal fun dispatchKeyflowSubmit(editor: EditText) {
+  if (editor.inputType and android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE != 0) {
+    editor.dispatchKeyEvent(
+      android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_ENTER)
+    )
+    editor.dispatchKeyEvent(
+      android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_ENTER)
+    )
+  } else {
+    editor.onEditorAction(EditorInfo.IME_ACTION_DONE)
   }
 }

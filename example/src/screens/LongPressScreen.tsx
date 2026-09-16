@@ -23,6 +23,7 @@ export function LongPressScreen() {
   const [diagnostic, setDiagnostic] = useState('Ready for comparison.');
   const header = useHeaderHeight();
   const { inputRef: input, keyflowInputProps: bindings } = useKeyflow({
+    autoFocus: true,
     keyboardMode: mode,
     keyboardAppearance: 'light',
   });
@@ -126,7 +127,6 @@ export function LongPressScreen() {
         <ExampleTextInput
           {...bindings}
           key={revision}
-          autoFocus
           defaultValue={seed}
           keyboardAppearance="light"
           accessibilityLabel="Long press test input"

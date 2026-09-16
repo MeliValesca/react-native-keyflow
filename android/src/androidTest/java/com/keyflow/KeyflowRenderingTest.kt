@@ -1,7 +1,10 @@
 package com.keyflow
 
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.view.inputmethod.EditorInfo
+import android.widget.EditText
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -13,6 +16,41 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class KeyflowRenderingTest {
+  @Test
+  fun returnActionLetsReactNativeChooseSubmitOrNewline() {
+    ActivityScenario.launch(KeyflowTestActivity::class.java).use { scenario ->
+      scenario.onActivity { activity ->
+        val singleLine = ReturnTrackingEditText(activity)
+        singleLine.setSingleLine(true)
+        dispatchKeyflowSubmit(singleLine)
+        assertEquals(listOf(EditorInfo.IME_ACTION_DONE), singleLine.editorActions)
+        assertTrue(singleLine.keyEvents.isEmpty())
+
+        val multiline = ReturnTrackingEditText(activity)
+        multiline.setSingleLine(false)
+        dispatchKeyflowSubmit(multiline)
+        assertTrue(multiline.editorActions.isEmpty())
+        assertEquals(
+          listOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP),
+          multiline.keyEvents.map { it.action },
+        )
+        assertTrue(multiline.keyEvents.all { it.keyCode == KeyEvent.KEYCODE_ENTER })
+      }
+    }
+  }
+
+  @Test
+  fun returnKeySupportsCustomText() = withKeyboard { activity, keys ->
+    activity.keyboard.theme =
+      KeyflowTheme(
+        JSONObject().apply { put("returnKeyContent", JSONObject().apply { put("text", "Send") }) }
+      )
+    val submit = keys().first { it.action == "submit" }
+    assertEquals("Send", submit.label)
+    assertEquals("Send", submit.text.toString())
+    assertEquals("Send", submit.contentDescription)
+  }
+
   @Test
   fun reactOwnedSoftInputFlagSurvivesModeChangesAndDetach() {
     ActivityScenario.launch(KeyflowTestActivity::class.java).use { scenario ->
@@ -303,5 +341,19 @@ class KeyflowRenderingTest {
       ),
     )
     keyboard.layout(0, 0, keyboard.measuredWidth, keyboard.measuredHeight)
+  }
+}
+
+private class ReturnTrackingEditText(context: android.content.Context) : EditText(context) {
+  val editorActions = mutableListOf<Int>()
+  val keyEvents = mutableListOf<KeyEvent>()
+
+  override fun onEditorAction(actionCode: Int) {
+    editorActions += actionCode
+  }
+
+  override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+    keyEvents += event
+    return true
   }
 }
