@@ -189,7 +189,7 @@ export function InteractionScreen({
   );
   return (
     <View style={{ flex: 1, backgroundColor: '#F7F8FA' }}>
-      <View style={{ padding: 12, gap: 8 }}>
+      <View style={{ padding: 12, gap: multiline ? 6 : 8 }}>
         <ComparisonTabs<'custom' | 'system'>
           value={mode}
           options={[
@@ -208,7 +208,7 @@ export function InteractionScreen({
             if (!running) void switchMode(next);
           }}
         />
-        <Text style={{ color: '#526174', fontSize: 12 }}>
+        <Text numberOfLines={1} style={{ color: '#526174', fontSize: 12 }}>
           Use the same cases with each keyboard. Compare accents, cursor
           movement and held delete.
         </Text>
@@ -224,6 +224,7 @@ export function InteractionScreen({
         <Text
           testID="interaction-text"
           accessibilityLabel={`Test text: ${text}`}
+          numberOfLines={1}
           style={{ color: '#192231', fontSize: 13 }}
         >
           Text: {text || '(empty)'}

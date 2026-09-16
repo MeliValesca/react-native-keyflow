@@ -135,4 +135,18 @@ final class KeyflowCursorNavigator {
       input.bounds.maxY - height / 2)
     floatingCaret.frame = CGRect(x: x - width / 2, y: y - height / 2, width: width, height: height)
   }
+
+  func end(_ input: UIView & UITextInput) {
+    // Selection is resolved before UIKit lays out the newly selected caret.
+    // UITextField may shift its internal text during that layout, while the
+    // floating caret is adjusted into the final coordinate space. Resolve once
+    // more from the visible caret so releasing cannot reveal an adjacent slot.
+    if editor === input, floatingCaret.superview === input,
+      let position = nearestCaretPosition(in: input, to: floatingCaret.center)
+    {
+      input.selectedTextRange = input.textRange(from: position, to: position)
+      if let view = input as? UITextView { view.scrollRangeToVisible(view.selectedRange) }
+    }
+    reset()
+  }
 }

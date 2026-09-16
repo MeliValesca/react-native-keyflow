@@ -450,7 +450,7 @@ final class KeyflowInputView: ExpoView {
     case .beginCursorMovement:
       cursorNavigator.begin(textField)
     case .endCursorMovement:
-      cursorNavigator.reset()
+      cursorNavigator.end(textField)
     case .text(let value):
       cursorNavigator.reset()
       let now = CACurrentMediaTime()

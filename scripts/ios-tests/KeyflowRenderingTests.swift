@@ -183,6 +183,31 @@ final class KeyflowRenderingTests: XCTestCase {
     XCTAssertEqual(cursor.floatingCaret.frame.midX, targetX, accuracy: 0.01)
   }
 
+  func testTrackpadReleaseCommitsTheVisibleCaretBoundary() throws {
+    let field = UITextField(frame: CGRect(x: 0, y: 0, width: 280, height: 48))
+    field.font = UIFont.systemFont(ofSize: 20)
+    field.text = "beta alpha"
+    field.layoutIfNeeded()
+    let end = field.endOfDocument
+    field.selectedTextRange = field.textRange(from: end, to: end)
+    let cursor = KeyflowCursorNavigator()
+    cursor.begin(field)
+    cursor.move(field, translation: CGPoint(x: -20, y: 0))
+
+    let afterA = try XCTUnwrap(field.position(from: field.beginningOfDocument, offset: 6))
+    cursor.floatingCaret.center = CGPoint(
+      x: field.caretRect(for: afterA).midX,
+      y: cursor.floatingCaret.center.y
+    )
+    cursor.end(field)
+
+    XCTAssertEqual(
+      field.offset(from: field.beginningOfDocument, to: try XCTUnwrap(field.selectedTextRange).start),
+      6,
+      "Release must keep the caret at beta a|lpha when that is the visible boundary"
+    )
+  }
+
   func testTrackpadSelectsTheExactVisibleBoundaryWhenDraggingBackward() throws {
     let field = UITextField(frame: CGRect(x: 0, y: 0, width: 280, height: 48))
     field.font = UIFont.systemFont(ofSize: 20)
