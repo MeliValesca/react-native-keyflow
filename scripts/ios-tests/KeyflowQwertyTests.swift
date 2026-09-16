@@ -993,12 +993,15 @@ final class KeyflowQwertyTests: XCTestCase {
   func testFocusedHookUnmountDoesNotShowSystemKeyboard() {
     openLab("Test focused teardown", fromHome: !app.navigationBars.buttons["Keyflow"].exists)
     app.buttons["Open preview"].tap()
+    let avoidingView = app.otherElements["teardown-avoiding-view"]
+    XCTAssertTrue(avoidingView.waitForExistence(timeout: 10))
     let input = app.textFields["Teardown preview input"]
     XCTAssertTrue(input.waitForExistence(timeout: 10))
     expectsSystemKeyboard = false
     _ = key(["Q", "q"])
     capture("focused-hook-before-close")
     app.buttons["Close preview"].tap()
+    XCTAssertTrue(avoidingView.waitForNonExistence(timeout: 5))
     XCTAssertTrue(input.waitForNonExistence(timeout: 5))
     let dismissed = NSPredicate { [self] _, _ in
       let customKey = app.descendants(matching: .any).matching(identifier: "keyflow-key-q").firstMatch
