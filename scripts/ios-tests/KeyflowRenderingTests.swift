@@ -2,6 +2,44 @@ import XCTest
 import UIKit
 
 final class KeyflowRenderingTests: XCTestCase {
+  func testTeardownResignsBeforeRestoringInputViews() {
+    let field = TeardownField()
+    let original = UIView()
+    field.keyflowRestoreInputViews(original, accessory: nil, resigningFocus: true)
+    XCTAssertEqual(field.events, ["resign", "restore"])
+    XCTAssertFalse(field.isFirstResponder)
+    XCTAssertTrue(field.inputView === original)
+  }
+
+  func testAccentPopupOmitsBordersAndUsesKeyRadius() throws {
+    let style = KeyflowSectionStyle(
+      background: "#FFFF00", color: "#FFFFFF", placeholderColor: "#FFFFFF",
+      iconColor: "#FFFFFF", pressedBackground: "#FFFF00", pressedColor: "#FFFFFF",
+      borderColor: "#CC80FF", borderWidth: 4, cornerRadius: 3,
+      fontFamily: nil, fontSize: 22, fontWeight: "regular", iconSize: 22)
+    try withAccentPopup(selectionStyle: style) { keyboard, touch, choices, indicator in
+      let popup = try XCTUnwrap(keyboard.subviews.compactMap { $0 as? KeyflowCallout }.first { !$0.isHidden })
+      let outline = try XCTUnwrap(popup.layer.sublayers?.compactMap { $0 as? CAShapeLayer }.first)
+      XCTAssertEqual(outline.lineWidth, 0)
+      for choice in choices.prefix(3) {
+        touch.point = choice.center
+        keyboard.touchesMoved([touch], with: nil)
+        XCTAssertEqual(indicator.center, choice.center)
+        XCTAssertTrue(choice.frame.contains(indicator.frame))
+        XCTAssertEqual(indicator.bounds.height, UIDevice.current.userInterfaceIdiom == .pad ? 52 : choice.bounds.height)
+        XCTAssertEqual(choice.face.layer.borderWidth, 0)
+        XCTAssertEqual(indicator.layer.cornerRadius, min(indicator.bounds.width, indicator.bounds.height) / 2)
+      }
+      let attachment = XCTAttachment(image: UIGraphicsImageRenderer(bounds: keyboard.bounds.insetBy(dx: 0, dy: -160)).image { context in
+        context.cgContext.translateBy(x: 0, y: 160)
+        keyboard.layer.render(in: context.cgContext)
+      })
+      attachment.name = "borderless-accent-fill"
+      attachment.lifetime = .keepAlways
+      add(attachment)
+    }
+  }
+
   func testDefaultFlatSmallSquareFits() { assertFits("default", "flat", 12.0, 0.0) }
   func testDefaultFlatSmallRoundedFits() { assertFits("default", "flat", 12.0, 24.0) }
   func testDefaultFlatLargeSquareFits() { assertFits("default", "flat", 32.0, 0.0) }
@@ -545,8 +583,16 @@ final class KeyflowRenderingTests: XCTestCase {
     }
   }
 
-  private func withAccentPopup(value: String = "e", hapticsEnabled: Bool = false, feedback: (() -> Void)? = nil, _ check: (KeyflowKeyboardView, AccentTouch, [KeyflowKey], UIView) throws -> Void) throws {
+  private func withAccentPopup(value: String = "e", hapticsEnabled: Bool = false, feedback: (() -> Void)? = nil, selectionStyle: KeyflowSectionStyle? = nil, _ check: (KeyflowKeyboardView, AccentTouch, [KeyflowKey], UIView) throws -> Void) throws {
     let keyboard = KeyflowKeyboardView()
+    if let selectionStyle {
+      var theme = keyboard.theme
+      var keys = selectionStyle
+      keys.cornerRadius = 100
+      keys.background = "#163B50"
+      theme.sections = ["selection": selectionStyle, "keys": keys, "preview": keys]
+      keyboard.theme = theme
+    }
     keyboard.hapticsEnabled = hapticsEnabled
     if let feedback { keyboard.hapticFeedback = feedback }
     let screen = UIScreen.main.bounds.size
@@ -591,4 +637,19 @@ final class KeyflowRenderingTests: XCTestCase {
     XCTAssertTrue(violations.isEmpty, "\(type)/\(material)/\(fontSize)/\(radius): \(violations)")
     XCTAssertGreaterThan(metrics["keyCount"] as? Int ?? 0, 10)
   }
+}
+
+private final class TeardownField: UITextField {
+  var events: [String] = []
+  private var simulatedFocus = true
+  override var isFirstResponder: Bool { simulatedFocus }
+  override func resignFirstResponder() -> Bool {
+    events.append("resign")
+    simulatedFocus = false
+    return true
+  }
+  override var inputView: UIView? {
+    didSet { events.append("restore") }
+  }
+  override func reloadInputViews() { events.append("reload") }
 }

@@ -109,6 +109,8 @@ export function Composer() {
 
 On iOS, hold space to enter trackpad mode, then slide in any direction. A floating caret follows the finger freely across letters and blank space inside the input. On release, it snaps to the nearest valid insertion position, including wrapped lines. Android's space-slide gesture supports both directions too. The drag target stays independent of the snapped caret, so short lines do not discard its horizontal position. Return follows your input's React Native `submitBehavior`; multiline inputs insert a newline by default.
 
+For automatic focus, pass `autoFocus: true` to `useKeyflow()` instead of setting it on `TextInput`. Keyflow waits for native attachment before presenting the input.
+
 The hook also exposes stable `focus()` and `blur()` methods. They safely do nothing while the input is unmounted. `inputRef` remains available for other native input methods:
 
 ```tsx
@@ -174,6 +176,8 @@ const { keyflowInputProps } = useKeyflow({
 | `toolbar`                 | Android clipboard and dismiss controls                            |
 
 Sections support colors, pressed colors, borders, corner radius, fonts, and icon sizing where applicable. `color` supplies the icon and pressed foreground unless explicitly overridden. If you set `iconColor`, remember to give selected states a contrasting icon color too.
+
+On iOS, the long-press accent popup and its choices omit borders. The selected accent uses the regular keys’ corner radius.
 
 The API is shared across phone, tablet, portrait and landscape. Native layout determines the key geometry; customization does not define new rows or touch targets. [Full theme options and limits](docs/api.md#theme-reference).
 

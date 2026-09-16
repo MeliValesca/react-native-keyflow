@@ -18,6 +18,11 @@ final class KeyflowQwertyTests: XCTestCase {
     // Set the sensor before launch so a previous landscape test cannot leave a
     // portrait scene racing with a late orientation notification after launch.
     XCUIDevice.shared.orientation = .portrait
+    if name.contains("testFocusedHookUnmountDoesNotShowSystemKeyboard") {
+      app.launch()
+      XCTAssertTrue(app.scrollViews.firstMatch.waitForExistence(timeout: 30))
+      return
+    }
     launchInteractionScreen()
     if UIDevice.current.userInterfaceIdiom == .pad {
       setOrientation(.portrait)
@@ -672,6 +677,10 @@ final class KeyflowQwertyTests: XCTestCase {
     }
     XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: switched, object: nil)], timeout: 15), .completed)
     waitForText("alpha beta", context: "Switching must preserve the app's text")
+    // The diagnostic checks configuration, not the completed UIKit handoff.
+    // Wait for the custom keyboard's final geometry before asking it to rotate.
+    settledKeyboardGeometry = nil
+    _ = key(["H", "h"])
     setOrientation(.landscapeRight)
     // The developer-menu launcher can cover an edge key in phone landscape.
     // Check a center key, then inspect through the visible portrait controls.
@@ -856,10 +865,12 @@ final class KeyflowQwertyTests: XCTestCase {
       capture("ipad-\(orientation == .portrait ? "portrait" : "landscape")-\(type.lowercased())-\(custom ? "keyflow" : "apple")")
     }
   }
-  func openLab(_ label: String) {
+  func openLab(_ label: String, fromHome: Bool = false) {
     let back = app.navigationBars.buttons["Keyflow"]
-    XCTAssertTrue(back.waitForExistence(timeout: 5))
-    center(back).tap()
+    if !fromHome {
+      XCTAssertTrue(back.waitForExistence(timeout: 5))
+      center(back).tap()
+    }
     let hidden = NSPredicate { [self] _, _ in
       let firstKey = app.keys.firstMatch
       return !firstKey.exists || !firstKey.isHittable
@@ -868,7 +879,9 @@ final class KeyflowQwertyTests: XCTestCase {
       XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: hidden, object: nil)], timeout: 10),
       .completed, "Keyboard must dismiss before navigating the lab")
     let card = app.buttons[label]
-    func viewport() -> CGRect { app.scrollViews.firstMatch.frame.intersection(app.frame) }
+    let scroll = app.scrollViews.firstMatch
+    XCTAssertTrue(scroll.waitForExistence(timeout: 10), "Lab navigation must finish before measuring its scroll viewport")
+    func viewport() -> CGRect { scroll.frame.intersection(app.frame) }
     func visible() -> Bool {
       card.exists && card.isHittable && !card.frame.isEmpty && viewport().contains(card.frame)
     }
@@ -904,6 +917,27 @@ final class KeyflowQwertyTests: XCTestCase {
     // the scroll viewport. Freeze the fully visible target after deceleration.
     center(card).tap()
   }
+  func testFocusedHookUnmountDoesNotShowSystemKeyboard() {
+    openLab("Test focused teardown", fromHome: !app.navigationBars.buttons["Keyflow"].exists)
+    app.buttons["Open preview"].tap()
+    let input = app.textFields["Teardown preview input"]
+    XCTAssertTrue(input.waitForExistence(timeout: 10))
+    expectsSystemKeyboard = false
+    _ = key(["Q", "q"])
+    capture("focused-hook-before-close")
+    app.buttons["Close preview"].tap()
+    XCTAssertTrue(input.waitForNonExistence(timeout: 5))
+    let dismissed = NSPredicate { [self] _, _ in
+      let customKey = app.descendants(matching: .any).matching(identifier: "keyflow-key-q").firstMatch
+      return !customKey.exists && !app.keyboards.firstMatch.exists
+    }
+    XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: dismissed, object: nil)], timeout: 5), .completed)
+    let status = app.staticTexts["teardown-status"]
+    XCTAssertTrue(status.label.contains("Preview closed"))
+    XCTAssertTrue(status.label.contains("Unexpected keyboard shows: 0"))
+    capture("focused-hook-after-close")
+  }
+
   func testTransitionDiagnosticsPass() {
     openLab("Test keyboard transitions")
     let run = app.buttons["Run transition tests"]

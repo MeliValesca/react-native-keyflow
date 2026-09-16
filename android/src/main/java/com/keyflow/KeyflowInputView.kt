@@ -198,10 +198,11 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     if (changed && field.hasFocus()) requestKeyboard()
   }
 
-  private fun detachInput() {
+  private fun detachInput(animated: Boolean = false, resigningFocus: Boolean = false) {
     val field = attachedEditor ?: return
     removeCallbacks(showRequest)
-    hideKeyboard(animated = false)
+    if (resigningFocus) field.clearFocus()
+    hideKeyboard(animated = animated)
     field.removeTextChangedListener(providedTextWatcher)
     softInputPolicy.restore(field)
     attachedEditor = null
@@ -217,6 +218,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
   private val keyboard = KeyflowKeyboardView(context) { action, text -> activate(action, text) }
   private var popup: PopupWindow? = null
   private var navigationScrim: ColorDrawable? = null
+  private var navigationScrimHost: View? = null
   private var previousLightNavigation: Boolean? = null
 
   private fun updateNavigationScrim() {
@@ -228,6 +230,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
       navigationScrim
         ?: ColorDrawable().also {
           navigationScrim = it
+          navigationScrimHost = rootView
           rootView.overlay.add(it)
           previousLightNavigation =
             ViewCompat.getWindowInsetsController(rootView)?.isAppearanceLightNavigationBars
@@ -240,12 +243,14 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
   }
 
   private fun clearNavigationScrim() {
-    navigationScrim?.let { rootView.overlay.remove(it) }
+    val host = navigationScrimHost ?: rootView
+    navigationScrim?.let { host.overlay.remove(it) }
     navigationScrim = null
     previousLightNavigation?.let {
-      ViewCompat.getWindowInsetsController(rootView)?.isAppearanceLightNavigationBars = it
+      ViewCompat.getWindowInsetsController(host)?.isAppearanceLightNavigationBars = it
     }
     previousLightNavigation = null
+    navigationScrimHost = null
   }
 
   private var lastSpace = 0L
@@ -468,15 +473,18 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
     handoffHeight = 0f
     viewTreeObserver.removeOnGlobalLayoutListener(globalLayout)
     viewTreeObserver.removeOnGlobalFocusChangeListener(providedFocusListener)
-    detachInput()
+    val animated = navigationScrimHost?.isAttachedToWindow == true
+    detachInput(animated = animated, resigningFocus = true)
     ViewCompat.setWindowInsetsAnimationCallback(this, null)
     ViewCompat.setOnApplyWindowInsetsListener(this, null)
-    hideKeyboard(animated = false)
+    hideKeyboard(animated = animated)
     super.onDetachedFromWindow()
   }
 
   fun cleanup() {
-    detachInput()
+    onKeyflowHeightChange = null
+    onKeyflowFrameChange = null
+    detachInput(animated = navigationScrimHost?.isAttachedToWindow == true, resigningFocus = true)
     (parent as? ViewGroup)?.removeView(this)
   }
 

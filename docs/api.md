@@ -75,6 +75,7 @@ export function Input() {
 
 | Option                     | Behavior                                                                                                                             |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `autoFocus`                | Focuses after native attachment; defaults to `false`. Use instead of TextInput’s `autoFocus` prop.                                   |
 | `enabled`                  | Enables native attachment; defaults to `true`                                                                                        |
 | `keyboardMode`             | `custom` (default) or `system`                                                                                                       |
 | `keyboardAppearance`       | `light` or `dark`; otherwise follows device appearance                                                                               |

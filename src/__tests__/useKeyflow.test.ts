@@ -48,6 +48,7 @@ beforeEach(() => {
 function HookInput({
   mounted = true,
   enabled = true,
+  autoFocus = false,
   replacement = false,
   keyboardMode = 'custom',
   onFrame,
@@ -55,6 +56,7 @@ function HookInput({
 }: {
   mounted?: boolean;
   enabled?: boolean;
+  autoFocus?: boolean;
   replacement?: boolean;
   keyboardMode?: 'custom' | 'system';
   onFrame?: jest.Mock;
@@ -63,6 +65,7 @@ function HookInput({
   const [value, setValue] = useState('App owns this');
   const { keyflowInputProps, inputRef, focus, blur } = useKeyflow({
     enabled,
+    autoFocus,
     keyboardMode,
     keyflowTheme: { keyboard: { background: '#123456' } },
     hapticsEnabled: true,
@@ -432,3 +435,39 @@ test('keeps the native controller configured and focusable after a StrictMode ef
   expect(mockNative.attachInput).toHaveBeenCalledTimes(before + 1);
   await act(async () => renderer.unmount());
 });
+
+test.each([false, true])(
+  'automatic focus waits for native readiness and supports cancellation=%s',
+  async (cancel) => {
+    let configureReady!: () => void;
+    let attachReady!: () => void;
+    const attachment = new Promise<void>((resolve) => {
+      attachReady = resolve;
+    });
+    mockNative.configure.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          configureReady = resolve;
+        }),
+    );
+    mockNative.attachInput
+      .mockImplementationOnce(() => attachment)
+      .mockImplementationOnce(() => attachment);
+    let renderer!: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(createElement(HookInput, { autoFocus: true }), {
+        createNodeMock,
+      });
+    });
+    const controls = renderer.root.findByProps({ testID: 'controls' }).props;
+    const input = controls.inputRef.current;
+    expect(input.focus).not.toHaveBeenCalled();
+    expect(mockNative.attachInput).not.toHaveBeenCalled();
+    await act(async () => configureReady());
+    expect(input.focus).not.toHaveBeenCalled();
+    if (cancel) controls.blur();
+    await act(async () => attachReady());
+    expect(input.focus).toHaveBeenCalledTimes(cancel ? 0 : 1);
+    await act(async () => renderer.unmount());
+  },
+);

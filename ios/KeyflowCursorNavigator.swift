@@ -37,6 +37,13 @@ extension UITextInput where Self: UIView {
       view.inputAccessoryView = accessory
     }
   }
+
+  func keyflowRestoreInputViews(
+    _ surface: UIView?, accessory: UIView?, resigningFocus: Bool
+  ) {
+    if resigningFocus { resignFirstResponder() }
+    keyflowSetInputViews(surface, accessory: accessory)
+  }
 }
 
 /// Keeps the unsnapped drag target independent of the resolved caret position.

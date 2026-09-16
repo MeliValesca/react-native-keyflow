@@ -6,7 +6,7 @@ shift
 keyflow_profile="${KEYFLOW_CI_PROFILE:-full}"
 [[ "$keyflow_profile" == full || "$keyflow_profile" == smoke ]]
 if [[ "$keyflow_profile" == smoke ]]; then
-  set -- testKeyflowCoreInteractions
+  set -- testKeyflowCoreInteractions testFocusedHookUnmountDoesNotShowSystemKeyboard
 elif [[ "${1:-}" == "--shard" ]]; then
   [[ "$#" == 2 ]]
   keyflow_test_names=$(node scripts/ci/ios-interaction-shards.mjs "$2")

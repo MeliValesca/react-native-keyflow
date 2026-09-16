@@ -359,7 +359,8 @@ final class KeyflowKey: UIView {
     face.backgroundColor =
       isSelectionChoice
       ? .clear : UIColor(keyflowHex: isPressed ? theme.pressedKeyBackground : fill)
-    face.layer.cornerRadius = CGFloat(theme.keyCornerRadius)
+    face.layer.cornerRadius = min(
+      max(0, CGFloat(theme.keyCornerRadius)), min(face.bounds.width, face.bounds.height) / 2)
     face.layer.shadowColor = UIColor.black.cgColor
     face.layer.shadowColor = UIColor(keyflowHex: theme.keyShadow).cgColor
     face.layer.shadowOpacity = theme.material == "raised" && !isSelectionChoice ? 1 : 0
@@ -382,7 +383,9 @@ final class KeyflowKey: UIView {
     face.layer.borderColor = sourceTheme.sections?[sectionName].map {
       UIColor(keyflowHex: $0.borderColor).cgColor
     }
-    face.layer.borderWidth = CGFloat(sourceTheme.sections?[sectionName]?.borderWidth ?? 0)
+    face.layer.borderWidth =
+      isSelectionChoice
+      ? 0 : CGFloat(sourceTheme.sections?[sectionName]?.borderWidth ?? 0)
     let size = isText && caption != "space" ? CGFloat(theme.fontSize) : 16
     label.font = theme.font(size: size, keyboard: true, character: caption)
     let previewTheme = sourceTheme.styled("preview")

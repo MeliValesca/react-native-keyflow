@@ -90,7 +90,7 @@ final class KeyflowInputView: ExpoView {
     updateInputContext()
   }
 
-  private func detachInput() {
+  private func detachInput(resigningFocus: Bool = false) {
     guard let field = attachedEditor else { return }
     keyboard.cancelInteractions()
     if let control = field as? UITextField {
@@ -107,7 +107,8 @@ final class KeyflowInputView: ExpoView {
         self, name: UITextView.textDidEndEditingNotification, object: field)
     }
     cursorNavigator.reset()
-    field.keyflowSetInputViews(savedInputView, accessory: savedAccessoryView)
+    field.keyflowRestoreInputViews(
+      savedInputView, accessory: savedAccessoryView, resigningFocus: resigningFocus)
     field.keyflowSetCorrection(savedAutocorrection, spellChecking: savedSpellChecking)
     field.inputAssistantItem.leadingBarButtonGroups = savedLeadingBarButtonGroups
     field.inputAssistantItem.trailingBarButtonGroups = savedTrailingBarButtonGroups
@@ -297,7 +298,7 @@ final class KeyflowInputView: ExpoView {
   }
 
   func cleanup() {
-    detachInput()
+    detachInput(resigningFocus: true)
     removeFromSuperview()
   }
 

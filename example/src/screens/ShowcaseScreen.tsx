@@ -39,6 +39,16 @@ const sections = [
         sample: '↑ · ↓',
         color: '#E9F6F1',
       },
+      {
+        route: 'Teardown',
+        accessibilityLabel: 'Test focused teardown',
+        eyebrow: 'Focus · close · unmount',
+        title: 'Focused teardown',
+        description:
+          'Close a focused preview and unmount its entire Keyflow hook.',
+        sample: '×',
+        color: '#EAF1FF',
+      },
     ],
   },
   {

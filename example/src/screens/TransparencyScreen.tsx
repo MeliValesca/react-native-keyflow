@@ -48,6 +48,7 @@ export function TransparencyScreen() {
     transparentKeyflowTheme,
   );
   const { inputRef: input, keyflowInputProps: bindings } = useKeyflow({
+    autoFocus: true,
     keyboardAppearance: 'light',
     keyflowTheme,
     onKeyboardFrameChange: (next) => {
@@ -233,7 +234,6 @@ export function TransparencyScreen() {
         </ScrollView>
         <ExampleTextInput
           {...bindings}
-          autoFocus
           placeholder="What made today memorable?"
           accessibilityLabel="Transparency comparison input"
           keyboardAppearance="light"

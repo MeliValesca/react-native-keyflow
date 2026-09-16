@@ -687,16 +687,21 @@ final class KeyflowKeyboardView: UIView {
     accentCallout.cornerRadius = tablet ? 8 : 10
     accentCallout.bubble = accentCallout.bounds
     accentCallout.stem = .zero
-    accentCallout.configure(theme.styled("preview"))
+    var previewTheme = theme.styled("preview")
+    previewTheme.strokeWidth = 0
+    accentCallout.configure(previewTheme)
     accentCallout.isHidden = false
     bringSubviewToFront(accentCallout)
 
-    let indicatorSize = CGSize(width: tablet ? 30 : 38, height: tablet ? 52 : 40)
+    let indicatorSize = CGSize(
+      width: min(tablet ? 30 : 38, itemWidth), height: tablet ? 52 : itemHeight)
     accentSelectionIndicator.bounds = CGRect(origin: .zero, size: indicatorSize)
     accentSelectionIndicator.center = CGPoint(
       x: start + selectedOffset,
       y: top + verticalPadding + (CGFloat(selectedRow) + 0.5) * itemHeight)
-    accentSelectionIndicator.layer.cornerRadius = tablet ? 8 : 10
+    let selectionRadius = max(0, CGFloat(theme.styled("keys").keyCornerRadius))
+    accentSelectionIndicator.layer.cornerRadius = min(
+      selectionRadius, min(indicatorSize.width, indicatorSize.height) / 2)
     accentSelectionIndicator.backgroundColor = UIColor(
       keyflowHex: theme.sections?["selection"]?.background ?? theme.selectedKeyBackground)
     accentSelectionIndicator.isHidden = choices.count == 1

@@ -39,6 +39,8 @@ export type KeyflowKeyboardType =
 export type KeyflowOptions = {
   /** Disable native attachment while retaining stable hook order. Default true. */
   enabled?: boolean;
+  /** Focus after native attachment. Use instead of TextInput's autoFocus prop. */
+  autoFocus?: boolean;
   hapticsEnabled?: boolean;
   /** Show Android's 1–0 secondary legends above the top letter row. Default true. */
   showSecondaryKeyLabels?: boolean;
@@ -61,7 +63,7 @@ export type KeyflowOptions = {
 
 export type KeyflowInputProps = Pick<
   TextInputProps,
-  'showSoftInputOnFocus' | 'onFocus' | 'onSelectionChange'
+  'showSoftInputOnFocus' | 'onFocus' | 'onSelectionChange' | 'onLayout'
 > & { ref: RefObject<TextInput | null> };
 
 export type KeyflowResult = {
@@ -117,6 +119,7 @@ export function useKeyflow(options: KeyflowOptions = {}): KeyflowResult {
   const [id] = useState(() => `keyflow-${++nextKeyflowId}`);
   const inputRef = useRef<TextInput>(null);
   const focusRequest = useRef(0);
+  const autoFocusedInput = useRef<TextInput | null>(null);
   const configurationReady = useRef<Promise<void>>(Promise.resolve());
   const blur = useCallback(() => {
     focusRequest.current += 1;
@@ -129,6 +132,7 @@ export function useKeyflow(options: KeyflowOptions = {}): KeyflowResult {
   const [panelHeight, setPanelHeight] = useState(0);
   const {
     enabled = true,
+    autoFocus = false,
     keyboardMode = 'custom',
     keyboardType = 'default',
     keyboardAppearance,
@@ -222,6 +226,7 @@ export function useKeyflow(options: KeyflowOptions = {}): KeyflowResult {
     mounted.current = true;
     return () => {
       mounted.current = false;
+      autoFocusedInput.current = null;
       focusRequest.current += 1;
       attachmentAllowed.current = false;
       clearKeyflowFrame(id);
@@ -305,6 +310,17 @@ export function useKeyflow(options: KeyflowOptions = {}): KeyflowResult {
     onKeyboardModeChange,
   ]);
 
+  const requestAutoFocus = useCallback(() => {
+    const target = inputRef.current;
+    if (!autoFocus || !target || autoFocusedInput.current === target) return;
+    autoFocusedInput.current = target;
+    focus();
+  }, [autoFocus, focus]);
+  useEffect(() => {
+    if (!autoFocus) autoFocusedInput.current = null;
+    requestAutoFocus();
+  }, [autoFocus, requestAutoFocus]);
+
   useEffect(() => {
     if (Platform.OS !== 'android' || panelHeight === 0) return;
     const subscription = BackHandler.addEventListener(
@@ -320,6 +336,7 @@ export function useKeyflow(options: KeyflowOptions = {}): KeyflowResult {
   const keyflowInputProps = useMemo<KeyflowInputProps>(
     () => ({
       ref: inputRef,
+      onLayout: requestAutoFocus,
       // UIKit presents Keyflow as the inputView. Suppressing it here would
       // make React Native install a competing empty inputView on iOS.
       showSoftInputOnFocus:
@@ -337,7 +354,7 @@ export function useKeyflow(options: KeyflowOptions = {}): KeyflowResult {
         });
       },
     }),
-    [attachInput, enabled, id, keyboardMode],
+    [attachInput, enabled, id, keyboardMode, requestAutoFocus],
   );
   if (error) throw error;
   return { keyflowInputProps, inputRef, focus, blur };

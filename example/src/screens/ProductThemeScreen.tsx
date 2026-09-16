@@ -11,6 +11,7 @@ export function ProductThemeScreen() {
   const [text, setText] = useState('');
   const header = useHeaderHeight();
   const { inputRef: input, keyflowInputProps: bindings } = useKeyflow({
+    autoFocus: true,
     keyboardAppearance: 'light',
     keyflowTheme: studioTheme,
   });
@@ -69,7 +70,6 @@ export function ProductThemeScreen() {
         <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
           <ExampleTextInput
             {...bindings}
-            autoFocus
             placeholder="Continue the story…"
             accessibilityLabel="Product theme input"
             keyboardAppearance="light"
