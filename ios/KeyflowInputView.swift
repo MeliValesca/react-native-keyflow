@@ -477,14 +477,7 @@ final class KeyflowInputView: ExpoView {
       cursorNavigator.reset()
       textField.deleteBackward()
     case .submit:
-      // Keep React Native's submitBehavior and onSubmitEditing event pipeline.
-      if let field = textField as? UITextField {
-        if field.delegate?.textFieldShouldReturn?(field) ?? true { field.resignFirstResponder() }
-      } else {
-        // UIKit invokes React Native's text-view delegate for newline insertion,
-        // preserving submitBehavior, filters, and onSubmitEditing.
-        textField.insertText("\n")
-      }
+      dispatchKeyflowSubmit(textField)
     case .dismiss:
       textField.resignFirstResponder()
     case .nextLanguage:

@@ -2,6 +2,36 @@ import XCTest
 import UIKit
 
 final class KeyflowRenderingTests: XCTestCase {
+  func testReturnActionLetsReactNativeChooseSubmitOrNewline() {
+    let field = UITextField()
+    field.text = "message"
+    let fieldDelegate = ReturnFieldDelegate()
+    field.delegate = fieldDelegate
+    dispatchKeyflowSubmit(field)
+    XCTAssertEqual(fieldDelegate.returnCount, 1)
+    XCTAssertEqual(field.text, "message", "A submit-only field must not insert a newline")
+
+    let textView = UITextView()
+    textView.text = "first line"
+    let newlineDelegate = ReturnTextViewDelegate(acceptsNewline: true)
+    textView.delegate = newlineDelegate
+    dispatchKeyflowSubmit(textView)
+    XCTAssertEqual(newlineDelegate.returnCount, 1)
+    XCTAssertEqual(textView.text, "first line\n")
+
+    let submitView = UITextView()
+    submitView.text = "send this"
+    let submitDelegate = ReturnTextViewDelegate(acceptsNewline: false)
+    submitView.delegate = submitDelegate
+    dispatchKeyflowSubmit(submitView)
+    XCTAssertEqual(submitDelegate.returnCount, 1)
+    XCTAssertEqual(
+      submitView.text,
+      "send this",
+      "A multiline submit must be able to reject newline"
+    )
+  }
+
   func testReturnKeySupportsCustomTextAndPortableIcons() throws {
     let keyboard = KeyflowKeyboardView()
     let submit = try XCTUnwrap(
@@ -785,6 +815,31 @@ final class KeyflowRenderingTests: XCTestCase {
     let violations = metrics["violations"] as? [String] ?? ["Missing diagnostics"]
     XCTAssertTrue(violations.isEmpty, "\(type)/\(material)/\(fontSize)/\(radius): \(violations)")
     XCTAssertGreaterThan(metrics["keyCount"] as? Int ?? 0, 10)
+  }
+}
+
+private final class ReturnFieldDelegate: NSObject, UITextFieldDelegate {
+  var returnCount = 0
+
+  func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+    returnCount += 1
+    return false
+  }
+}
+
+private final class ReturnTextViewDelegate: NSObject, UITextViewDelegate {
+  let acceptsNewline: Bool
+  var returnCount = 0
+
+  init(acceptsNewline: Bool) { self.acceptsNewline = acceptsNewline }
+
+  func textView(
+    _ textView: UITextView,
+    shouldChangeTextIn range: NSRange,
+    replacementText text: String
+  ) -> Bool {
+    if text == "\n" { returnCount += 1 }
+    return acceptsNewline
   }
 }
 

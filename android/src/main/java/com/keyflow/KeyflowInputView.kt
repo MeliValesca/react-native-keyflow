@@ -582,22 +582,7 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
   }
 
   private fun submit() {
-    // Keep React Native's submitBehavior and onSubmitEditing event pipeline.
-    if (editor.inputType and android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE != 0) {
-      // Send native Enter events so React Native decides between newline and
-      // submit/blur using its existing submitBehavior listener.
-      editor.dispatchKeyEvent(
-        android.view.KeyEvent(
-          android.view.KeyEvent.ACTION_DOWN,
-          android.view.KeyEvent.KEYCODE_ENTER,
-        )
-      )
-      editor.dispatchKeyEvent(
-        android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_ENTER)
-      )
-    } else {
-      editor.onEditorAction(EditorInfo.IME_ACTION_DONE)
-    }
+    dispatchKeyflowSubmit(editor)
   }
 
   private fun activate(action: String, text: String) {
@@ -668,5 +653,22 @@ class KeyflowInputView(context: Context, private val expoContext: AppContext) :
       "hide" -> blur()
       "submit" -> submit()
     }
+  }
+}
+
+/**
+ * Sends Return through Android's editor APIs so React Native remains responsible for
+ * `submitBehavior`, `onSubmitEditing`, newline insertion, and blur behavior.
+ */
+internal fun dispatchKeyflowSubmit(editor: EditText) {
+  if (editor.inputType and android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE != 0) {
+    editor.dispatchKeyEvent(
+      android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_ENTER)
+    )
+    editor.dispatchKeyEvent(
+      android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_ENTER)
+    )
+  } else {
+    editor.onEditorAction(EditorInfo.IME_ACTION_DONE)
   }
 }
