@@ -327,8 +327,8 @@ Watch the MP4s: [iPhone transitions](docs/media/ios-transitions.mp4) · [Android
 <table>
 <tr><th>iPhone · Hold and slide between accents</th><th>Android phone · Hold and slide between accents</th></tr>
 <tr>
-<td><a href="docs/media/ios-accents.mp4"><img src="docs/media/ios-accents.gif" width="420" alt="iPhone long press opening the current accent row, sliding its focus, and committing the focused accent" /></a></td>
-<td><a href="docs/media/android-accents.mp4"><img src="docs/media/android-accents.gif" width="420" alt="Android long press opening the current accent grid, sliding focus across both rows, and committing the focused accent" /></a></td>
+<td><a href="docs/media/ios-accents.mp4"><img src="docs/media/ios-accents.gif" width="420" alt="Story Studio on iPhone opening the accent row, sliding its rose focus, and committing the focused accent" /></a></td>
+<td><a href="docs/media/android-accents.mp4"><img src="docs/media/android-accents.gif" width="420" alt="Story Studio on Android opening the accent grid, sliding its rose focus across both rows, and committing the focused accent" /></a></td>
 </tr>
 </table>
 

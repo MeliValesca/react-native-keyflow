@@ -5,10 +5,10 @@ The transition and trackpad clips were recorded on 2026-09-15 using the keyboard
 | Files                              | Device and action                                                                                                                                   |
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ios-transitions.mp4` / `.gif`     | Stim-owned iPhone 17, iOS 26.5. Story Studio: two dismissal/refocus cycles                                                                          |
-| `ios-accents.mp4` / `.gif`         | Same iPhone. Native interaction example: hold E, slide the visible focus to another accent, and release to commit it                                |
+| `ios-accents.mp4` / `.gif`         | Same iPhone. Story Studio: hold E, slide the rose focus across several accents, and release to commit the focused choice                            |
 | `ios-trackpad.mp4` / `.gif`        | Same iPhone. Native interaction example: reset the multiline fixture, hold space and move diagonally up/left and down/right; labels fade and return |
 | `android-transitions.mp4` / `.gif` | Stim-owned Android phone emulator, API 36, 1080 × 2400. Native interaction example: submit dismissal and refocus twice                              |
-| `android-accents.mp4` / `.gif`     | Same Android phone. Long press E, traverse both rows with a visible focused choice, and release to commit `É`                                       |
+| `android-accents.mp4` / `.gif`     | Same Android phone. Story Studio: hold E, traverse both popup rows with the rose focus, and release to commit `É`                                   |
 | `android-trackpad.mp4` / `.gif`    | Same Android phone. Reset the multiline fixture, then one continuous space gesture moves horizontally and vertically                                |
 | `studio.jpg`                       | iPad Story Studio keyboard after accent input, captured on 2026-09-13 from `c4183a6`                                                                |
 | `transparent.jpg`                  | Same earlier iPad capture. Transparency example at 35% panel and 70% keys                                                                           |
@@ -22,7 +22,7 @@ The transition and trackpad clips were recorded on 2026-09-15 using the keyboard
 - The multiline text is seeded through the example’s visible Reset Multiline action. The recordings demonstrate movement through that input, not typing of the fixture text.
 - No keys, colors, text, backgrounds or cursor motion were reconstructed. The capture harness is separate from the regression-suite count. Documentation media is outside the npm package’s `files` allowlist.
 
-To reproduce, launch the current example with Stim. Use Compare native interactions on iPhone for accents and multiline trackpad movement; use Story Studio for transitions. On Android, use Long press behavior for accents and Compare native interactions for the other actions. Keep the host display awake for simulator/emulator UI recording.
+To reproduce, launch the current example with Stim. Use Story Studio for accents and transitions on both platforms. Use Compare native interactions for multiline trackpad movement. Keep the host display awake for simulator/emulator UI recording.
 
 ## Default-layout previews
 
