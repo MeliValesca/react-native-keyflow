@@ -15,8 +15,10 @@ import { LayoutsScreen } from './screens/LayoutsScreen';
 import { InteractionScreen } from './screens/InteractionScreen';
 import { LongPressScreen } from './screens/LongPressScreen';
 import { TeardownScreen } from './screens/TeardownScreen';
+import { ReturnActionScreen } from './screens/ReturnActionScreen';
 export type Routes = {
   Teardown: undefined;
+  ReturnActions: undefined;
   Showcase: undefined;
   Transparency: undefined;
   Interactions: undefined;
@@ -88,6 +90,11 @@ export default function App() {
             name="Teardown"
             component={TeardownScreen}
             options={{ title: 'Focused teardown' }}
+          />
+          <Stack.Screen
+            name="ReturnActions"
+            component={ReturnActionScreen}
+            options={{ title: 'Return actions' }}
           />
           <Stack.Screen
             name="LongPress"

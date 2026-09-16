@@ -49,6 +49,16 @@ const sections = [
         sample: '×',
         color: '#EAF1FF',
       },
+      {
+        route: 'ReturnActions',
+        accessibilityLabel: 'Test return key actions',
+        eyebrow: 'Submit · New line',
+        title: 'Return key actions',
+        description:
+          'Compare a custom send key with a multiline Return that inserts a new line.',
+        sample: '➤ ↵',
+        color: '#FFF2E8',
+      },
     ],
   },
   {

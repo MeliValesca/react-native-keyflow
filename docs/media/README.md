@@ -1,14 +1,14 @@
 # README media
 
-All six GIFs and MP4s were recorded again on 2026-09-15 using the keyboard implementation merged in `5bc4916`. They show the current example, including multiline trackpad movement. The themed stills and four default-layout previews retain their earlier provenance below. These are simulator/emulator demonstrations, not a comparison against Apple/Gboard or a claim of physical-device frame pacing.
+The transition and trackpad clips were recorded on 2026-09-15 using the keyboard implementation merged in `5bc4916`. Both accent clips were replaced on 2026-09-16 from the current long-press implementation. The themed stills and four default-layout previews retain their earlier provenance below. These are simulator/emulator demonstrations, not a comparison against Apple/Gboard or a claim of physical-device frame pacing.
 
 | Files                              | Device and action                                                                                                                                   |
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ios-transitions.mp4` / `.gif`     | Stim-owned iPhone 17, iOS 26.5. Story Studio: two dismissal/refocus cycles                                                                          |
-| `ios-accents.mp4` / `.gif`         | Same iPhone. Story Studio: two holds on E, sliding across accent choices                                                                            |
+| `ios-accents.mp4` / `.gif`         | Same iPhone. Native interaction example: hold E, slide the visible focus to another accent, and release to commit it                                |
 | `ios-trackpad.mp4` / `.gif`        | Same iPhone. Native interaction example: reset the multiline fixture, hold space and move diagonally up/left and down/right; labels fade and return |
 | `android-transitions.mp4` / `.gif` | Stim-owned Android phone emulator, API 36, 1080 × 2400. Native interaction example: submit dismissal and refocus twice                              |
-| `android-accents.mp4` / `.gif`     | Same Android phone. Hold E and continuously slide left/right across alternatives                                                                    |
+| `android-accents.mp4` / `.gif`     | Same Android phone. Long press E, traverse both rows with a visible focused choice, and release to commit `É`                                       |
 | `android-trackpad.mp4` / `.gif`    | Same Android phone. Reset the multiline fixture, then one continuous space gesture moves horizontally and vertically                                |
 | `studio.jpg`                       | iPad Story Studio keyboard after accent input, captured on 2026-09-13 from `c4183a6`                                                                |
 | `transparent.jpg`                  | Same earlier iPad capture. Transparency example at 35% panel and 70% keys                                                                           |
@@ -22,7 +22,7 @@ All six GIFs and MP4s were recorded again on 2026-09-15 using the keyboard imple
 - The multiline text is seeded through the example’s visible Reset Multiline action. The recordings demonstrate movement through that input, not typing of the fixture text.
 - No keys, colors, text, backgrounds or cursor motion were reconstructed. The capture harness is separate from the regression-suite count. Documentation media is outside the npm package’s `files` allowlist.
 
-To reproduce, launch the current example with Stim. Open Story Studio on iPhone for accents/transitions, or Compare native interactions for multiline trackpad movement. On Android, use Compare native interactions for all three actions. Keep the host display awake for simulator/emulator UI recording.
+To reproduce, launch the current example with Stim. Use Compare native interactions on iPhone for accents and multiline trackpad movement; use Story Studio for transitions. On Android, use Long press behavior for accents and Compare native interactions for the other actions. Keep the host display awake for simulator/emulator UI recording.
 
 ## Default-layout previews
 
