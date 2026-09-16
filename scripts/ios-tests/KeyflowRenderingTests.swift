@@ -230,7 +230,16 @@ final class KeyflowRenderingTests: XCTestCase {
   }
 
   func testTrackpadReleaseCommitsTheVisibleCaretBoundary() throws {
-    let field = UITextField(frame: CGRect(x: 0, y: 0, width: 280, height: 48))
+    final class PaddedTextField: UITextField {
+      override func textRect(forBounds bounds: CGRect) -> CGRect {
+        super.textRect(forBounds: bounds).inset(
+          by: UIEdgeInsets(top: 0, left: 12, bottom: 0, right: 12))
+      }
+      override func editingRect(forBounds bounds: CGRect) -> CGRect {
+        textRect(forBounds: bounds)
+      }
+    }
+    let field = PaddedTextField(frame: CGRect(x: 0, y: 0, width: 280, height: 48))
     field.font = UIFont.systemFont(ofSize: 20)
     field.text = "beta alpha"
     field.layoutIfNeeded()
@@ -238,13 +247,18 @@ final class KeyflowRenderingTests: XCTestCase {
     field.selectedTextRange = field.textRange(from: end, to: end)
     let cursor = KeyflowCursorNavigator()
     cursor.begin(field)
-    cursor.move(field, translation: CGPoint(x: -20, y: 0))
-
     let afterA = try XCTUnwrap(field.position(from: field.beginningOfDocument, offset: 6))
-    cursor.floatingCaret.center = CGPoint(
-      x: field.caretRect(for: afterA).midX,
-      y: cursor.floatingCaret.center.y
+    let target = field.caretRect(for: afterA)
+    let initial = field.caretRect(for: end)
+    cursor.move(
+      field,
+      translation: CGPoint(x: target.midX - initial.midX, y: target.midY - initial.midY)
     )
+    let selectedBeforeRelease = try XCTUnwrap(field.selectedTextRange)
+    XCTAssertEqual(field.offset(from: field.beginningOfDocument, to: selectedBeforeRelease.start), 6)
+    XCTAssertEqual(
+      cursor.floatingCaret.frame.midX, target.midX + 12, accuracy: 0.01,
+      "A single-line floating caret must include React Native's horizontal text inset")
     cursor.end(field)
 
     XCTAssertEqual(
@@ -254,38 +268,40 @@ final class KeyflowRenderingTests: XCTestCase {
     )
   }
 
-  func testTrackpadReleaseBiasesAmbiguousMidpointInDragDirection() throws {
+  func testTrackpadReleaseDoesNotOverrideTheLastResolvedPosition() throws {
     let field = UITextField(frame: CGRect(x: 0, y: 0, width: 280, height: 48))
     field.font = UIFont.systemFont(ofSize: 20)
     field.text = "beta alpha"
     field.layoutIfNeeded()
     let leading = try XCTUnwrap(field.position(from: field.beginningOfDocument, offset: 2))
     let trailing = try XCTUnwrap(field.position(from: field.beginningOfDocument, offset: 3))
-    let midpoint = (field.caretRect(for: leading).midX + field.caretRect(for: trailing).midX) / 2
+    let leadingX = field.caretRect(for: leading).midX
+    let trailingX = field.caretRect(for: trailing).midX
+    let midpoint = (leadingX + trailingX) / 2
 
     let backward = KeyflowCursorNavigator()
     field.selectedTextRange = field.textRange(from: field.endOfDocument, to: field.endOfDocument)
     backward.begin(field)
-    backward.move(field, translation: CGPoint(x: -20, y: 0))
-    backward.floatingCaret.center.x = midpoint + 0.5
+    let endX = field.caretRect(for: field.endOfDocument).midX
+    backward.move(field, translation: CGPoint(x: midpoint - 0.5 - endX, y: 0))
     backward.end(field)
     XCTAssertEqual(
       field.offset(from: field.beginningOfDocument, to: try XCTUnwrap(field.selectedTextRange).start),
       2,
-      "A backward release just past the midpoint must not snap one boundary to the right"
+      "Release must preserve the leading position resolved by the final move"
     )
 
     let forward = KeyflowCursorNavigator()
     field.selectedTextRange = field.textRange(
       from: field.beginningOfDocument, to: field.beginningOfDocument)
     forward.begin(field)
-    forward.move(field, translation: CGPoint(x: 20, y: 0))
-    forward.floatingCaret.center.x = midpoint - 0.5
+    let beginningX = field.caretRect(for: field.beginningOfDocument).midX
+    forward.move(field, translation: CGPoint(x: midpoint + 0.5 - beginningX, y: 0))
     forward.end(field)
     XCTAssertEqual(
       field.offset(from: field.beginningOfDocument, to: try XCTUnwrap(field.selectedTextRange).start),
       3,
-      "A forward release just before the midpoint must not snap one boundary to the left"
+      "Release must preserve the trailing position resolved by the final move"
     )
   }
 

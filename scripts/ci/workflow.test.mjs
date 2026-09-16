@@ -245,7 +245,7 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
             'testTrackpadCaretFloatsBetweenCharactersAndRestoresOnRelease',
             'testTrackpadSnapsToTheVisuallyNearestCaretInsteadOfTheTrailingHit',
             'testTrackpadReleaseCommitsTheVisibleCaretBoundary',
-            'testTrackpadReleaseBiasesAmbiguousMidpointInDragDirection',
+            'testTrackpadReleaseDoesNotOverrideTheLastResolvedPosition',
             'testTrackpadSelectsTheExactVisibleBoundaryWhenDraggingBackward',
             'testMultilineCursorMovesAcrossVisualLinesAndEmoji',
             'testTrackpadEmitsBothCursorAxes',

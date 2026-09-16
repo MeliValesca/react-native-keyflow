@@ -628,9 +628,9 @@ final class KeyflowQwertyTests: XCTestCase {
   func testKeyflowCoreInteractionsSingleLineReleaseDoesNotSnapRight() throws {
     mode(false)
     reset("Backward Cursor")
-    let selection = try dragBackwardAndReadSelection(distance: -40)
+    let selection = try dragBackwardAndReadSelection(distance: -50)
     capture("keyflow-single-line-release-between-b-and-e")
-    XCTAssertEqual(selection, 2, "The caret must land at be|ta alpha, not bet|a alpha")
+    XCTAssertEqual(selection, 1, "The caret must land at b|eta alpha, not be|ta alpha")
   }
 
   func testTabletKeyflowCoreInteractionsSpaceTrackpadCaretLandingMatchesApple() throws {
