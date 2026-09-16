@@ -2,6 +2,8 @@ import ExpoModulesCore
 import UIKit
 
 final class KeyflowInputView: ExpoView {
+  // Match the horizontal travel of Apple's space-trackpad gesture.
+  private static let horizontalCursorMovementScale: CGFloat = 1.5
   var onKeyflowModeChange: (([String: Any]) -> Void)?
   var onKeyflowFrameChange: (([String: Any]) -> Void)?
   private var lastKeyboardFrame: CGRect?
@@ -465,7 +467,12 @@ final class KeyflowInputView: ExpoView {
         lastSpaceTime = value == " " ? now : 0
       }
     case .moveCursor(let translation):
-      cursorNavigator.move(textField, translation: translation)
+      cursorNavigator.move(
+        textField,
+        translation: CGPoint(
+          x: translation.x * Self.horizontalCursorMovementScale,
+          y: translation.y
+        ))
     case .delete:
       cursorNavigator.reset()
       textField.deleteBackward()

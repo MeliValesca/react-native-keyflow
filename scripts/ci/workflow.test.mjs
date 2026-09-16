@@ -273,6 +273,8 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
             'testMultilineEditorSupportsReturnAndVerticalTrackpad',
             'testRemountedInputUsesTheSelectedKeyboardBeforeTyping',
             'testKeyflowCoreInteractions',
+            'testKeyflowCoreInteractionsSpaceTrackpadCaretLandsBetweenAAndL',
+            'testTabletKeyflowCoreInteractionsSpaceTrackpadCaretLandingMatchesApple',
             'testMultilineRemountPreservesFocus',
           ];
     assert.deepEqual(

@@ -99,14 +99,22 @@ final class KeyflowQwertyTests: XCTestCase {
     }
     // The JS tab can select before UIKit finishes presenting the requested
     // keyboard. Do not cancel that presentation with an immediate reset.
-    if Self.preparedSystemKeyboard { _ = key(["space", " "]) }
+    if Self.preparedSystemKeyboard {
+      if native {
+        let editor = app.textFields.firstMatch.exists
+          ? app.textFields.firstMatch : app.textViews.firstMatch
+        center(editor).tap()
+      }
+      _ = key(["space", " "])
+    }
   }
   func reset(_ name: String) {
     settledKeyboardGeometry = nil
     let previousEditor = app.textViews.firstMatch.exists ? app.textViews.firstMatch : app.textFields.firstMatch
     let previousInputIdentifier = previousEditor.identifier
     app.buttons["Reset \(name)"].tap()
-    let expected = name == "Empty" ? "" : "alpha beta"
+    let expected =
+      name == "Empty" ? "" : name == "Backward Cursor" ? "beta alpha" : "alpha beta"
     let resetFinished = NSPredicate { [self] _, _ in
       app.textFields.firstMatch.exists && app.textFields.firstMatch.identifier != previousInputIdentifier && text == expected
     }
@@ -576,6 +584,63 @@ final class KeyflowQwertyTests: XCTestCase {
       capture(native ? "apple-trackpad" : "keyflow-trackpad")
     }
   }
+
+  private func dragBackwardInsideAlphaAndReadSelection() throws -> Int {
+    let previousState = try readInteractionState()
+    let previousRequest = previousState["diagnosticRequest"] as? Int ?? 0
+    let space = center(key(["space", " "]))
+    space.press(
+      forDuration: 0.7,
+      thenDragTo: space.withOffset(CGVector(dx: -24, dy: 0)),
+      withVelocity: .slow,
+      thenHoldForDuration: 0.1
+    )
+    center(app.buttons["Inspect keyboard state"]).tap()
+    var selection: Int?
+    let freshSelection = NSPredicate { [self] _, _ in
+      guard
+        let raw = app.staticTexts["interaction-state"].label
+          .replacingOccurrences(of: "Diagnostic state: ", with: "")
+          .data(using: .utf8),
+        let state = (try? JSONSerialization.jsonObject(with: raw)) as? [String: Any],
+        (state["diagnosticRequest"] as? Int ?? 0) > previousRequest
+      else { return false }
+      selection = state["selectionStart"] as? Int
+      return selection != nil && selection == state["selectionEnd"] as? Int
+    }
+    XCTAssertEqual(
+      XCTWaiter.wait(
+        for: [XCTNSPredicateExpectation(predicate: freshSelection, object: nil)], timeout: 5),
+      .completed,
+      "The released caret selection must be observable"
+    )
+    return try XCTUnwrap(selection)
+  }
+
+  func testKeyflowCoreInteractionsSpaceTrackpadCaretLandsBetweenAAndL() throws {
+    mode(false)
+    reset("Backward Cursor")
+    let selection = try dragBackwardInsideAlphaAndReadSelection()
+    capture("keyflow-caret-between-a-and-l")
+    XCTAssertEqual(selection, 6, "The caret must land at beta a|lpha, not beta al|pha")
+  }
+
+  func testTabletKeyflowCoreInteractionsSpaceTrackpadCaretLandingMatchesApple() throws {
+    var selections: [Int] = []
+    for native in [true, false] {
+      mode(native)
+      reset("Backward Cursor")
+      let offset = try dragBackwardInsideAlphaAndReadSelection()
+      capture(native ? "apple-caret-inside-alpha" : "keyflow-caret-inside-alpha")
+      print("KEYFLOW_TRACKPAD_SELECTION mode=\(native ? "apple" : "keyflow") offset=\(offset)")
+      selections.append(offset)
+    }
+    XCTAssertEqual(
+      selections[1], selections[0],
+      "Keyflow must land at the same beta alpha caret boundary as Apple for the same drag"
+    )
+  }
+
   func testShiftDragMatchesApple() {
     var expected = ""
     for native in [true, false] {

@@ -17,6 +17,7 @@ const cases = {
   Tone: 'A👋🏽',
   Repeat: 'abcdefghijklmnop',
   Cursor: 'alpha beta',
+  'Backward Cursor': 'beta alpha',
   Multiline: 'alpha\nbeta\ngamma',
 };
 const pause = (ms: number) =>
