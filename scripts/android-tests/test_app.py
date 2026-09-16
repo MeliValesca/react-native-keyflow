@@ -23,6 +23,26 @@ class AppHarnessTests(unittest.TestCase):
                 process.return_value.terminate.assert_called_once()
                 process.return_value.wait.assert_called_once_with(timeout=5)
 
+    def test_reset_rejects_focused_popup_before_screen_coordinates_are_ready(self):
+        state = {'focused': True, 'text': '', 'keyboardMode': 'custom',
+                 'popupVisible': True, 'systemKeyboardVisible': False,
+                 'screenY': 600, 'height': 290, 'width': 412,
+                 'keyFrames': [{'x': 0, 'y': 0, 'width': 40, 'height': 58}]}
+        self.assertFalse(ExampleSuite.reset_metrics_ready(state, '', 'custom'))
+        state['keyFrames'][0].update(x=2, y=650)
+        self.assertTrue(ExampleSuite.reset_metrics_ready(state, '', 'custom'))
+        state['popupVisible'] = False
+        self.assertFalse(ExampleSuite.reset_metrics_ready(state, '', 'custom'))
+
+    def test_reset_requires_selected_mode_text_and_actual_ime_visibility(self):
+        state = {'focused': True, 'text': 'alpha', 'keyboardMode': 'system',
+                 'systemKeyboardVisible': True, 'popupVisible': False, 'keyFrames': []}
+        self.assertTrue(ExampleSuite.reset_metrics_ready(state, 'alpha', 'system'))
+        self.assertFalse(ExampleSuite.reset_metrics_ready(state, '', 'system'))
+        self.assertFalse(ExampleSuite.reset_metrics_ready(state, 'alpha', 'custom'))
+        state['systemKeyboardVisible'] = False
+        self.assertFalse(ExampleSuite.reset_metrics_ready(state, 'alpha', 'system'))
+
     def test_ci_android_runner_does_not_spawn_macos_power_tool(self):
         with patch('app.sys.platform', 'linux'), patch('app.subprocess.Popen') as process, patch('app.ExampleSuite') as suite:
             run_cli('owned-device', 'output')

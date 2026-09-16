@@ -191,10 +191,33 @@ class ExampleSuite:
     def expect_text(self, expected):
         self.wait(self.text, lambda value: value == expected)
 
+    @staticmethod
+    def reset_metrics_ready(metrics, expected, mode):
+        if not metrics.get('focused') or metrics.get('text') != expected or metrics.get('keyboardMode') != mode:
+            return False
+        if mode == 'system':
+            return metrics.get('systemKeyboardVisible') and not metrics.get('popupVisible')
+        keys = metrics.get('keyFrames', [])
+        top, height, width = (metrics.get(key, 0) for key in ('screenY', 'height', 'width'))
+        return bool(metrics.get('popupVisible') and not metrics.get('systemKeyboardVisible')
+                    and top > 0 and height > 0 and width > 0 and keys
+                    and all(key['width'] > 0 and key['height'] > 0 and key['x'] >= 0
+                            and key['y'] >= top and key['x']+key['width'] <= width+1
+                            and key['y']+key['height'] <= top+height+1 for key in keys))
+
     def reset(self, name, expected):
+        previous = self.find('Interaction test input')
+        previous_id = previous.get('resource-id') if previous is not None else None
+        native = self.find('Android native')
+        mode = 'system' if native is not None and native.get('selected') == 'true' else 'custom'
         self.tap(f'Reset {name}')
         self.expect_text(expected)
-        return self.metrics()
+        self.wait(lambda: self.find('Interaction test input'),
+                  lambda node: node is not None and node.get('resource-id') != previous_id and node.get('focused') == 'true')
+        # Complete each diagnostic request before requesting another. A fresh
+        # snapshot can still precede the popup's first layout. Keep the last
+        # snapshot in a timeout error instead of losing its readiness details.
+        return self.wait(self.metrics, lambda metrics: self.reset_metrics_ready(metrics, expected, mode))
 
     @staticmethod
     def fresh_metrics(label, after):
