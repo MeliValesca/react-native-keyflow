@@ -245,6 +245,7 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
             'testTrackpadCaretFloatsBetweenCharactersAndRestoresOnRelease',
             'testTrackpadSnapsToTheVisuallyNearestCaretInsteadOfTheTrailingHit',
             'testTrackpadReleaseCommitsTheVisibleCaretBoundary',
+            'testTrackpadReleaseBiasesAmbiguousMidpointInDragDirection',
             'testTrackpadSelectsTheExactVisibleBoundaryWhenDraggingBackward',
             'testMultilineCursorMovesAcrossVisualLinesAndEmoji',
             'testTrackpadEmitsBothCursorAxes',
@@ -275,6 +276,7 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
             'testRemountedInputUsesTheSelectedKeyboardBeforeTyping',
             'testKeyflowCoreInteractions',
             'testKeyflowCoreInteractionsSpaceTrackpadCaretLandsBetweenAAndL',
+            'testKeyflowCoreInteractionsSingleLineReleaseDoesNotSnapRight',
             'testTabletKeyflowCoreInteractionsSpaceTrackpadCaretLandingMatchesApple',
             'testMultilineRemountPreservesFocus',
           ];

@@ -208,6 +208,41 @@ final class KeyflowRenderingTests: XCTestCase {
     )
   }
 
+  func testTrackpadReleaseBiasesAmbiguousMidpointInDragDirection() throws {
+    let field = UITextField(frame: CGRect(x: 0, y: 0, width: 280, height: 48))
+    field.font = UIFont.systemFont(ofSize: 20)
+    field.text = "beta alpha"
+    field.layoutIfNeeded()
+    let leading = try XCTUnwrap(field.position(from: field.beginningOfDocument, offset: 2))
+    let trailing = try XCTUnwrap(field.position(from: field.beginningOfDocument, offset: 3))
+    let midpoint = (field.caretRect(for: leading).midX + field.caretRect(for: trailing).midX) / 2
+
+    let backward = KeyflowCursorNavigator()
+    field.selectedTextRange = field.textRange(from: field.endOfDocument, to: field.endOfDocument)
+    backward.begin(field)
+    backward.move(field, translation: CGPoint(x: -20, y: 0))
+    backward.floatingCaret.center.x = midpoint + 0.5
+    backward.end(field)
+    XCTAssertEqual(
+      field.offset(from: field.beginningOfDocument, to: try XCTUnwrap(field.selectedTextRange).start),
+      2,
+      "A backward release just past the midpoint must not snap one boundary to the right"
+    )
+
+    let forward = KeyflowCursorNavigator()
+    field.selectedTextRange = field.textRange(
+      from: field.beginningOfDocument, to: field.beginningOfDocument)
+    forward.begin(field)
+    forward.move(field, translation: CGPoint(x: 20, y: 0))
+    forward.floatingCaret.center.x = midpoint - 0.5
+    forward.end(field)
+    XCTAssertEqual(
+      field.offset(from: field.beginningOfDocument, to: try XCTUnwrap(field.selectedTextRange).start),
+      3,
+      "A forward release just before the midpoint must not snap one boundary to the left"
+    )
+  }
+
   func testTrackpadSelectsTheExactVisibleBoundaryWhenDraggingBackward() throws {
     let field = UITextField(frame: CGRect(x: 0, y: 0, width: 280, height: 48))
     field.font = UIFont.systemFont(ofSize: 20)

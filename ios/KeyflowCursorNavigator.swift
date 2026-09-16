@@ -48,7 +48,9 @@ extension UITextInput where Self: UIView {
 
 /// Keeps the unsnapped drag target independent of the resolved caret position.
 final class KeyflowCursorNavigator {
+  private static let releaseBoundaryBias: CGFloat = 1
   private var origin: CGPoint?
+  private var horizontalDirection: CGFloat = 0
   private weak var editor: (UIView & UITextInput)?
   private var originalTint: UIColor?
   let floatingCaret = UIView()
@@ -58,6 +60,7 @@ final class KeyflowCursorNavigator {
     editor = nil
     originalTint = nil
     origin = nil
+    horizontalDirection = 0
   }
 
   func begin(_ input: UIView & UITextInput) {
@@ -101,6 +104,7 @@ final class KeyflowCursorNavigator {
   func move(_ input: UIView & UITextInput, translation: CGPoint) {
     if origin == nil { begin(input) }
     guard let origin else { return }
+    if translation.x != 0 { horizontalDirection = translation.x < 0 ? -1 : 1 }
     let target = CGPoint(x: origin.x + translation.x, y: origin.y + translation.y)
     guard let position = nearestCaretPosition(in: input, to: target) else { return }
     let before = input.caretRect(for: position)
@@ -141,8 +145,15 @@ final class KeyflowCursorNavigator {
     // UITextField may shift its internal text during that layout, while the
     // floating caret is adjusted into the final coordinate space. Resolve once
     // more from the visible caret so releasing cannot reveal an adjacent slot.
+    let horizontalBias =
+      input is UITextField
+      ? horizontalDirection * Self.releaseBoundaryBias
+      : 0
+    let releaseTarget = CGPoint(
+      x: floatingCaret.center.x + horizontalBias,
+      y: floatingCaret.center.y)
     if editor === input, floatingCaret.superview === input,
-      let position = nearestCaretPosition(in: input, to: floatingCaret.center)
+      let position = nearestCaretPosition(in: input, to: releaseTarget)
     {
       input.selectedTextRange = input.textRange(from: position, to: position)
       if let view = input as? UITextView { view.scrollRangeToVisible(view.selectedRange) }

@@ -585,13 +585,13 @@ final class KeyflowQwertyTests: XCTestCase {
     }
   }
 
-  private func dragBackwardInsideAlphaAndReadSelection() throws -> Int {
+  private func dragBackwardAndReadSelection(distance: CGFloat = -24) throws -> Int {
     let previousState = try readInteractionState()
     let previousRequest = previousState["diagnosticRequest"] as? Int ?? 0
     let space = center(key(["space", " "]))
     space.press(
       forDuration: 0.7,
-      thenDragTo: space.withOffset(CGVector(dx: -24, dy: 0)),
+      thenDragTo: space.withOffset(CGVector(dx: distance, dy: 0)),
       withVelocity: .slow,
       thenHoldForDuration: 0.1
     )
@@ -620,9 +620,17 @@ final class KeyflowQwertyTests: XCTestCase {
   func testKeyflowCoreInteractionsSpaceTrackpadCaretLandsBetweenAAndL() throws {
     mode(false)
     reset("Backward Cursor")
-    let selection = try dragBackwardInsideAlphaAndReadSelection()
+    let selection = try dragBackwardAndReadSelection()
     capture("keyflow-caret-between-a-and-l")
     XCTAssertEqual(selection, 6, "The caret must land at beta a|lpha, not beta al|pha")
+  }
+
+  func testKeyflowCoreInteractionsSingleLineReleaseDoesNotSnapRight() throws {
+    mode(false)
+    reset("Backward Cursor")
+    let selection = try dragBackwardAndReadSelection(distance: -40)
+    capture("keyflow-single-line-release-between-b-and-e")
+    XCTAssertEqual(selection, 2, "The caret must land at be|ta alpha, not bet|a alpha")
   }
 
   func testTabletKeyflowCoreInteractionsSpaceTrackpadCaretLandingMatchesApple() throws {
@@ -630,7 +638,7 @@ final class KeyflowQwertyTests: XCTestCase {
     for native in [true, false] {
       mode(native)
       reset("Backward Cursor")
-      let offset = try dragBackwardInsideAlphaAndReadSelection()
+      let offset = try dragBackwardAndReadSelection()
       capture(native ? "apple-caret-inside-alpha" : "keyflow-caret-inside-alpha")
       print("KEYFLOW_TRACKPAD_SELECTION mode=\(native ? "apple" : "keyflow") offset=\(offset)")
       selections.append(offset)
