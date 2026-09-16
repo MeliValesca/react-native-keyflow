@@ -584,8 +584,6 @@ final class KeyflowKeyboardView: UIView {
       }
       holdWork?.cancel()
       if cursorMode && id == heldTouch {
-        let point = touch.location(in: self)
-        onAction?(.moveCursor(CGPoint(x: point.x - cursorOriginX, y: point.y - cursorOriginY)))
         cancelTouches()
         continue
       }

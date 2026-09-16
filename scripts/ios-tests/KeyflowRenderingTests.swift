@@ -228,6 +228,25 @@ final class KeyflowRenderingTests: XCTestCase {
     }
   }
 
+  func testTrackpadReleaseKeepsTheLastVisibleCaretPosition() throws {
+    try withTrackpad { keyboard, touch, _ in
+      var actions: [KeyflowAction] = []
+      keyboard.onAction = { actions.append($0) }
+      touch.point.x += 24
+      keyboard.touchesMoved([touch], with: nil)
+
+      // A finger commonly shifts as it lifts. Releasing must commit the last
+      // visible caret instead of performing a hidden move at this new point.
+      touch.point.x += 12
+      keyboard.touchesEnded([touch], with: nil)
+
+      XCTAssertEqual(
+        actions,
+        [.moveCursor(CGPoint(x: 24, y: 0)), .endCursorMovement]
+      )
+    }
+  }
+
   func testAccentPresentationRespectsHapticsSetting() throws {
     for enabled in [false, true] {
       var pulses = 0

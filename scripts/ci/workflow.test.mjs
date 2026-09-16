@@ -246,6 +246,7 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
             'testTrackpadSnapsToTheVisuallyNearestCaretInsteadOfTheTrailingHit',
             'testMultilineCursorMovesAcrossVisualLinesAndEmoji',
             'testTrackpadEmitsBothCursorAxes',
+            'testTrackpadReleaseKeepsTheLastVisibleCaretPosition',
             'testAccentPresentationRespectsHapticsSetting',
             'testWideAccentUsesOnlyPopupSelectionHighlight',
             'testTeardownResignsBeforeRestoringInputViews',
