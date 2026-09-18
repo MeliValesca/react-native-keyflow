@@ -172,9 +172,12 @@ final class KeyflowInputView: ExpoView {
 
   func updateInputContext() { keyboard.updateContext(beforeCursor()) }
   private let keyboard = KeyflowKeyboardView()
-  // Keep a nonzero transparent input surface. A zero-height input view makes
-  // UIKit report keyboardDidHide on subsequent accessory presentations.
-  private let emptyInput = UIView(frame: CGRect(x: 0, y: 0, width: 390, height: 1))
+  // UIKit requires a nonzero input surface to present the system keyboard on a
+  // later handoff. Keep it below one rendered pixel so transparent accessories
+  // do not leave a visible host row at the bottom of the screen.
+  private static let emptyInputHeight: CGFloat = 0.01
+  private let emptyInput = UIView(
+    frame: CGRect(x: 0, y: 0, width: 390, height: KeyflowInputView.emptyInputHeight))
   private var languagesJSON = ""
   private var languages: [KeyflowLanguage] = [.english]
   private var language = KeyflowLanguage.english
@@ -219,7 +222,7 @@ final class KeyflowInputView: ExpoView {
       self, selector: #selector(refreshLanguages),
       name: UIApplication.willEnterForegroundNotification, object: nil)
     emptyInput.backgroundColor = .clear
-    emptyInput.heightAnchor.constraint(equalToConstant: 1).isActive = true
+    emptyInput.heightAnchor.constraint(equalToConstant: Self.emptyInputHeight).isActive = true
     customInputSurface = keyboard
     customKeyboard = nil
     synchronizeInputSurface()
@@ -418,7 +421,6 @@ final class KeyflowInputView: ExpoView {
     customInputSurface = surface
     customKeyboard = accessory ? keyboard : nil
     synchronizeInputSurface()
-    keyboard.setInputSurfaceHeight(accessory ? 1 : 0)
     if attachedEditor?.isFirstResponder == true { requestInputReload() }
   }
 

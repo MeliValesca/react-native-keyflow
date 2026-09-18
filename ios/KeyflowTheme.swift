@@ -25,6 +25,9 @@ struct KeyflowTheme: Decodable, Equatable {
   var fontFamily: String? = nil
   var fontSize: Double = 22
   var keyCornerRadius: Double = 8
+  var keyboardCornerRadius: Double = 28
+  var keyboardBorderColor = "#00000000"
+  var keyboardBorderWidth: Double = 0
 
   func font(
     size: CGFloat, weight: UIFont.Weight = .regular, keyboard: Bool = false,

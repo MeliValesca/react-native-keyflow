@@ -4,6 +4,9 @@ import { createKeyflowTheme } from 'react-native-keyflow';
 export const studioTheme = createKeyflowTheme({
   keyboard: {
     material: { type: 'raised', depth: 4, shadowColor: '#241D46' },
+    cornerRadius: 28,
+    borderColor: '#C77DFF',
+    borderWidth: 2,
   },
   background: '#F4F0FF',
   keyBackground: '#342B62',

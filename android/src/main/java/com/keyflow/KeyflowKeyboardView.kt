@@ -558,7 +558,16 @@ internal class KeyflowKeyboardView(
   }
 
   private fun styleKeys() {
-    background = GradientDrawable().apply { setColor(theme.background) }
+    background =
+      GradientDrawable().apply {
+        setColor(theme.background)
+        val radius = theme.keyboardRadius * resources.displayMetrics.density
+        cornerRadii = floatArrayOf(radius, radius, radius, radius, 0f, 0f, 0f, 0f)
+        setStroke(
+          (theme.keyboardBorderWidth * resources.displayMetrics.density).toInt(),
+          theme.keyboardBorderColor,
+        )
+      }
     val content = theme.json.optJSONObject("returnKeyContent")
     keys.forEach {
       if (it.action == "submit") {

@@ -48,6 +48,11 @@ export type KeyflowTheme = Readonly<{
   fontSize: number;
   /** 0–24 logical pixels, additionally bounded to half the face size. */
   keyCornerRadius: number;
+  /** Outer keyboard panel radius, 0–48 logical pixels. */
+  keyboardCornerRadius: number;
+  keyboardBorderColor: KeyboardColor;
+  /** Outer keyboard panel border, 0–3 logical pixels. */
+  keyboardBorderWidth: number;
 }>;
 
 export type KeyboardSectionStyle = Readonly<{
@@ -78,6 +83,9 @@ export type KeyflowThemeOverrides = Omit<Partial<KeyflowTheme>, 'material'> & {
     background?: KeyboardColor;
     /** Panel alpha, 0–1. Overrides the background color's alpha without fading keys. */
     backgroundOpacity?: number;
+    cornerRadius?: number;
+    borderColor?: KeyboardColor;
+    borderWidth?: number;
     /** Keycaps, controls, and popups, 0–1. Leaves the panel, text, and icons unchanged. */
     keyOpacity?: number;
     /** All keyboard surfaces, including keycaps and popups, 0–1. */

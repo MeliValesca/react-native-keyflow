@@ -241,7 +241,8 @@ test('device sources contain the proven inventory plus glyph and Shift regressio
       group === 'iosRendering'
         ? [
             'testPanelCoversBottomCornersWithoutExtraOpacity',
-            'testPanelMaskLayoutDoesNotStartImplicitAnimations',
+            'testPhonePanelFillsItsHostAndKeepsNativeTopClearance',
+            'testPanelRadiusAndBorderUseOneContinuousShape',
             'testTrackpadCaretFloatsBetweenCharactersAndRestoresOnRelease',
             'testTrackpadSnapsToTheVisuallyNearestCaretInsteadOfTheTrailingHit',
             'testTrackpadReleaseCommitsTheVisibleCaretBoundary',

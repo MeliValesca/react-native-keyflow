@@ -31,12 +31,15 @@ final class KeyflowKeyboardView: UIView {
     isTablet ? tabletBasis * (landscape ? 0.10252 : 0.07734) : (landscape ? 106.0 / 3.0 : 54)
   }
   private var topInset: CGFloat {
-    isPad ? (landscape ? 2 : 17) : (isTablet ? tabletBasis * (landscape ? 0.0132 : 0.0084) : 4)
+    isPad ? (landscape ? 2 : 17) : (isTablet ? tabletBasis * (landscape ? 0.0132 : 0.0084) : 8)
   }
-  // The native iPad keyboard reserves its input-assistant band above the key
-  // rows. Keyflow leaves it visually empty because predictions are unsupported,
-  // but preserves the band so the keys and app avoidance line up with UIKit.
-  private var tabletAssistantHeight: CGFloat { isTablet && !isPad ? tabletBasis * 0.06595 : 0 }
+  // Leave the native keyboard's compact clearance above iPhone letter rows
+  // without reserving the full QuickType suggestion band. iPad keeps its
+  // measured input-assistant height so its rows align with the system keyboard.
+  private var inputAssistantHeight: CGFloat {
+    guard !isPad else { return 0 }
+    return isTablet ? tabletBasis * 0.06595 : 16
+  }
   func setKeyboardType(_ value: String) {
     let type = ["number-pad", "decimal-pad", "phone-pad"].contains(value) ? value : "default"
     guard keyboardType != type else { return }
@@ -82,10 +85,8 @@ final class KeyflowKeyboardView: UIView {
   // Preserve the native portrait typing position even without dock controls.
   // The dock includes ergonomic clearance above the home-indicator safe area.
   private var bottomInset: CGFloat = 73
-  private var inputSurfaceHeight: CGFloat = 0
   private let panelBackground = UIView()
-  private let panelMask = CAShapeLayer()
-  private let panelBottom = UIView()
+  private let panelShape = CAShapeLayer()
   private var preferredHeight: CGFloat = panelHeight
   private var presentationActive = true
   private var heightConstraint: NSLayoutConstraint!
@@ -99,7 +100,7 @@ final class KeyflowKeyboardView: UIView {
   private var capsLocked = false
   private var lastShiftTime: TimeInterval = 0
   private var rows: [[KeyflowKey]] = []
-  private var typingTop: CGFloat { tabletAssistantHeight + topInset }
+  private var typingTop: CGFloat { inputAssistantHeight + topInset }
   private var holdWork: DispatchWorkItem?
   private var heldTouch: ObjectIdentifier?
   private var heldOrigin: CGPoint = .zero
@@ -146,13 +147,11 @@ final class KeyflowKeyboardView: UIView {
     insertSubview(panelBackground, at: 0)
     panelBackground.isUserInteractionEnabled = false
     panelBackground.isOpaque = false
-    panelBottom.isOpaque = false
-    // Unlike a UIView-backed layer, the standalone mask has default Core
-    // Animation actions. Layout must not start bounds/position/path animations
-    // that keep an accessory presentation (and XCTest quiescence) active.
-    panelMask.actions = ["bounds": NSNull(), "position": NSNull(), "path": NSNull()]
-    panelBackground.layer.mask = panelMask
-    panelBackground.addSubview(panelBottom)
+    panelShape.actions = [
+      "bounds": NSNull(), "position": NSNull(), "path": NSNull(), "fillColor": NSNull(),
+      "strokeColor": NSNull(), "lineWidth": NSNull(),
+    ]
+    panelBackground.layer.addSublayer(panelShape)
     translatesAutoresizingMaskIntoConstraints = false
     heightConstraint = heightAnchor.constraint(equalToConstant: Self.panelHeight)
     heightConstraint.isActive = true
@@ -222,12 +221,6 @@ final class KeyflowKeyboardView: UIView {
     ]
   }
 
-  func setInputSurfaceHeight(_ value: CGFloat) {
-    guard inputSurfaceHeight != value else { return }
-    inputSurfaceHeight = value
-    rebuildKeys()
-  }
-
   func reset() {
     cancelTouches()
     page = isTablet && keyboardType != "default" ? .numbers : .letters
@@ -242,17 +235,19 @@ final class KeyflowKeyboardView: UIView {
 
   override func layoutSubviews() {
     super.layoutSubviews()
-    // Clip only the background siblings, never the keys or callouts.
-    // Round only the panel's top corners. The bottom surface reaches the
-    // screen edges; the device supplies its own physical corner clipping.
+    // Draw the fill and border as one path so a rounded panel always has a
+    // continuous top edge instead of exposing a corner-only host outline.
     UIView.performWithoutAnimation {
       panelBackground.frame = bounds
-      panelBottom.frame = panelBackground.bounds
-      panelMask.frame = panelBackground.bounds
-      panelMask.path =
+      panelShape.frame = panelBackground.bounds
+      let borderWidth = CGFloat(theme.keyboardBorderWidth)
+      let panelBounds = panelBackground.bounds.insetBy(dx: borderWidth / 2, dy: borderWidth / 2)
+      panelShape.path =
         UIBezierPath(
-          roundedRect: panelBackground.bounds, byRoundingCorners: [.topLeft, .topRight],
-          cornerRadii: CGSize(width: 28, height: 28)
+          roundedRect: panelBounds, byRoundingCorners: [.topLeft, .topRight],
+          cornerRadii: CGSize(
+            width: CGFloat(theme.keyboardCornerRadius),
+            height: CGFloat(theme.keyboardCornerRadius))
         ).cgPath
     }
     KeyflowKeyboardLayout(
@@ -297,8 +292,8 @@ final class KeyflowKeyboardView: UIView {
     // the custom pad remains aligned with the system pad in both orientations.
     let tabletPadTopReserve: CGFloat = isTablet && keyboardType != "default" ? 5 : 0
     let targetHeight =
-      tabletAssistantHeight + topInset + 4 * rowHeight + bottomInset + tabletPadTopReserve
-      + (isPad && !landscape ? 1 : 0) - inputSurfaceHeight
+      inputAssistantHeight + topInset + 4 * rowHeight + bottomInset + tabletPadTopReserve
+      + (isPad && !landscape ? 1 : 0)
     let heightChanged = preferredHeight != targetHeight
     preferredHeight = targetHeight
     heightConstraint.constant = presentationActive ? targetHeight : 0
@@ -334,7 +329,9 @@ final class KeyflowKeyboardView: UIView {
       item.theme = popupTheme
     }
     backgroundColor = .clear
-    panelBottom.backgroundColor = UIColor(keyflowHex: theme.background)
+    panelShape.fillColor = UIColor(keyflowHex: theme.background).cgColor
+    panelShape.strokeColor = UIColor(keyflowHex: theme.keyboardBorderColor).cgColor
+    panelShape.lineWidth = CGFloat(theme.keyboardBorderWidth)
     for key in rows.flatMap({ $0 }) {
       if key.action == .submit {
         let fallback = language.base == "fr" ? "retour" : "return"

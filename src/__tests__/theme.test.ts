@@ -96,6 +96,35 @@ test('supports square keys and rejects blank fonts', () => {
   expect(() => createKeyflowTheme({ fontFamily: ' ' })).toThrow(TypeError);
 });
 
+test('resolves and serializes the outer keyboard radius and border', () => {
+  const theme = createKeyflowTheme({
+    keyboard: {
+      cornerRadius: 32,
+      borderColor: '#C77DFF',
+      borderWidth: 2,
+    },
+  });
+  expect(theme).toMatchObject({
+    keyboardCornerRadius: 32,
+    keyboardBorderColor: '#C77DFF',
+    keyboardBorderWidth: 2,
+  });
+  expect(JSON.parse(serializeKeyflowTheme(theme))).toMatchObject({
+    keyboardCornerRadius: 32,
+    keyboardBorderColor: '#C77DFF',
+    keyboardBorderWidth: 2,
+  });
+  expect(() => createKeyflowTheme({ keyboard: { cornerRadius: 49 } })).toThrow(
+    RangeError,
+  );
+  expect(() => createKeyflowTheme({ keyboard: { borderWidth: 4 } })).toThrow(
+    RangeError,
+  );
+  expect(() =>
+    createKeyflowTheme({ keyboard: { borderColor: '#BAD' } }),
+  ).toThrow(TypeError);
+});
+
 test.each([-1, 7, 13, NaN, Infinity])(
   'rejects invalid raised depth %s',
   (depth) => {

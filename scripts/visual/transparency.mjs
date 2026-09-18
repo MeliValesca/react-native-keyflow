@@ -123,6 +123,12 @@ const colors = (png, metrics) => {
       width: metrics.width * 0.1,
       height: 2,
     }),
+    bottom: sampleColor(png, metrics, {
+      x: metrics.width * 0.4,
+      y: metrics.height - 2,
+      width: metrics.width * 0.2,
+      height: 1,
+    }),
   };
 };
 const delta = (a, b) =>
@@ -184,6 +190,10 @@ try {
   assert(
     delta(samples.clear.panel, samples['half-keys'].panel) < 1,
     'Key alpha leaked into the transparent panel',
+  );
+  assert(
+    Math.min(...samples.clear.bottom) < 220,
+    'Transparent iOS input host left a white seam below the keyboard',
   );
   assert(delta(samples.clear.space, samples['half-keys'].space) > 40);
   assert(

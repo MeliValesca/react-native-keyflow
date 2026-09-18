@@ -11,6 +11,7 @@ const surfaceColors = new Set([
   'selectedKeyBackground',
   'pressedBackground',
   'borderColor',
+  'keyboardBorderColor',
   'keyShadow',
 ]);
 const returnKeyIcons = new Set([
@@ -63,7 +64,10 @@ export function serializeKeyflowTheme(
       // keycaps, controls, or popups and follow keyOpacity instead.
       const opacity =
         theme.surfaceOpacity *
-        (this === nativeTheme && key === 'background' ? 1 : theme.keyOpacity);
+        (this === nativeTheme &&
+        (key === 'background' || key === 'keyboardBorderColor')
+          ? 1
+          : theme.keyOpacity);
       if (opacity === 1) return value;
       const alpha = value.length === 9 ? parseInt(value.slice(7), 16) : 255;
       return `${value.slice(0, 7)}${Math.round(alpha * opacity)

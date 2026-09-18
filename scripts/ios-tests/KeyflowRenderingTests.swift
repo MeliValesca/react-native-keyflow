@@ -57,6 +57,57 @@ final class KeyflowRenderingTests: XCTestCase {
     XCTAssertTrue(field.inputView === original)
   }
 
+  func testPhonePanelFillsItsHostAndKeepsNativeTopClearance() throws {
+    try XCTSkipIf(UIDevice.current.userInterfaceIdiom == .pad, "iPhone panel geometry")
+    let keyboard = KeyflowKeyboardView()
+    keyboard.updateViewport(
+      CGSize(width: 390, height: 844),
+      insets: UIEdgeInsets(top: 0, left: 0, bottom: 34, right: 0))
+    keyboard.frame = CGRect(
+      x: 0, y: 0, width: 390, height: keyboard.intrinsicContentSize.height)
+    keyboard.layoutIfNeeded()
+
+    let firstKey = try XCTUnwrap(
+      keyboard.subviews.compactMap { $0 as? KeyflowKey }.first { $0.caption == "Q" })
+    firstKey.layoutIfNeeded()
+    XCTAssertEqual(firstKey.frame.minY, 24, accuracy: 0.01)
+    XCTAssertEqual(firstKey.face.frame.minY, 6, accuracy: 0.01)
+    XCTAssertEqual(keyboard.intrinsicContentSize.height, 313, accuracy: 0.01)
+
+    let panel = try XCTUnwrap(
+      Mirror(reflecting: keyboard).children.first { $0.label == "panelBackground" }?.value
+        as? UIView)
+    XCTAssertEqual(panel.frame, keyboard.bounds)
+    XCTAssertNil(panel.layer.mask, "The panel must not expose a partial rounded outline")
+  }
+
+  func testPanelRadiusAndBorderUseOneContinuousShape() throws {
+    let keyboard = KeyflowKeyboardView()
+    var theme = KeyflowTheme()
+    theme.keyboardCornerRadius = 28
+    theme.keyboardBorderColor = "#C77DFF"
+    theme.keyboardBorderWidth = 2
+    keyboard.theme = theme
+    keyboard.updateViewport(
+      CGSize(width: 390, height: 844),
+      insets: UIEdgeInsets(top: 0, left: 0, bottom: 34, right: 0))
+    keyboard.frame = CGRect(
+      x: 0, y: 0, width: 390, height: keyboard.intrinsicContentSize.height)
+    keyboard.layoutIfNeeded()
+
+    let shape = try XCTUnwrap(
+      Mirror(reflecting: keyboard).children.first { $0.label == "panelShape" }?.value
+        as? CAShapeLayer)
+    XCTAssertEqual(shape.lineWidth, 2)
+    XCTAssertEqual(shape.strokeColor, UIColor(keyflowHex: "#C77DFF").cgColor)
+    XCTAssertEqual(shape.fillColor, UIColor(keyflowHex: theme.background).cgColor)
+    let path = try XCTUnwrap(shape.path)
+    XCTAssertEqual(path.boundingBox.minX, 1, accuracy: 0.01)
+    XCTAssertEqual(path.boundingBox.maxX, 389, accuracy: 0.01)
+    XCTAssertTrue(path.contains(CGPoint(x: 195, y: 1)), "The top border must span the panel")
+    XCTAssertFalse(path.contains(CGPoint(x: 1, y: 1)), "The configured top corner must remain rounded")
+  }
+
   func testAccentPopupOmitsBordersAndUsesKeyRadius() throws {
     let style = KeyflowSectionStyle(
       background: "#FFFF00", color: "#FFFFFF", placeholderColor: "#FFFFFF",
@@ -118,31 +169,6 @@ final class KeyflowRenderingTests: XCTestCase {
   func testPhonePadRaisedSmallRoundedFits() { assertFits("phone-pad", "raised", 12.0, 24.0) }
   func testPhonePadRaisedLargeSquareFits() { assertFits("phone-pad", "raised", 32.0, 0.0) }
   func testPhonePadRaisedLargeRoundedFits() { assertFits("phone-pad", "raised", 32.0, 24.0) }
-
-  func testPanelMaskLayoutDoesNotStartImplicitAnimations() throws {
-    let keyboard = KeyflowKeyboardView()
-    let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
-    let window = scene.map { UIWindow(windowScene: $0) } ?? UIWindow(frame: UIScreen.main.bounds)
-    let controller = UIViewController()
-    window.rootViewController = controller
-    window.makeKeyAndVisible()
-    defer { window.isHidden = true }
-    controller.view.addSubview(keyboard)
-    keyboard.frame = CGRect(x: 0, y: 100, width: 390, height: keyboard.intrinsicContentSize.height)
-    keyboard.layoutIfNeeded()
-    let mask = try XCTUnwrap(keyboard.subviews.compactMap { $0.layer.mask }.first)
-    CATransaction.flush()
-    // UIKit lays the accessory out during an animated keyboard presentation.
-    // Static clipping geometry must not add another animation on every layout.
-    CATransaction.begin()
-    CATransaction.setAnimationDuration(10)
-    keyboard.frame.size.width += 1
-    keyboard.setNeedsLayout()
-    keyboard.layoutIfNeeded()
-    CATransaction.commit()
-    CATransaction.flush()
-    XCTAssertEqual(mask.animationKeys() ?? [], [], "Static mask animations can keep XCTest waiting for the app to idle")
-  }
 
   func testPanelCoversBottomCornersWithoutExtraOpacity() throws {
     for color in ["#163B50", "#163B5080"] {

@@ -196,16 +196,20 @@ Available bases: `lightKeyflowTheme`, `darkKeyflowTheme`, `androidKeyflowTheme`,
 
 Sections are `keys`, `specialKeys`, `deleteKey`, `returnKey`, `preview`, `selection`, and `toolbar`. Each supports these fields where applicable:
 
-| Fields                                                 | Values                                        |
-| ------------------------------------------------------ | --------------------------------------------- |
-| `background`, `color`, `iconColor`, `placeholderColor` | `#RRGGBB` or `#RRGGBBAA`                      |
-| `pressedBackground`, `pressedColor`, `borderColor`     | Same color format, alpha last                 |
-| `borderWidth`                                          | 0–3 logical pixels                            |
-| `cornerRadius`                                         | 0–24 logical pixels, bounded by the face      |
-| `fontFamily`                                           | Registered font name, system alias, or `null` |
-| `fontSize`                                             | 10–32 logical pixels                          |
-| `fontWeight`                                           | `regular`, `medium`, `bold`                   |
-| `iconSize`                                             | 12–28 logical pixels                          |
+| Fields                                                 | Values                        |
+| ------------------------------------------------------ | ----------------------------- |
+| `background`, `color`, `iconColor`, `placeholderColor` | `#RRGGBB` or `#RRGGBBAA`      |
+| `pressedBackground`, `pressedColor`, `borderColor`     | Same color format, alpha last |
+| `borderWidth`                                          | 0–3 logical pixels            |
+
+The `keyboard` section also accepts `cornerRadius` (0–48), `borderColor`, and
+`borderWidth` (0–3) for the outer keyboard panel. The border is drawn as one
+continuous path across the top edge and around both top corners.
+| `cornerRadius` | 0–24 logical pixels, bounded by the face |
+| `fontFamily` | Registered font name, system alias, or `null` |
+| `fontSize` | 10–32 logical pixels |
+| `fontWeight` | `regular`, `medium`, `bold` |
+| `iconSize` | 12–28 logical pixels |
 
 Global typography uses `font: { family, size, weight }`, with size 12–32. Sections inherit global values. Partial section updates preserve their other settings. `color` supplies icon/pressed foregrounds unless explicitly overridden; `fontFamily: null` restores the system font for that section.
 
