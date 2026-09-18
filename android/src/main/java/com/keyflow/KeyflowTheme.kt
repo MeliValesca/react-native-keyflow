@@ -92,6 +92,15 @@ internal data class KeyflowTheme(val json: JSONObject = JSONObject()) {
   val radius
     get() = bounded("keyCornerRadius", 6f, 0f, 24f)
 
+  val keyboardRadius
+    get() = bounded("keyboardCornerRadius", 28f, 0f, 48f)
+
+  val keyboardBorderWidth
+    get() = bounded("keyboardBorderWidth", 0f, 0f, 3f)
+
+  val keyboardBorderColor
+    get() = color("keyboardBorderColor", "#00000000")
+
   val depth
     get() = bounded("keyDepth", 4f, 0f, 6f)
 

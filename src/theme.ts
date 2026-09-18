@@ -5,6 +5,8 @@ import type { KeyflowTheme, KeyflowThemeOverrides } from './types';
 export const keyflowThemeLimits = Object.freeze({
   fontSize: Object.freeze({ min: 12, max: 32 }),
   keyCornerRadius: Object.freeze({ min: 0, max: 24 }),
+  keyboardCornerRadius: Object.freeze({ min: 0, max: 48 }),
+  keyboardBorderWidth: Object.freeze({ min: 0, max: 3 }),
   materialDepth: Object.freeze({ min: 0, max: 6 }),
   surfaceOpacity: Object.freeze({ min: 0, max: 1 }),
   keyOpacity: Object.freeze({ min: 0, max: 1 }),
@@ -33,6 +35,9 @@ export const lightKeyflowTheme: KeyflowTheme = Object.freeze({
   fontFamily: null,
   fontSize: 22,
   keyCornerRadius: 8,
+  keyboardCornerRadius: 28,
+  keyboardBorderColor: '#00000000',
+  keyboardBorderWidth: 0,
 });
 
 export const darkKeyflowTheme: KeyflowTheme = Object.freeze({
@@ -82,6 +87,12 @@ export function createKeyflowTheme(
 
   if (overrides.keyboard?.background !== undefined)
     theme.background = overrides.keyboard.background;
+  if (overrides.keyboard?.cornerRadius !== undefined)
+    theme.keyboardCornerRadius = overrides.keyboard.cornerRadius;
+  if (overrides.keyboard?.borderColor !== undefined)
+    theme.keyboardBorderColor = overrides.keyboard.borderColor;
+  if (overrides.keyboard?.borderWidth !== undefined)
+    theme.keyboardBorderWidth = overrides.keyboard.borderWidth;
   if (
     overrides.keyboard?.material !== undefined &&
     !['flat', 'raised'].includes(overrides.keyboard.material.type)
@@ -117,6 +128,7 @@ export function createKeyflowTheme(
     'specialKeyBackground',
     'actionKeyBackground',
     'actionKeyForeground',
+    'keyboardBorderColor',
   ] as const) {
     if (!/^#(?:[\da-f]{6}|[\da-f]{8})$/i.test(theme[key])) {
       throw new TypeError(`${key} must be #RRGGBB or #RRGGBBAA`);
@@ -141,6 +153,8 @@ export function createKeyflowTheme(
   for (const key of [
     'fontSize',
     'keyCornerRadius',
+    'keyboardCornerRadius',
+    'keyboardBorderWidth',
     'surfaceOpacity',
     'keyOpacity',
   ] as const) {

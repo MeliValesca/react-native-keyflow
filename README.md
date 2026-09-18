@@ -54,7 +54,12 @@ import { KeyflowAvoidingView, useKeyflow } from 'react-native-keyflow';
 import type { KeyflowThemeOverrides } from 'react-native-keyflow';
 
 const keyflowTheme = {
-  keyboard: { background: '#F4F0FF' },
+  keyboard: {
+    background: '#F4F0FF',
+    cornerRadius: 28,
+    borderColor: '#C77DFF',
+    borderWidth: 2,
+  },
   keys: { background: '#342B62', color: '#FFFFFF' },
   specialKeys: { background: '#E05B8D', color: '#FFFFFF' },
 } satisfies KeyflowThemeOverrides;
@@ -140,6 +145,9 @@ import type { KeyflowThemeOverrides } from 'react-native-keyflow';
 export const keyflowTheme = {
   keyboard: {
     background: '#F4F0FF',
+    cornerRadius: 28,
+    borderColor: '#C77DFF',
+    borderWidth: 2,
     material: { type: 'raised', depth: 4, shadowColor: '#241D46' },
   },
   font: { size: 20, weight: 'medium' },
@@ -176,7 +184,7 @@ const { keyflowInputProps } = useKeyflow({
 | `selection`               | Focused accent appearance; also used by Android’s active Caps key |
 | `toolbar`                 | Android clipboard and dismiss controls                            |
 
-Sections support colors, pressed colors, borders, corner radius, fonts, and icon sizing where applicable. `color` supplies the icon and pressed foreground unless explicitly overridden. If you set `iconColor`, remember to give selected states a contrasting icon color too.
+Sections support colors, pressed colors, borders, corner radius, fonts, and icon sizing where applicable. The outer panel uses `keyboard.cornerRadius`, `keyboard.borderColor`, and `keyboard.borderWidth`; its border follows the same rounded top edge on iOS and Android. `color` supplies the icon and pressed foreground unless explicitly overridden. If you set `iconColor`, remember to give selected states a contrasting icon color too.
 
 Set the custom return key to app-owned text or a portable native icon:
 
