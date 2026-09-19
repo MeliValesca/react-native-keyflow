@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.1](https://github.com/MeliValesca/react-native-keyflow/compare/v0.4.0...v0.4.1) (2026-09-18)
+
+### Bug Fixes
+
+- **ios:** align keyboard panel spacing ([8b87828](https://github.com/MeliValesca/react-native-keyflow/commit/8b87828629b9dd6c0bfe21b6ee695ad9a4dfeb41))
+
 ## 0.4.0 (2026-09-16)
 
 - Add customizable Return-key text and icons while preserving the native submit and multiline-newline behavior.
